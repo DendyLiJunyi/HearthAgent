@@ -1,0 +1,8 @@
+[package]
+name = "hearth-agent"
+version = "0.1.0"
+edition = "2021"
+description = "Local-model Hearthstone agent: protocol and offline control loop"
+license = "MIT"
+
+[dependencies]
