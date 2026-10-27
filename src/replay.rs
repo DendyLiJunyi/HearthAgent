@@ -1,7 +1,17 @@
 //! Offline replay of a frozen Power.log prefix. Only GameState's power stream
 //! mutates state. PowerTaskList is an animation stream and must not be replayed twice.
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Read};
+
+pub(crate) const MAX_LINE: usize = 1024 * 1024;
+pub(crate) const MAX_GAME_BYTES: usize = 64 * 1024 * 1024;
+
+pub(crate) fn relevant_line(line: &str) -> bool {
+    [" GameState.DebugPrintPower() - ", " GameState.DebugPrintGame() - ",
+        " GameState.DebugPrintEntityChoices() - ", " GameState.DebugPrintEntitiesChosen() - ",
+        " GameState.DebugPrintOptions() - ", " GameState.SendOption() - ", " GameState.SendChoices() - "]
+        .iter().any(|marker| line.contains(marker))
+}
 
 #[derive(Default, Debug)]
 pub struct Entity {
@@ -18,12 +28,16 @@ impl Entity {
 
 #[derive(Default, Debug)]
 pub struct Game {
+    pub structure: crate::structure::PowerStructure,
+    pub options: crate::options::Options,
     pub entities: BTreeMap<u32, Entity>,
     pub players: BTreeMap<u32, u32>,
     pub game_entity: Option<u32>,
     pub unresolved_references: usize,
     pub malformed_records: usize,
     pub ignored_power_records: usize,
+    /// Fixed labels only: unknown record contents must not expose player names.
+    pub ignored_power_record_types: BTreeMap<&'static str, usize>,
 }
 
 impl Game {
@@ -52,6 +66,23 @@ fn power(line: &str) -> Option<&str> {
 }
 fn tags(text: &str) -> Option<(&str, &str)> {
     Some((field(text, "tag=")?, field(text, "value=")?))
+}
+
+fn ignored_record_type(text: &str) -> &'static str {
+    match text.split_whitespace().next().unwrap_or("") {
+        "BLOCK_START" => "BLOCK_START",
+        "BLOCK_END" => "BLOCK_END",
+        "META_DATA" => "META_DATA",
+        "RESET_GAME" => "RESET_GAME",
+        "SHUFFLE_DECK" => "SHUFFLE_DECK",
+        "SUB_SPELL_START" => "SUB_SPELL_START",
+        "SUB_SPELL_END" => "SUB_SPELL_END",
+        "Source" => "SOURCE",
+        "CACHED_TAG_FOR_DORMANT_CHANGE" => "CACHED_TAG_FOR_DORMANT_CHANGE",
+        token if token.starts_with("Info[") => "INFO",
+        token if token.starts_with("Targets[") => "TARGETS",
+        _ => "OTHER",
+    }
 }
 
 /// Names stay private to replay and are never part of the exported game model.
@@ -137,17 +168,26 @@ fn aliases(lines: &[String], players: &BTreeMap<u32, u32>) -> BTreeMap<String, B
     result
 }
 
+/// Bracket display names may contain spaces and id-like tokens; the actual ID
+/// occurs in the final structured fields, after the display name.
+pub(crate) fn entity_reference(text: &str) -> Option<u32> {
+    let text = text.trim();
+    if let Ok(id) = text.parse() { return Some(id); }
+    let body = text.strip_prefix('[')?.strip_suffix(']')?;
+    body.split_whitespace().rev().find_map(|token| token.strip_prefix("id="))?.parse().ok()
+}
+
 fn resolve(text: &str, game_id: Option<u32>, aliases: &BTreeMap<String, BTreeSet<u32>>) -> Option<u32> {
     let text = text.trim();
     if let Ok(id) = text.parse() { return Some(id); }
     if text == "GameEntity" { return game_id; }
-    if text.starts_with('[') { return number(text, "id="); }
+    if text.starts_with('[') { return entity_reference(text); }
     let ids = aliases.get(text)?;
     (ids.len() == 1).then(|| *ids.iter().next().unwrap())
 }
 
 pub(crate) fn build_game(lines: &[String]) -> Game {
-    let mut game = Game::default();
+    let mut game = Game { options: crate::options::Options::from_lines(lines), ..Game::default() };
     for text in lines.iter().filter_map(|l| power(l)) {
         if text.starts_with("Player EntityID=") {
             if let (Some(id), Some(player)) = (number(text, "EntityID="), number(text, "PlayerID=")) {
@@ -158,6 +198,7 @@ pub(crate) fn build_game(lines: &[String]) -> Game {
     let aliases = aliases(lines, &game.players);
     let mut context = None;
     for text in lines.iter().filter_map(|l| power(l)) {
+        game.structure.observe(text);
         if text.starts_with("tag=") {
             if let (Some(id), Some((tag, value))) = (context, tags(text)) {
                 game.entity(id).tags.insert(tag.into(), value.into());
@@ -192,28 +233,48 @@ pub(crate) fn build_game(lines: &[String]) -> Game {
                     } else { game.malformed_records += 1; }
                 } else { game.unresolved_references += 1; }
             } else { game.malformed_records += 1; }
-        } else { game.ignored_power_records += 1; }
+        } else {
+            game.ignored_power_records += 1;
+            *game.ignored_power_record_types.entry(ignored_record_type(text)).or_default() += 1;
+        }
     }
     game
 }
 
 /// Two-pass offline replay supports aliases learned after earlier tag changes.
 /// This is deliberately not an incremental/live ObservationSource yet.
-pub fn read(mut reader: impl BufRead) -> io::Result<Replay> {
+pub fn read(reader: impl BufRead) -> io::Result<Replay> {
+    read_with_limits(reader, MAX_LINE, MAX_GAME_BYTES)
+}
+
+fn read_with_limits(mut reader: impl BufRead, max_line: usize, max_game_bytes: usize) -> io::Result<Replay> {
     let mut result = Replay::default();
     let mut lines = Vec::new();
     let mut bytes = Vec::new();
     let mut started = false;
+    let mut size = 0;
     loop {
         bytes.clear();
-        if reader.read_until(b'\n', &mut bytes)? == 0 { break; }
+        // Bound allocation even if a corrupt file never supplies a newline.
+        if reader.by_ref().take(max_line as u64 + 2).read_until(b'\n', &mut bytes)? == 0 { break; }
+        let terminated = bytes.ends_with(b"\n");
+        if bytes.len() - usize::from(terminated) > max_line {
+            return Err(io::Error::new(io::ErrorKind::InvalidData, "log line exceeds limit"));
+        }
         if !bytes.ends_with(b"\n") { result.ignored_partial_line = true; break; }
-        let line = std::str::from_utf8(&bytes).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?.trim_end().to_string();
-        if power(&line) == Some("CREATE_GAME") {
-            if started { result.games.push(build_game(&lines)); lines.clear(); }
+        let line = std::str::from_utf8(&bytes[..bytes.len() - 1])
+            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?.trim_end_matches('\r');
+        if power(line) == Some("CREATE_GAME") {
+            if started { result.games.push(build_game(&lines)); lines.clear(); size = 0; }
             started = true;
         }
-        if started { lines.push(line); }
+        if started && relevant_line(line) {
+            size += line.len();
+            if size > max_game_bytes {
+                return Err(io::Error::new(io::ErrorKind::InvalidData, "active game exceeds limit"));
+            }
+            lines.push(line.to_string());
+        }
     }
     if started { result.games.push(build_game(&lines)); }
     Ok(result)
@@ -224,6 +285,11 @@ pub fn print_summary(replay: &Replay) {
     for (i, game) in replay.games.iter().enumerate() {
         println!("Game {}: entities={} turn={:?} step={:?} state={:?}", i + 1, game.entities.len(), game.game_tag("TURN"), game.game_tag("STEP"), game.game_tag("STATE"));
         println!("Diagnostics: unresolved={} malformed={} ignored_power_records={}", game.unresolved_references, game.malformed_records, game.ignored_power_records);
+        println!("Ignored power record types: {:?}", game.ignored_power_record_types);
+        println!("Power structure: {}", game.structure.to_json());
+        println!("Options: packets={} malformed={} unsupported={} latest_stale={:?}",
+            game.options.packets_seen, game.options.malformed_records, game.options.unsupported_records,
+            game.options.latest.as_ref().map(|set| set.stale));
         for (player, id) in &game.players {
             if let Some(entity) = game.entities.get(id) {
                 println!("Player {player}: entity={id} result={:?} current={:?} resources={:?} used={:?}", entity.tag("PLAYSTATE"), entity.tag("CURRENT_PLAYER"), entity.tag("RESOURCES"), entity.tag("RESOURCES_USED"));
@@ -233,4 +299,29 @@ pub fn print_summary(replay: &Replay) {
         }
     }
     println!("Offline diagnostic state only; unknown tags remain unknown. No complete/legal-action snapshot or game input is produced.");
+}
+
+#[cfg(test)]
+mod limit_tests {
+    use super::*;
+    use std::io::Cursor;
+
+    #[test]
+    fn terminated_and_unterminated_lines_obey_same_bound() {
+        for bytes in [b"123456".as_slice(), b"123456\n", b"12345\r\n"] {
+            assert_eq!(read_with_limits(Cursor::new(bytes), 5, 100).unwrap_err().kind(), io::ErrorKind::InvalidData);
+        }
+        assert!(read_with_limits(Cursor::new(b"12345\n"), 5, 100).is_ok());
+        assert!(read_with_limits(Cursor::new(b"1234\r\n"), 5, 100).is_ok());
+        assert!(read_with_limits(Cursor::new(b"12345"), 5, 100).unwrap().ignored_partial_line);
+    }
+
+    #[test]
+    fn game_limit_counts_only_relevant_lines_and_resets_each_game() {
+        let create = "D 0 GameState.DebugPrintPower() - CREATE_GAME\n";
+        let log = create.to_string() + "unrelated line\n" + create;
+        assert_eq!(read_with_limits(Cursor::new(log), 100, create.len() - 1).unwrap().games.len(), 2);
+        let log = create.to_string() + "D 0 GameState.DebugPrintPower() - BLOCK_END\n";
+        assert_eq!(read_with_limits(Cursor::new(log), 100, create.len() - 1).unwrap_err().kind(), io::ErrorKind::InvalidData);
+    }
 }

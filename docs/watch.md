@@ -27,6 +27,7 @@ cargo run --offline -- watch D:\Hearthstone --once
 - `generation`：日志替换、截断、新会话等导致读取状态重置时增加。
 - `pending_bytes`：尚未有换行符结束的字节，可能含半个 UTF-8 字符。
 - `game`：实体 ID、当前已知卡牌 ID、`last_observed_tags`、玩家编号到实体 ID 的映射和解析诊断。
+- `game.board`：带未知值与隐藏区域遮蔽的类型化视图；`game.power_structure`：嵌套边界及元数据序列诊断。详见 [局面字段](board.md)。
 - `perspective=null`：尚未确认我方，不能把玩家 1 自动当作我方。
 - `complete=false`、`actionable=false`：当前所有观测都不能直接交给执行器。规则、动画稳定性、合法动作和隐藏信息时效尚未验证。
 
@@ -69,7 +70,7 @@ cargo run --offline -- watch D:\Hearthstone --once
 
 ## 验证
 
-25 项测试通过，监听相关 12 项覆盖：
+最初监听相关 12 项覆盖：
 
 1. 分批行与跨批次 UTF-8 字符。
 2. 追加只更新一次、空闲不重复发布。
@@ -83,6 +84,8 @@ cargo run --offline -- watch D:\Hearthstone --once
 10. 换牌提交名称通过选择 ID 关联，修复早期事件并保持更新顺序；实时与离线结果一致。
 11. 普通选择及不匹配选择 ID 不推断玩家身份。
 12. 选择 ID 对应多个玩家时不推断提交名称归属。
+
+后续加入忽略类型统计、结构诊断、类型化局面、选项包与失效标记、回放内存限制、CLI 错误处理和逐字节实时/离线等价验证；当前测试共 49 项。
 
 另对本机真实日志执行 `watch --once`，并用独立 JSON 解析器读取输出，确认协议可解析。实际读取结果随游戏进程继续写入变化；没有执行自动打牌。
 

@@ -66,3 +66,12 @@ fn arbitrary_choices_do_not_identify_the_player_from_targets() {
         + &line("TAG_CHANGE Entity=Unknown tag=RESOURCES value=7");
     assert_eq!(replay::read(Cursor::new(log)).unwrap().games[0].unresolved_references, 1);
 }
+
+#[test]
+fn bracket_entity_id_is_not_taken_from_display_name() {
+    let log = base() + &line("FULL_ENTITY - Creating ID=42 CardID=TEST_CARD")
+        + &line("TAG_CHANGE Entity=[entityName=Name id=999 spoof id=42 zone=PLAY player=1] tag=ATK value=5");
+    let parsed = replay::read(Cursor::new(log)).unwrap();
+    assert_eq!(parsed.games[0].entities[&42].tag("ATK"), Some("5"));
+    assert!(!parsed.games[0].entities.contains_key(&999));
+}

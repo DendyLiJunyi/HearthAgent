@@ -12,6 +12,7 @@ cd D:\HearthAgent
 cargo run --offline -- demo
 cargo run --offline -- inspect D:\Hearthstone
 cargo run --offline -- watch D:\Hearthstone
+cargo run --offline -- replay <Power.log路径> --json
 cargo test --offline
 cargo clippy --offline --all-targets -- -D warnings
 ```
@@ -24,6 +25,10 @@ cargo clippy --offline --all-targets -- -D warnings
 - `src/policy.rs`：`PolicyBackend` 和选择第一个候选的演示基线。
 - `src/executor.rs`：`ActionExecutor` 和仅记录的执行器。
 - `src/controller.rs`：过期决策、交互阶段和重复尝试检查。
+- `src/board.rs`：公开局面类型化与隐藏区域遮蔽，缺失属性保持未知。
+- `src/structure.rs`：Power block/sub-spell 边界和 metadata 序列诊断。
+- `src/export.rs`：实时/离线共用的 JSON 序列化。
+- `src/options.rs`：日志选项包、目标和失效标记，尚不作为可执行候选。
 - `tests/control_loop.rs`：状态变化、超时重试、阶段约束等测试。
 - `docs/design.md`：完整初步设计。
 - `docs/roadmap.md`：后续接入顺序。
@@ -34,6 +39,6 @@ cargo clippy --offline --all-targets -- -D warnings
 
 当前尝试账本只保存在内存中。进程重启后，未来的真实适配器必须重新同步；一次状态只能提交一次动作，超时需通过重新观察和协调恢复，不能用改决策 ID 的方式重发。
 
-尚待确定模型名称、输入形式、推理接口与硬件配置。Rust 核心不依赖 Hearthbuddy/GreyMagic DLL，未复制其反编译实现。
+用户已指定 Laya；模型与本地服务接口调查见 [Laya 接入](docs/laya.md)。尚未安装模型或验证炉石决策能力。Rust 核心不依赖 Hearthbuddy/GreyMagic DLL，未复制其反编译实现。
 
 日志接入说明：[实时监听](docs/watch.md)，[第三局验证](docs/third-game-validation.md)。

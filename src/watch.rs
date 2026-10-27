@@ -6,35 +6,11 @@ use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 use crate::replay::{self, Game};
+use crate::replay::{MAX_GAME_BYTES, MAX_LINE};
+use crate::export::game_json;
+pub use crate::export::quote;
 
 const MAX_BATCH: u64 = 4 * 1024 * 1024;
-const MAX_LINE: usize = 1024 * 1024;
-const MAX_GAME_BYTES: usize = 64 * 1024 * 1024;
-
-pub fn quote(text: &str) -> String {
-    let mut out = String::from("\"");
-    for ch in text.chars() {
-        match ch {
-            '"' => out.push_str("\\\""), '\\' => out.push_str("\\\\"),
-            '\n' => out.push_str("\\n"), '\r' => out.push_str("\\r"), '\t' => out.push_str("\\t"),
-            c if c < '\u{20}' => out.push_str(&format!("\\u{:04x}", c as u32)),
-            c => out.push(c),
-        }
-    }
-    out.push('"'); out
-}
-
-fn game_json(game: &Game) -> String {
-    let entities = game.entities.values().map(|e| {
-        let tags = e.tags.iter().map(|(k,v)| format!("{}:{}", quote(k), quote(v))).collect::<Vec<_>>().join(",");
-        format!("{{\"id\":{},\"card_id\":{},\"last_observed_tags\":{{{}}}}}", e.id,
-            e.card_id.as_deref().map(quote).unwrap_or("null".into()), tags)
-    }).collect::<Vec<_>>().join(",");
-    let players = game.players.iter().map(|(p,e)| format!("{{\"player_id\":{p},\"entity_id\":{e}}}")).collect::<Vec<_>>().join(",");
-    format!("{{\"game_entity\":{},\"players\":[{}],\"entities\":[{}],\"unresolved_references\":{},\"malformed_records\":{},\"ignored_power_records\":{}}}",
-        game.game_entity.map(|v| v.to_string()).unwrap_or("null".into()), players, entities,
-        game.unresolved_references, game.malformed_records, game.ignored_power_records)
-}
 
 /// Current game only; names remain in private parsing buffers, never JSON.
 #[derive(Default)]
@@ -59,9 +35,7 @@ impl StreamState {
                 self.lines.clear(); self.size = 0; self.game_number += 1;
                 changed = true;
             }
-            let relevant = [" GameState.DebugPrintPower() - ", " GameState.DebugPrintGame() - ", " GameState.DebugPrintEntityChoices() - ", " GameState.DebugPrintEntitiesChosen() - "]
-                .iter().any(|marker| line.contains(marker));
-            if self.game_number > 0 && relevant {
+            if self.game_number > 0 && replay::relevant_line(line) {
                 self.size += line.len();
                 if self.size > MAX_GAME_BYTES { return Err(io::Error::new(io::ErrorKind::InvalidData, "active game exceeds limit")); }
                 self.lines.push(line.to_string()); changed = true;

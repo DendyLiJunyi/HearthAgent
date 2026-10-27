@@ -1,7 +1,7 @@
 use crate::protocol::{Decision, Observation};
 
 /// A local inference service adapter implements this boundary.
-/// Transport, model format and timeouts will be chosen after model identification.
+/// `laya::LayaPolicy` provides a loopback HTTP adapter with bounded requests.
 pub trait PolicyBackend {
     fn decide(&mut self, observation: &Observation) -> Result<Decision, String>;
 }

@@ -171,3 +171,51 @@ fn invalid_utf8_is_an_error_not_a_fabricated_state() {
 fn json_escapes_control_characters() {
     assert_eq!(quote("a\"\\\n\u{1}中"), "\"a\\\"\\\\\\n\\u0001中\"");
 }
+
+#[test]
+fn ignored_record_counts_match_replay_without_exporting_record_contents() {
+    let tmp = Temp::new();
+    let path = tmp.session("Hearthstone_2026_10_27_10_00_00");
+    let log = game(1)
+        + &line("BLOCK_START BlockType=TRIGGER Entity=PrivatePlayer#123")
+        + &line("META_DATA Meta=TARGET Data=0 InfoCount=1")
+        + &line("Info[0] = PrivatePlayer#123")
+        + &line("BLOCK_END")
+        + &line("PrivatePlayer#123 unrecognized record")
+        + "D 00:00:00 PowerTaskList.DebugPrintPower() - BLOCK_END\n"
+        + &line("TAG_CHANGE Entity=GameEntity");
+    fs::write(&path, &log).unwrap();
+    let replay = hearth_agent::replay::read(std::io::Cursor::new(&log)).unwrap();
+    let mut stream = StreamState::default();
+    for chunk in log.as_bytes().chunks(7) { stream.feed(chunk).unwrap(); }
+    let live = stream.game().unwrap();
+    assert_eq!(live.ignored_power_record_types, replay.games[0].ignored_power_record_types);
+    assert_eq!(live.ignored_power_records, 5);
+    assert_eq!(live.ignored_power_record_types.values().sum::<usize>(), 5);
+    assert_eq!(live.malformed_records, 1);
+    let json = Watcher::new(&tmp.0).poll().unwrap().unwrap();
+    assert!(json.contains("\"ignored_power_record_types\":{\"BLOCK_END\":1,\"BLOCK_START\":1,\"INFO\":1,\"META_DATA\":1,\"OTHER\":1}"));
+    assert!(!json.contains("PrivatePlayer"));
+    stream.feed(game(2).as_bytes()).unwrap();
+    assert!(stream.game().unwrap().ignored_power_record_types.is_empty());
+}
+
+#[test]
+fn option_only_append_emits_and_state_update_marks_options_stale() {
+    let tmp = Temp::new();
+    let path = tmp.session("Hearthstone_2026_10_27_10_00_00");
+    fs::write(&path, game(1)).unwrap();
+    let mut watcher = Watcher::new(&tmp.0);
+    assert!(watcher.poll().unwrap().unwrap().contains("\"latest\":null"));
+    let options = "D 0 GameState.DebugPrintOptions() - id=7\nD 0 GameState.DebugPrintOptions() - option 0 type=END_TURN mainEntity= error=NONE errorParam=\n";
+    OpenOptions::new().append(true).open(&path).unwrap().write_all(options.as_bytes()).unwrap();
+    let snapshot = watcher.poll().unwrap().unwrap();
+    assert!(snapshot.contains("\"stale\":false"));
+    assert!(snapshot.contains("\"kind\":\"END_TURN\""));
+    assert!(watcher.poll().unwrap().is_none());
+    OpenOptions::new().append(true).open(&path).unwrap()
+        .write_all(line("TAG_CHANGE Entity=GameEntity tag=TURN value=2").as_bytes()).unwrap();
+    assert!(watcher.poll().unwrap().unwrap().contains("\"stale\":true"));
+    fs::write(&path, game(3)).unwrap();
+    assert!(watcher.poll().unwrap().unwrap().contains("\"latest\":null"));
+}

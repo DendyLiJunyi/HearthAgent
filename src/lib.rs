@@ -1,7 +1,12 @@
 pub mod controller;
+pub mod board;
 pub mod diagnostics;
 pub mod executor;
+pub mod export;
 pub mod policy;
+pub mod laya;
+pub mod options;
 pub mod protocol;
 pub mod replay;
+pub mod structure;
 pub mod watch;
