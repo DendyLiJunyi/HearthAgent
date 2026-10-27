@@ -2,14 +2,16 @@
 
 Rust 主控 + 可替换本地模型后端的炉石 Agent 工程起点。
 
-当前版本可运行离线示例：结构化观测 → 基线决策 → 快照与阶段校验 → 记录执行 → 阻止重复操作。
-**尚未连接炉石或本地模型，不会读取游戏进程或发送鼠标输入。**
+当前版本支持本地环境检测、Power.log 离线回放、实时 JSON 观测，以及离线决策与执行保护演示。
+**通过游戏日志读取观测，尚未连接本地模型，不会读取游戏进程内存或发送鼠标输入。实时观测仍标记为不可执行。**
 
 ## 运行
 
 ```powershell
 cd D:\HearthAgent
 cargo run --offline -- demo
+cargo run --offline -- inspect D:\Hearthstone
+cargo run --offline -- watch D:\Hearthstone
 cargo test --offline
 cargo clippy --offline --all-targets -- -D warnings
 ```
@@ -33,3 +35,5 @@ cargo clippy --offline --all-targets -- -D warnings
 当前尝试账本只保存在内存中。进程重启后，未来的真实适配器必须重新同步；一次状态只能提交一次动作，超时需通过重新观察和协调恢复，不能用改决策 ID 的方式重发。
 
 尚待确定模型名称、输入形式、推理接口与硬件配置。Rust 核心不依赖 Hearthbuddy/GreyMagic DLL，未复制其反编译实现。
+
+日志接入说明：[实时监听](docs/watch.md)，[第三局验证](docs/third-game-validation.md)。

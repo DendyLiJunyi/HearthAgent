@@ -5,8 +5,67 @@ use hearth_agent::protocol::{Action, Candidate, Observation, Phase, Snapshot};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("watch") {
+        if args.len() < 2 || args.len() > 3 || (args.len() == 3 && args[2] != "--once") {
+            eprintln!("Usage: hearth-agent watch <installation-directory> [--once]");
+            std::process::exit(2);
+        }
+        let mut watcher = hearth_agent::watch::Watcher::new(&args[1]);
+        use std::io::Write;
+        let stdout = std::io::stdout();
+        let mut out = stdout.lock();
+        loop {
+            match watcher.poll() {
+                Ok(Some(json)) => {
+                    if writeln!(out, "{json}").and_then(|_| out.flush()).is_err() { break; }
+                }
+                Ok(None) => {},
+                Err(error) => {
+                    let _ = writeln!(out, "{{\"protocol_version\":1,\"status\":\"error\",\"complete\":false,\"actionable\":false,\"game\":null}}");
+                    let _ = out.flush();
+                    eprintln!("Watch stopped; invalidate prior snapshot: {error}");
+                    std::process::exit(1);
+                }
+            }
+            if args.len() == 3 { break; }
+            std::thread::sleep(std::time::Duration::from_millis(500));
+        }
+        return;
+    }
+    if args.first().map(String::as_str) == Some("replay") {
+        if args.len() != 2 {
+            eprintln!("Usage: hearth-agent replay <Power.log>");
+            std::process::exit(2);
+        }
+        use std::io::Read;
+        let result = (|| -> std::io::Result<_> {
+            let file = std::fs::File::open(&args[1])?;
+            let length = file.metadata()?.len();
+            hearth_agent::replay::read(std::io::BufReader::new(file.take(length)))
+        })();
+        match result {
+            Ok(replay) => hearth_agent::replay::print_summary(&replay),
+            Err(error) => { eprintln!("Replay failed: {error}"); std::process::exit(1); }
+        }
+        return;
+    }
+    if args.first().map(String::as_str) == Some("inspect") {
+        if args.len() > 2 {
+            eprintln!("Usage: hearth-agent inspect [installation-directory]");
+            std::process::exit(2);
+        }
+        let root = args.get(1).map(String::as_str).unwrap_or("D:/Hearthstone");
+        match hearth_agent::diagnostics::inspect(std::path::Path::new(root)) {
+            Ok(report) => hearth_agent::diagnostics::print_report(&report),
+            Err(error) => {
+                eprintln!("Inspection failed: {error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     if args != ["demo"] {
-        println!("Hearth Agent 0.1.0\nUsage: cargo run -- demo\nOffline demo only. Game and model adapters are not connected.");
+        println!("Hearth Agent 0.1.0\nCommands: demo; inspect [directory]; replay <Power.log>; watch <directory> [--once]\nRead-only observation and offline demo; no game input is sent.");
         if !args.is_empty() { std::process::exit(2); }
         return;
     }
