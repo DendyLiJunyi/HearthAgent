@@ -1,5 +1,7 @@
 # Laya 接入调查（2026-10-27）
 
+> 后续实施已完成：本机安装了隔离运行时和固定 revision 模型，已验证 CUDA 与 Rust HTTP 调用。以下调查段落保留当时记录；最新运行方式与结果见 [接入验收](laya-validation.md)。模型未通过与 Rust 输入一致的合成斩杀样例，不能视为具备对局能力。
+
 用户已指定模型家族为 Laya。核验的官方模型为 [convaiinnovations/laya](https://huggingface.co/convaiinnovations/laya)，源码为 [NandhaKishorM/laya](https://github.com/NandhaKishorM/laya)。本次仅调查接口和本机硬件，没有安装运行时、下载权重或执行推理。
 
 ## 已核验

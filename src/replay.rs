@@ -28,6 +28,8 @@ impl Entity {
 
 #[derive(Default, Debug)]
 pub struct Game {
+    pub choices: crate::choices::Choices,
+    pub perspective: crate::perspective::Perspective,
     pub structure: crate::structure::PowerStructure,
     pub options: crate::options::Options,
     pub entities: BTreeMap<u32, Entity>,
@@ -196,8 +198,13 @@ pub(crate) fn build_game(lines: &[String]) -> Game {
         } else if text.starts_with("GameEntity EntityID=") { game.game_entity = number(text, "EntityID="); }
     }
     let aliases = aliases(lines, &game.players);
+    game.choices = crate::choices::Choices::from_lines(lines, |reference| resolve(reference, game.game_entity, &aliases));
     let mut context = None;
-    for text in lines.iter().filter_map(|l| power(l)) {
+    for line in lines {
+        if let Some(player) = crate::perspective::submitted_player(&game, line) {
+            game.perspective.record(player);
+        }
+        let Some(text) = power(line) else { continue; };
         game.structure.observe(text);
         if text.starts_with("tag=") {
             if let (Some(id), Some((tag, value))) = (context, tags(text)) {
@@ -248,11 +255,30 @@ pub fn read(reader: impl BufRead) -> io::Result<Replay> {
 }
 
 fn read_with_limits(mut reader: impl BufRead, max_line: usize, max_game_bytes: usize) -> io::Result<Replay> {
+    read_with_visitor(&mut reader, max_line, max_game_bytes, None)
+}
+
+/// Visit each observed option packet before a following record can invalidate
+/// it. The callback receives only the prefix available then, never future aliases
+/// or player identity. `boundary` is false at EOF: neither value proves that the
+/// client emitted every option. Returned games retain the normal replay result.
+pub fn visit_option_windows(
+    reader: impl BufRead, visitor: &mut dyn FnMut(usize, &Game, bool),
+) -> io::Result<Replay> {
+    read_with_visitor(reader, MAX_LINE, MAX_GAME_BYTES, Some(visitor))
+}
+
+type WindowVisitor<'a> = Option<&'a mut dyn FnMut(usize, &Game, bool)>;
+
+fn read_with_visitor(
+    mut reader: impl BufRead, max_line: usize, max_game_bytes: usize, mut visitor: WindowVisitor<'_>,
+) -> io::Result<Replay> {
     let mut result = Replay::default();
     let mut lines = Vec::new();
     let mut bytes = Vec::new();
     let mut started = false;
     let mut size = 0;
+    let mut option_window = false;
     loop {
         bytes.clear();
         // Bound allocation even if a corrupt file never supplies a newline.
@@ -264,6 +290,13 @@ fn read_with_limits(mut reader: impl BufRead, max_line: usize, max_game_bytes: u
         if !bytes.ends_with(b"\n") { result.ignored_partial_line = true; break; }
         let line = std::str::from_utf8(&bytes[..bytes.len() - 1])
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?.trim_end_matches('\r');
+        let is_option = line.contains(" GameState.DebugPrintOptions() - ");
+        let new_packet = line.split_once(" GameState.DebugPrintOptions() - ")
+            .is_some_and(|(_, text)| text.trim_start().starts_with("id="));
+        if option_window && (!is_option || new_packet) {
+            if let Some(visit) = &mut visitor { visit(result.games.len() + 1, &build_game(&lines), true); }
+            option_window = false;
+        }
         if power(line) == Some("CREATE_GAME") {
             if started { result.games.push(build_game(&lines)); lines.clear(); size = 0; }
             started = true;
@@ -274,7 +307,11 @@ fn read_with_limits(mut reader: impl BufRead, max_line: usize, max_game_bytes: u
                 return Err(io::Error::new(io::ErrorKind::InvalidData, "active game exceeds limit"));
             }
             lines.push(line.to_string());
+            if is_option { option_window = true; }
         }
+    }
+    if option_window {
+        if let Some(visit) = &mut visitor { visit(result.games.len() + 1, &build_game(&lines), false); }
     }
     if started { result.games.push(build_game(&lines)); }
     Ok(result)

@@ -5,6 +5,43 @@ use hearth_agent::protocol::{Action, Candidate, Observation, Phase, Snapshot};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("advise") {
+        if args.len() < 2 || args.len() > 3 {
+            eprintln!("Usage: hearth-agent advise <Power.log> [http://127.0.0.1:8791]");
+            std::process::exit(2);
+        }
+        let endpoint = args.get(2).map(String::as_str).unwrap_or("http://127.0.0.1:8791");
+        match advise(&args[1], endpoint) {
+            Ok(report) => println!("{report}"),
+            Err(error) => { eprintln!("Advice failed: {error}"); std::process::exit(1); }
+        }
+        return;
+    }
+    if args.first().map(String::as_str) == Some("deck") {
+        if args.len() > 2 {
+            eprintln!("Usage: hearth-agent deck [deck-code]");
+            std::process::exit(2);
+        }
+        let profile = hearth_agent::deck::target_profile();
+        let code = args.get(1).map(String::as_str).unwrap_or_else(|| profile["deck_code"].as_str().expect("target deck code"));
+        match hearth_agent::deck::decode(code) {
+            Ok(deck) => println!("{}", serde_json::json!({"deck": deck, "legality_verified": false,
+                "target_profile": if code == profile["deck_code"].as_str().unwrap() { profile } else { serde_json::Value::Null }})),
+            Err(error) => { eprintln!("Deck decode failed: {error}"); std::process::exit(1); }
+        }
+        return;
+    }
+    if args.first().map(String::as_str) == Some("review") {
+        if args.len() != 2 {
+            eprintln!("Usage: hearth-agent review <Power.log>");
+            std::process::exit(2);
+        }
+        if let Err(error) = review(&args[1]) {
+            eprintln!("Review failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.first().map(String::as_str) == Some("laya-demo") {
         if args.len() > 2 {
             eprintln!("Usage: hearth-agent laya-demo [http://127.0.0.1:8791]");
@@ -86,7 +123,7 @@ fn main() {
         return;
     }
     if args != ["demo"] {
-        println!("Hearth Agent 0.1.0\nCommands: demo; laya-demo [loopback-url]; inspect [directory]; replay <Power.log> [--json]; watch <directory> [--once]\nRead-only observation and offline demo; no game input is sent.");
+        println!("Hearth Agent 0.1.0\nCommands: demo; deck [deck-code]; laya-demo [loopback-url]; inspect [directory]; replay <Power.log> [--json]; review <Power.log>; advise <Power.log> [loopback-url]; watch <directory> [--once]\nRead-only observation and offline demo; no game input is sent.");
         if !args.is_empty() { std::process::exit(2); }
         return;
     }
@@ -109,6 +146,72 @@ fn main() {
     let outcome = controller.execute(&observation, &decision, &mut executor).expect("valid demo");
     println!("Outcome: {outcome:?} (no game input sent)");
     println!("Duplicate: {:?}", controller.execute(&observation, &decision, &mut executor));
+}
+
+fn review(path: &str) -> std::io::Result<()> {
+    use std::io::{Read, Write};
+    let file = std::fs::File::open(path)?;
+    let length = file.metadata()?.len();
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+    let mut output_error = None;
+    hearth_agent::replay::visit_option_windows(std::io::BufReader::new(file.take(length)),
+        &mut |number, game, boundary| {
+            if output_error.is_some() { return; }
+            let preview = hearth_agent::preview::ActionPreview::from_game(game);
+            let board = hearth_agent::export::board_json(&hearth_agent::board::BoardView::from_game(game));
+            let line = format!("{{\"protocol_version\":1,\"source\":\"offline_option_window\",\"game_number\":{number},\"actionable\":false,\"complete\":false,\"packet_boundary_observed\":{boundary},\"board\":{board},\"action_preview\":{}}}",
+                serde_json::to_string(&preview).expect("preview contains only JSON-safe values"));
+            if let Err(error) = writeln!(out, "{line}") { output_error = Some(error); }
+        })?;
+    match output_error { Some(error) => Err(error), None => Ok(()) }
+}
+
+fn advise(path: &str, endpoint: &str) -> Result<serde_json::Value, String> {
+    use std::io::Read;
+    use hearth_agent::laya::{LayaConfig, LayaPolicy};
+    let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let length = file.metadata().map_err(|e| e.to_string())?.len();
+    let replay = hearth_agent::replay::read(std::io::BufReader::new(file.take(length))).map_err(|e| e.to_string())?;
+    let mut report = serde_json::json!({"source":"frozen_log_advice", "actionable":false,
+        "complete":false, "game_input_sent":false, "model_query_attempted":false,
+        "game_number":replay.games.len(), "ignored_partial_line":replay.ignored_partial_line});
+    let Some(game) = replay.games.last() else {
+        report["status"] = "no_game".into();
+        return Ok(report);
+    };
+    let preview = hearth_agent::preview::ActionPreview::from_game(game);
+    report["action_preview"] = serde_json::to_value(&preview).map_err(|e| e.to_string())?;
+    if replay.ignored_partial_line || preview.candidates.is_empty() {
+        report["status"] = "blocked".into();
+        return Ok(report);
+    }
+    let snapshot = Snapshot {
+        session_id: format!("frozen-advice-{}-{}-{}", std::process::id(), replay.games.len(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()),
+        revision: preview.observed_power_sequence.unwrap_or(0), phase: Phase::OurTurn, complete: false,
+    };
+    let observation = Observation { snapshot, candidates: preview.candidates.iter().map(|c| Candidate {
+        id: c.id.clone(), action: c.action.clone(),
+    }).collect() };
+    let board: serde_json::Value = serde_json::from_str(&hearth_agent::export::board_json(
+        &hearth_agent::board::BoardView::from_game(game))).map_err(|e| e.to_string())?;
+    let mut policy = LayaPolicy::new(endpoint, LayaConfig::default())?;
+    policy.bind_state(&observation.snapshot, serde_json::json!({"observation":board,
+        "candidate_coverage_complete":false, "omitted":preview.omitted}))?;
+    report["model_query_attempted"] = true.into();
+    match policy.advise(&observation) {
+        Ok(advice) => {
+            report["status"] = "advice".into();
+            report["advice"] = serde_json::to_value(advice).map_err(|e| e.to_string())?;
+            report["model_report"] = serde_json::to_value(policy.last_report).map_err(|e| e.to_string())?;
+        }
+        Err(error) => {
+            report["status"] = "no_advice".into();
+            report["reason"] = error.into();
+        }
+    }
+    Ok(report)
 }
 
 fn laya_demo(endpoint: &str) -> Result<(), String> {

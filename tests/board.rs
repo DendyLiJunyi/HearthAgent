@@ -119,3 +119,22 @@ fn moving_public_card_to_hand_removes_identity_from_projection() {
     assert!(!json.contains("REVEALED_CARD"));
     assert!(json.contains("\"cost\":null"));
 }
+
+#[test]
+fn payment_resource_never_defaults_to_mana_and_is_redacted_in_hidden_zones() {
+    let mut game = game();
+    game.entities.insert(10, entity(10, Some("JAM_028"), &[
+        ("ZONE", "PLAY"), ("CONTROLLER", "1"), ("CARDTYPE", "MINION"), ("COST", "5")]));
+    assert_eq!(BoardView::from_game(&game).players[0].in_play[0].cost_resource, None);
+    for (tag, expected) in [("0", "mana"), ("1", "health"), ("2", "armor"), ("3", "corpses"),
+        ("4", "opponents_health"), ("5", "alt_tavern_coin")] {
+        game.entities.get_mut(&10).unwrap().tags.insert("CARD_ALTERNATE_COST".into(), tag.into());
+        assert_eq!(BoardView::from_game(&game).players[0].in_play[0].cost_resource, Some(expected));
+    }
+    game.entities.get_mut(&10).unwrap().tags.insert("CARD_ALTERNATE_COST".into(), "future".into());
+    assert_eq!(BoardView::from_game(&game).invalid_fields, 1);
+    game.entities.get_mut(&10).unwrap().tags.insert("ZONE".into(), "HAND".into());
+    let board = BoardView::from_game(&game);
+    assert_eq!(board.players[0].hand[0].cost_resource, None);
+    assert_eq!(board.invalid_fields, 0);
+}

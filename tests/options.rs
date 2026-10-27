@@ -101,3 +101,40 @@ fn streaming_option_packets_match_replay_at_each_line_boundary() {
         assert_eq!(state.game().unwrap().options, parse(&prefix).options);
     }
 }
+
+#[test]
+fn suboption_targets_keep_their_own_parent_and_restart_indices() {
+    let log = packet()
+        + &option("subOption 0 entity=100 error=NONE errorParam=")
+        + &option("target 0 entity=101 error=NONE errorParam=")
+        + &option("subOption 1 entity=200 error=REQ_ENOUGH_MANA errorParam=")
+        + &option("target 0 entity=201 error=REQ_TARGET_NOT_ENEMY errorParam=");
+    let game = parse(&log);
+    assert_eq!(game.options.malformed_records, 0);
+    assert_eq!(game.options.unsupported_records, 0);
+    let main = &game.options.latest.as_ref().unwrap().options[1];
+    assert_eq!(main.targets[0].entity_id, 13);
+    assert_eq!(main.sub_options[0].targets[0].entity_id, 101);
+    assert_eq!(main.sub_options[1].targets[0].entity_id, 201);
+    let json: serde_json::Value = serde_json::from_str(&game.options.to_json()).unwrap();
+    assert_eq!(json["latest"]["options"][1]["sub_options"][0]["entity_id"], 100);
+    let mut state = StreamState::default();
+    for byte in log.bytes() { state.feed(&[byte]).unwrap(); }
+    assert_eq!(state.game().unwrap().options, game.options);
+}
+
+#[test]
+fn invalid_suboptions_and_targets_do_not_silently_repair_packet_validity() {
+    for bad in ["subOption 2 entity=100 error=NONE", "subOption 0 entity=missing error=NONE",
+        "target 2 entity=100 error=NONE", "futureRow 0 entity=100"] {
+        let log = packet() + &option(bad) + &option("target 1 entity=999 error=NONE");
+        let game = parse(&log);
+        let set = game.options.latest.as_ref().unwrap();
+        assert!(set.malformed_records + set.unsupported_records > 0);
+        assert_eq!(set.options[1].targets.len(), 1);
+        let replacement = parse(&(log + &option("id=8")));
+        assert!(replacement.options.malformed_records + replacement.options.unsupported_records > 0);
+        let set = replacement.options.latest.unwrap();
+        assert_eq!(set.malformed_records + set.unsupported_records, 0);
+    }
+}

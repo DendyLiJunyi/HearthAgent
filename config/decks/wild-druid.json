@@ -1,0 +1,264 @@
+{
+  "name": "User Wild Druid",
+  "mode": "wild",
+  "class": "DRUID",
+  "deck_code": "AAEBAZarBAbNuwL1/ALw1AOK4AOV4AOTsgcM/K0D/60D7PUDr4AErsAEzuQFsPoF2f8F/Y0GydAGreIGqq8HAAA=",
+  "hero": {
+    "dbfId": 71062,
+    "id": "HERO_06g",
+    "name": "Storm's Rage Malfurion"
+  },
+  "source": {
+    "url": "https://api.hearthstonejson.com/v1/latest/enUS/cards.json",
+    "retrieved_date": "2026-10-27",
+    "sha256": "06e61ce4afd2bce9c2ff53de8c2c1cc0080df27aa4743c8eee3d63894d10dc04",
+    "note": "Static metadata snapshot; live costs and transformations must come from observations."
+  },
+  "cards": [
+    {
+      "dbfId": 40397,
+      "id": "CFM_614",
+      "name": "Mark of the Lotus",
+      "cost": 1,
+      "type": "SPELL",
+      "count": 1,
+      "required_features": [
+        "board_buff"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 48757,
+      "id": "BOT_434",
+      "name": "Flobbidinous Floop",
+      "cost": 4,
+      "type": "MINION",
+      "count": 1,
+      "required_features": [
+        "hand_transformation",
+        "last_played_minion",
+        "placement"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 60016,
+      "id": "SCH_427",
+      "name": "Lightning Bloom",
+      "cost": 0,
+      "type": "SPELL",
+      "count": 1,
+      "required_features": [
+        "mana_refresh",
+        "overload"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 61450,
+      "id": "DMF_058",
+      "name": "Solar Eclipse",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 1,
+      "required_features": [
+        "next_spell_double_cast"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 61461,
+      "id": "DMF_060",
+      "name": "Umbral Owl",
+      "cost": 7,
+      "type": "MINION",
+      "count": 1,
+      "required_features": [
+        "dynamic_cost",
+        "rush",
+        "spell_history",
+        "placement"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 121107,
+      "id": "END_009",
+      "name": "Splintered Reality",
+      "cost": 4,
+      "type": "SPELL",
+      "count": 1,
+      "required_features": [
+        "token_summon",
+        "treant_death_history"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 55036,
+      "id": "DRG_314",
+      "name": "Aeroponics",
+      "cost": 5,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "dynamic_cost",
+        "card_draw",
+        "treant_board_count"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 55039,
+      "id": "DRG_311",
+      "name": "Treenforcements",
+      "cost": 1,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "choose_one",
+        "targeted_buff",
+        "taunt",
+        "token_summon"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 64236,
+      "id": "SW_422",
+      "name": "Sow the Soil",
+      "cost": 1,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "choose_one",
+        "board_buff",
+        "token_summon"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 65583,
+      "id": "DED_002",
+      "name": "Moonlit Guidance",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "discover",
+        "deck_copy",
+        "conditional_draw"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 73774,
+      "id": "TSC_654",
+      "name": "Aquatic Form",
+      "cost": 0,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "dredge",
+        "dynamic_cost",
+        "conditional_draw"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 94798,
+      "id": "JAM_028",
+      "name": "Blood Treant",
+      "cost": 5,
+      "type": "MINION",
+      "count": 2,
+      "required_features": [
+        "health_cost",
+        "placement"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 97584,
+      "id": "TTN_950",
+      "name": "Forest Seedlings",
+      "cost": 1,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "hand_transformation",
+        "turn_history",
+        "token_summon"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 98265,
+      "id": "TTN_954",
+      "name": "Cultivation",
+      "cost": 8,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "dynamic_cost",
+        "treant_summon_history",
+        "board_buff"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 100093,
+      "id": "TTN_955",
+      "name": "Lifebinder's Gift",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "choose_one",
+        "random_generation",
+        "hand_cost_change"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 108617,
+      "id": "MIS_301",
+      "name": "Overgrown Beanstalk",
+      "cost": 3,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "token_summon",
+        "treant_board_count",
+        "card_draw"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 110893,
+      "id": "GDB_852",
+      "name": "Arkonite Revelation",
+      "cost": 1,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "card_draw",
+        "hand_cost_change"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 120746,
+      "id": "TIME_701",
+      "name": "Waveshaping",
+      "cost": 1,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "discover",
+        "deck_reorder"
+      ],
+      "simulation_supported": false
+    }
+  ]
+}

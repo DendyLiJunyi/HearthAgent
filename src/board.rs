@@ -1,5 +1,5 @@
-//! A neutral, typed projection of last-observed tags. No legal moves are inferred.
-//! Hidden-zone cards are opaque even when an earlier reveal left cached tags.
+//! Typed last-observed tags. No legal moves or fresh/complete state are inferred.
+//! Only an identified local player's hand may expose observed card information.
 use crate::replay::{Entity, Game};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -10,6 +10,7 @@ pub struct CardView<'a> {
     pub card_id: Option<&'a str>,
     pub card_type: Option<&'static str>,
     pub cost: Option<u32>,
+    pub cost_resource: Option<&'static str>,
     pub attack: Option<u32>,
     pub health: Option<u32>,
     pub damage: Option<u32>,
@@ -36,6 +37,8 @@ pub struct PlayerView<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct BoardView<'a> {
+    pub perspective: Option<u32>,
+    pub perspective_conflicting: bool,
     pub players: Vec<PlayerView<'a>>,
     pub active_player: Option<u32>,
     pub turn: Option<u32>,
@@ -58,12 +61,12 @@ fn flag(entity: &Entity, key: &str, invalid: &mut usize) -> Option<bool> {
     }
 }
 
-fn card<'a>(entity: &'a Entity, visible: bool, invalid: &mut usize) -> CardView<'a> {
+fn card<'a>(entity: &'a Entity, public_zone: bool, visible: bool, invalid: &mut usize) -> CardView<'a> {
     let mut view = CardView {
         entity_id: entity.id,
         position: number(entity, "ZONE_POSITION", invalid).filter(|p| *p > 0),
-        public_zone: visible,
-        card_id: None, card_type: None, cost: None, attack: None, health: None,
+        public_zone,
+        card_id: None, card_type: None, cost: None, cost_resource: None, attack: None, health: None,
         damage: None, armor: None, durability: None, exhausted: None,
     };
     if visible {
@@ -75,6 +78,13 @@ fn card<'a>(entity: &'a Entity, visible: bool, invalid: &mut usize) -> CardView<
             Some("ENCHANTMENT") => Some("ENCHANTMENT"), _ => None,
         };
         view.cost = number(entity, "COST", invalid);
+        view.cost_resource = match entity.tag("CARD_ALTERNATE_COST") {
+            None => None,
+            Some("0") => Some("mana"), Some("1") => Some("health"),
+            Some("2") => Some("armor"), Some("3") => Some("corpses"),
+            Some("4") => Some("opponents_health"), Some("5") => Some("alt_tavern_coin"),
+            Some(_) => { *invalid += 1; None },
+        };
         view.attack = number(entity, "ATK", invalid);
         view.health = number(entity, "HEALTH", invalid);
         view.damage = number(entity, "DAMAGE", invalid);
@@ -87,6 +97,7 @@ fn card<'a>(entity: &'a Entity, visible: bool, invalid: &mut usize) -> CardView<
 
 impl<'a> BoardView<'a> {
     pub fn from_game(game: &'a Game) -> Self {
+        let perspective = game.perspective.player_id();
         let mut invalid = 0;
         let turn = game.game_entity.and_then(|id| game.entities.get(&id))
             .and_then(|entity| number(entity, "TURN", &mut invalid));
@@ -115,9 +126,13 @@ impl<'a> BoardView<'a> {
             let controller = number(entity, "CONTROLLER", &mut invalid);
             let Some(player) = players.iter_mut().find(|p| Some(p.player_id) == controller) else { continue; };
             match entity.tag("ZONE") {
-                Some("PLAY") => player.in_play.push(card(entity, true, &mut invalid)),
-                Some("HAND") => player.hand.push(card(entity, false, &mut invalid)),
-                Some("GRAVEYARD") => player.graveyard.push(card(entity, true, &mut invalid)),
+                Some("PLAY") => player.in_play.push(card(entity, true, true, &mut invalid)),
+                Some("HAND") => {
+                    let visible = perspective == Some(player.player_id)
+                        && entity.card_id.as_deref().is_some_and(|id| !id.is_empty());
+                    player.hand.push(card(entity, false, visible, &mut invalid));
+                },
+                Some("GRAVEYARD") => player.graveyard.push(card(entity, true, true, &mut invalid)),
                 Some("DECK") => player.observed_deck_count += 1,
                 Some("SECRET") => player.observed_secret_count += 1,
                 _ => {},
@@ -133,6 +148,7 @@ impl<'a> BoardView<'a> {
         let active_player = if current.len() == 1 && players.iter().all(|p| p.current_player.is_some()) {
             Some(current[0].player_id)
         } else { None };
-        Self { players, active_player, turn, invalid_fields: invalid }
+        Self { perspective, perspective_conflicting: game.perspective.conflicting,
+            players, active_player, turn, invalid_fields: invalid }
     }
 }

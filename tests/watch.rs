@@ -24,6 +24,32 @@ impl Temp {
 impl Drop for Temp { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 
 #[test]
+fn local_perspective_is_emitted_and_reset_on_new_game_and_session() {
+    let tmp = Temp::new();
+    let path = tmp.session("Hearthstone_2026_10_27_10_00_00");
+    let initial = game(1) + &line("tag=STATE value=RUNNING") + &line("tag=STEP value=MAIN_ACTION")
+        + &line("Player EntityID=2 PlayerID=1") + &line("tag=CURRENT_PLAYER value=1")
+        + &line("Player EntityID=3 PlayerID=2") + &line("tag=CURRENT_PLAYER value=0")
+        + "D 0 GameState.SendOption() - selectedOption=0 selectedSubOption=-1 selectedTarget=0 selectedPosition=0\n";
+    fs::write(&path, &initial).unwrap();
+    let mut watcher = Watcher::new(&tmp.0);
+    let json: serde_json::Value = serde_json::from_str(&watcher.poll().unwrap().unwrap()).unwrap();
+    assert_eq!(json["perspective"], 1);
+    assert_eq!(json["game"]["board"]["perspective"], 1);
+    OpenOptions::new().append(true).open(&path).unwrap().write_all(game(2).as_bytes()).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&watcher.poll().unwrap().unwrap()).unwrap();
+    assert!(json["perspective"].is_null());
+    assert!(json["game"]["board"]["perspective"].is_null());
+    OpenOptions::new().append(true).open(&path).unwrap().write_all(initial.as_bytes()).unwrap();
+    let json: serde_json::Value = serde_json::from_str(&watcher.poll().unwrap().unwrap()).unwrap();
+    assert_eq!(json["perspective"], 1);
+    tmp.session("Hearthstone_2026_10_27_11_00_00");
+    let json: serde_json::Value = serde_json::from_str(&watcher.poll().unwrap().unwrap()).unwrap();
+    assert!(json["perspective"].is_null());
+    assert!(json["game"].is_null());
+}
+
+#[test]
 fn partial_lines_and_utf8_are_buffered_across_polls() {
     let mut state = StreamState::default();
     let text = game(1) + &line("TAG_CHANGE Entity=GameEntity tag=NOTE value=测试");

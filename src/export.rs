@@ -26,10 +26,10 @@ fn string(value: Option<&str>) -> String {
 fn cards_json(cards: &[CardView<'_>]) -> String {
     let cards = cards.iter().map(|c| format!(concat!(
         "{{\"entity_id\":{},\"position\":{},\"public_zone\":{},\"card_id\":{},",
-        "\"card_type\":{},\"cost\":{},\"attack\":{},\"health\":{},\"damage\":{},",
+        "\"card_type\":{},\"cost\":{},\"cost_resource\":{},\"attack\":{},\"health\":{},\"damage\":{},",
         "\"armor\":{},\"durability\":{},\"exhausted\":{}}}"),
         c.entity_id, optional(c.position), c.public_zone, string(c.card_id),
-        string(c.card_type), optional(c.cost), optional(c.attack), optional(c.health),
+        string(c.card_type), optional(c.cost), string(c.cost_resource), optional(c.attack), optional(c.health),
         optional(c.damage), optional(c.armor), optional(c.durability), optional(c.exhausted)))
         .collect::<Vec<_>>().join(",");
     format!("[{cards}]")
@@ -45,8 +45,9 @@ pub fn board_json(board: &BoardView<'_>) -> String {
         optional(p.resources), optional(p.resources_used), optional(p.temporary_resources),
         cards_json(&p.in_play), cards_json(&p.hand), cards_json(&p.graveyard),
         p.observed_deck_count, p.observed_secret_count)).collect::<Vec<_>>().join(",");
-    format!(concat!("{{\"perspective\":null,\"complete\":false,\"actionable\":false,",
+    format!(concat!("{{\"perspective\":{},\"perspective_source\":{},\"perspective_conflicting\":{},\"complete\":false,\"actionable\":false,",
         "\"turn\":{},\"active_player\":{},\"invalid_fields\":{},\"players\":[{}]}}"),
+        optional(board.perspective), string(board.perspective.map(|_| "local_main_action_submission")), board.perspective_conflicting,
         optional(board.turn), optional(board.active_player), board.invalid_fields, players)
 }
 
@@ -62,8 +63,10 @@ pub fn game_json(game: &Game) -> String {
         .map(|(kind, count)| format!("{}:{}", quote(kind), count)).collect::<Vec<_>>().join(",");
     format!(concat!("{{\"game_entity\":{},\"players\":[{}],\"entities\":[{}],",
         "\"unresolved_references\":{},\"malformed_records\":{},\"ignored_power_records\":{},",
-        "\"ignored_power_record_types\":{{{}}},\"power_structure\":{},\"board\":{},\"logged_options\":{}}}"),
+        "\"ignored_power_record_types\":{{{}}},\"power_structure\":{},\"board\":{},\"logged_options\":{},\"action_preview\":{},\"logged_choices\":{}}}"),
         optional(game.game_entity), players, entities, game.unresolved_references,
         game.malformed_records, game.ignored_power_records, ignored_types,
-        game.structure.to_json(), board_json(&BoardView::from_game(game)), game.options.to_json())
+        game.structure.to_json(), board_json(&BoardView::from_game(game)), game.options.to_json(),
+        serde_json::to_string(&crate::preview::ActionPreview::from_game(game)).expect("preview contains only JSON-safe values"),
+        serde_json::to_string(&game.choices).expect("choices contain only JSON-safe values"))
 }

@@ -16,7 +16,7 @@ pub enum Phase {
     Finished,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub enum Action {
     PlayCard { source: u32, target: Option<u32> },
     Attack { source: u32, target: u32 },

@@ -13,7 +13,9 @@ cargo run --offline -- watch D:\Hearthstone --once
 
 | 字段 | 含义 |
 |---|---|
-| `perspective` | 始终 null；没有把玩家 1 推断为我方 |
+| `perspective` | 通过本地普通回合动作提交识别的玩家编号；证据不足或冲突时为 null |
+| `perspective_source` | 已识别时为 `local_main_action_submission`，否则 null |
+| `perspective_conflicting` | 同一局出现不同本地提交者时为 true；该局视角不再恢复 |
 | `complete` / `actionable` | 始终 false |
 | `turn` | TURN 的非负整数；缺失/无效为 null |
 | `active_player` | 所有玩家的 CURRENT_PLAYER 都已知且恰好一个为 1 时，给出该玩家编号；不是“我方”，也不说明对局仍在进行 |
@@ -25,7 +27,7 @@ cargo run --offline -- watch D:\Hearthstone --once
 区域列表：
 
 - `in_play`：PLAY 区域，含英雄、随从、武器、英雄技能等，不等同于随从列表。
-- `hand`：只保留实体编号和位置；双方手牌均隐藏身份和属性。
+- `hand`：视角未知时只保留实体编号和位置；识别后，仅我方且有已观测卡牌 ID 的手牌公开最后观测的身份和属性，对手手牌仍遮蔽。我方手牌的 `public_zone` 仍为 false。
 - `graveyard`：GRAVEYARD 区域的历史观测。
 - `observed_deck_count` / `observed_secret_count`：目前归并到 DECK / SECRET 的实体数量，不保证是实际总数，也不输出卡牌身份。
 
@@ -33,11 +35,23 @@ cargo run --offline -- watch D:\Hearthstone --once
 
 缺失值不填 0。数字只接受 u32 范围，布尔标签只接受 0/1。没有 DAMAGE 不等于零伤害，没有 EXHAUSTED 不等于可攻击。
 
+`cost_resource` 仅根据已观测 CARD_ALTERNATE_COST 映射：0=mana、1=health、2=armor、3=corpses、4=opponents_health、5=alt_tavern_coin。映射经本机客户端 enum 和消费代码核对；缺失为 null，未知值计入 invalid_fields，不能默认法力支付。该字段遵守相同手牌遮蔽规则。静态卡牌费用不覆盖实时 COST，也不构成支付可行性判断。
+
 ## 原始数据与隐藏信息
 
 `game.entities` 仍是原始诊断历史，会保留之前观察到的卡牌 ID 和 tags。`game.board` 单独实施隐藏区域遮蔽：例如已公开随从回到手牌，原始实体可能仍有卡牌 ID，但 board 中的 ID、类型、费用及战斗属性全部置为 null。后续模型输入应从受控投影构建，不能直接传整个诊断对象。
 
-视角确认前没有暴露“我方手牌”的接口。区域和属性本身也只代表最后观测，尚未实现完整隐藏信息时效、牌库洗牌身份失效、规则与模式覆盖。
+视角确认前没有暴露“我方手牌”的接口。HIDE_ENTITY 清除卡牌 ID 后，即使还保留历史属性，我方手牌也整体遮蔽。区域和属性本身只代表最后观测，尚未实现完整隐藏信息时效、牌库洗牌身份失效、规则与模式覆盖。
+
+## 我方视角的证据与限制
+
+本机客户端静态检查显示 `GameState.SendOption` 的日志位于非观战分支；`SendChoices` 日志则在观战判断之前，因此不能单独用于我方识别。这里只使用格式完整的 `SendOption`，并要求提交时已观测到恰好两名玩家、STATE=RUNNING、STEP=MAIN_ACTION、完整且唯一的 CURRENT_PLAYER 标志，以及此前无未解析引用或格式错误。按事件顺序绑定提交时的玩家，后续换回合不改变身份；不同提交指向不同玩家时，该局视角失效并重新遮蔽双方手牌。
+
+证据不会跨 CREATE_GAME、文件重置或会话轮换继承；玩家姓名、手牌是否可见、玩家编号 1、收到的选项/选择包均不是识别依据。原始 `game.entities` 仍是诊断历史，不能作为模型输入。视角识别也不能证明日志没有缺失，或视角在观战切换后仍有效；当前所有快照继续 `complete=false`、`actionable=false`。
+
+此方式需要本局至少一次有效的人工动作提交，不能独立启动换牌或自动执行第一步。后续仍需对局开始时的可靠身份来源、模式与观战状态确认。
+
+2026-10-27 本地四个会话共 20 局回放中，15 局识别出一致视角，5 局保持未知，未出现冲突。这是日志一致性验证，尚非与画面逐局核对的身份准确率。新增测试覆盖提交时序、未知/冲突状态、手牌遮蔽和逐字节实时/离线一致性。
 
 ## power_structure 字段
 
@@ -64,7 +78,9 @@ cargo run --offline -- watch D:\Hearthstone --once
 - `latest.stale` 在后续 Power 记录、选项/选择提交或选择记录出现后置为 true；新包头替换旧包，错误包头直接清空旧包。动画流不会刷新或清除该标志。
 - `latest.complete=false`、`actionable=false`：包没有声明长度，也没有实现子选项或完整规则校验。即使 `error=NONE` 且 `stale=false`，也不是可执行候选。
 
-索引要求从 0 连续递增；孤立、重复、缺号或无法解析的记录进入诊断。无法识别的子选项会切断目标归属，后续目标不会被错误挂到上一个主选项。错误码仅保留 NONE、INVALID 或格式受限的 REQ_*，其他内容使用 UNKNOWN。这里只记录游戏日志提供的语义，不推断本地玩家或目标合法性。
+索引要求从 0 连续递增；孤立、重复、缺号或无法解析的记录进入诊断。已支持 `sub_options` 及各自独立的目标索引；损坏或未知行会切断目标归属，后续目标不会被错误挂到上一个主选项。错误码仅保留 NONE、INVALID 或格式受限的 REQ_*，其他内容使用 UNKNOWN。每包新增 malformed_records/unsupported_records，累计计数继续保留。详见 [动作预览](action-preview.md)。
+
+`game.logged_choices` 现保留选择包、来源、候选和提交列表，见 [选择事件](choices.md)。
 
 这些选项属于原始诊断对象；尚未将其并入中立 `board` 或 `protocol::Candidate`。
 

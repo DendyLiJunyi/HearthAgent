@@ -1,11 +1,15 @@
 pub mod controller;
+pub mod choices;
 pub mod board;
 pub mod diagnostics;
+pub mod deck;
 pub mod executor;
 pub mod export;
 pub mod policy;
 pub mod laya;
 pub mod options;
+pub mod perspective;
+pub mod preview;
 pub mod protocol;
 pub mod replay;
 pub mod structure;

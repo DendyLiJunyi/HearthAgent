@@ -83,6 +83,7 @@ pub struct Watcher {
     revision: u64,
     last: Option<String>,
     cached_game: String,
+    perspective: Option<u32>,
     run_id: String,
 }
 
@@ -90,7 +91,7 @@ impl Watcher {
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into(), path: None, created: None, offset: 0,
             prefix: Vec::new(), boundary: Vec::new(), state: StreamState::default(),
-            generation: 0, revision: 0, last: None, cached_game: "null".into(),
+            generation: 0, revision: 0, last: None, cached_game: "null".into(), perspective: None,
             run_id: format!("{}-{}", std::process::id(), SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_nanos()) }
     }
 
@@ -98,6 +99,7 @@ impl Watcher {
         self.offset = 0; self.prefix.clear(); self.boundary.clear();
         self.state = StreamState::default(); self.created = None; self.generation += 1;
         self.cached_game = "null".into();
+        self.perspective = None;
     }
 
     fn emit(&mut self, status: &str, lag: bool) -> Option<String> {
@@ -110,7 +112,8 @@ impl Watcher {
         if self.last.as_deref() == Some(&content) { return None; }
         self.last = Some(content.clone()); self.revision += 1;
         let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap_or_default().as_millis();
-        Some(format!("{{\"protocol_version\":1,\"revision\":{},\"observed_at_unix_ms\":{},\"complete\":false,\"actionable\":false,\"perspective\":null,\"reason\":\"rules_and_live_stability_not_verified\",{}}}", self.revision, now, content))
+        Some(format!("{{\"protocol_version\":1,\"revision\":{},\"observed_at_unix_ms\":{},\"complete\":false,\"actionable\":false,\"perspective\":{},\"reason\":\"rules_and_live_stability_not_verified\",{}}}", self.revision, now,
+            self.perspective.map(|p| p.to_string()).unwrap_or("null".into()), content))
     }
 
     /// On I/O or parsing failure caller must stop consuming prior snapshots.
@@ -152,7 +155,9 @@ impl Watcher {
             let mut bytes = vec![0; amount as usize]; file.read_exact(&mut bytes)?;
             if self.prefix.is_empty() { self.prefix = bytes[..bytes.len().min(128)].to_vec(); }
             if self.state.feed(&bytes)? {
-                self.cached_game = self.state.game().as_ref().map(game_json).unwrap_or("null".into());
+                let game = self.state.game();
+                self.perspective = game.as_ref().and_then(|g| g.perspective.player_id());
+                self.cached_game = game.as_ref().map(game_json).unwrap_or("null".into());
             }
             self.offset += amount;
             let boundary_len = self.offset.min(128) as usize;

@@ -1,0 +1,51 @@
+# Synthetic fixture: no real player or account data. These are observed attack options, not a complete game.
+D 0 GameState.DebugPrintPower() - CREATE_GAME
+D 0 GameState.DebugPrintPower() - GameEntity EntityID=1
+D 0 GameState.DebugPrintPower() - tag=STATE value=RUNNING
+D 0 GameState.DebugPrintPower() - tag=STEP value=MAIN_ACTION
+D 0 GameState.DebugPrintPower() - tag=TURN value=5
+D 0 GameState.DebugPrintPower() - Player EntityID=2 PlayerID=1
+D 0 GameState.DebugPrintPower() - tag=CURRENT_PLAYER value=1
+D 0 GameState.DebugPrintPower() - tag=HERO_ENTITY value=4
+D 0 GameState.DebugPrintPower() - tag=RESOURCES value=3
+D 0 GameState.DebugPrintPower() - tag=RESOURCES_USED value=0
+D 0 GameState.DebugPrintPower() - Player EntityID=3 PlayerID=2
+D 0 GameState.DebugPrintPower() - tag=CURRENT_PLAYER value=0
+D 0 GameState.DebugPrintPower() - tag=HERO_ENTITY value=20
+D 0 GameState.DebugPrintPower() - FULL_ENTITY - Creating ID=4 CardID=HERO_06g
+D 0 GameState.DebugPrintPower() - tag=ZONE value=PLAY
+D 0 GameState.DebugPrintPower() - tag=CARDTYPE value=HERO
+D 0 GameState.DebugPrintPower() - tag=CONTROLLER value=1
+D 0 GameState.DebugPrintPower() - tag=HEALTH value=30
+D 0 GameState.DebugPrintPower() - tag=DAMAGE value=0
+D 0 GameState.DebugPrintPower() - tag=ARMOR value=0
+D 0 GameState.DebugPrintPower() - FULL_ENTITY - Creating ID=10 CardID=DRG_311t
+D 0 GameState.DebugPrintPower() - tag=ZONE value=PLAY
+D 0 GameState.DebugPrintPower() - tag=CARDTYPE value=MINION
+D 0 GameState.DebugPrintPower() - tag=CONTROLLER value=1
+D 0 GameState.DebugPrintPower() - tag=ZONE_POSITION value=1
+D 0 GameState.DebugPrintPower() - tag=ATK value=2
+D 0 GameState.DebugPrintPower() - tag=HEALTH value=2
+D 0 GameState.DebugPrintPower() - tag=DAMAGE value=0
+D 0 GameState.DebugPrintPower() - tag=EXHAUSTED value=0
+D 0 GameState.DebugPrintPower() - FULL_ENTITY - Creating ID=20 CardID=HERO_04
+D 0 GameState.DebugPrintPower() - tag=ZONE value=PLAY
+D 0 GameState.DebugPrintPower() - tag=CARDTYPE value=HERO
+D 0 GameState.DebugPrintPower() - tag=CONTROLLER value=2
+D 0 GameState.DebugPrintPower() - tag=HEALTH value=2
+D 0 GameState.DebugPrintPower() - tag=DAMAGE value=0
+D 0 GameState.DebugPrintPower() - tag=ARMOR value=0
+D 0 GameState.DebugPrintPower() - FULL_ENTITY - Creating ID=21 CardID=CS2_182
+D 0 GameState.DebugPrintPower() - tag=ZONE value=PLAY
+D 0 GameState.DebugPrintPower() - tag=CARDTYPE value=MINION
+D 0 GameState.DebugPrintPower() - tag=CONTROLLER value=2
+D 0 GameState.DebugPrintPower() - tag=ZONE_POSITION value=1
+D 0 GameState.DebugPrintPower() - tag=ATK value=4
+D 0 GameState.DebugPrintPower() - tag=HEALTH value=5
+D 0 GameState.DebugPrintPower() - tag=DAMAGE value=0
+D 0 GameState.SendOption() - selectedOption=0 selectedSubOption=-1 selectedTarget=0 selectedPosition=0
+D 0 GameState.DebugPrintOptions() - id=7
+D 0 GameState.DebugPrintOptions() - option 0 type=END_TURN mainEntity= error=INVALID errorParam=
+D 0 GameState.DebugPrintOptions() - option 1 type=POWER mainEntity=10 error=NONE errorParam=
+D 0 GameState.DebugPrintOptions() - target 0 entity=20 error=NONE errorParam=
+D 0 GameState.DebugPrintOptions() - target 1 entity=21 error=NONE errorParam=

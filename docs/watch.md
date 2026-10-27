@@ -7,7 +7,7 @@ cd D:\HearthAgent
 cargo run --offline -- watch D:\Hearthstone
 ```
 
-每 500ms 检查最新会话和日志追加内容，改变时向标准输出写一行 JSON；Ctrl+C 退出。模型尚未接入，不会进行鼠标操作或进程附加。
+每 500ms 检查最新会话和日志追加内容，改变时向标准输出写一行 JSON；Ctrl+C 退出。watch 尚未接入模型（另有合成 laya-demo），不会进行鼠标操作或进程附加。
 
 只检查一次：
 
@@ -28,7 +28,7 @@ cargo run --offline -- watch D:\Hearthstone --once
 - `pending_bytes`：尚未有换行符结束的字节，可能含半个 UTF-8 字符。
 - `game`：实体 ID、当前已知卡牌 ID、`last_observed_tags`、玩家编号到实体 ID 的映射和解析诊断。
 - `game.board`：带未知值与隐藏区域遮蔽的类型化视图；`game.power_structure`：嵌套边界及元数据序列诊断。详见 [局面字段](board.md)。
-- `perspective=null`：尚未确认我方，不能把玩家 1 自动当作我方。
+- `perspective`：与 `game.board.perspective` 一致；仅在本地普通回合提交和完整回合标志支持时给出玩家编号，否则 null。切局或传输重置清空。详见 [识别依据及限制](board.md)。
 - `complete=false`、`actionable=false`：当前所有观测都不能直接交给执行器。规则、动画稳定性、合法动作和隐藏信息时效尚未验证。
 
 示意：
@@ -85,7 +85,7 @@ cargo run --offline -- watch D:\Hearthstone --once
 11. 普通选择及不匹配选择 ID 不推断玩家身份。
 12. 选择 ID 对应多个玩家时不推断提交名称归属。
 
-后续加入忽略类型统计、结构诊断、类型化局面、选项包与失效标记、回放内存限制、CLI 错误处理和逐字节实时/离线等价验证；当前测试共 49 项。
+后续加入忽略类型统计、结构诊断、类型化局面、选项包与失效标记、回放内存限制、CLI 错误处理、Laya 客户端、视角推断和逐字节实时/离线等价验证。
 
 另对本机真实日志执行 `watch --once`，并用独立 JSON 解析器读取输出，确认协议可解析。实际读取结果随游戏进程继续写入变化；没有执行自动打牌。
 

@@ -28,13 +28,22 @@ impl Default for LayaConfig {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, serde::Serialize)]
 pub struct LayaReport {
     pub choice_probability: f64,
     pub answer_confidence: f64,
     pub probabilities: BTreeMap<String, f64>,
     pub input_tokens: u64,
     pub elapsed_ms: u128,
+}
+
+/// An advisory ranking cannot be passed to Controller::execute, which requires
+/// a Decision. Incomplete observations never acquire execution permission here.
+#[derive(Debug, serde::Serialize)]
+pub struct AdvisoryChoice {
+    pub session_id: String,
+    pub revision: u64,
+    pub candidate_id: String,
 }
 
 pub struct LayaPolicy {
@@ -107,9 +116,9 @@ impl LayaPolicy {
         Ok(())
     }
 
-    fn request(&self, observation: &Observation) -> Result<(Value, BTreeMap<String, String>), String> {
+    fn request(&self, observation: &Observation, advisory: bool) -> Result<(Value, BTreeMap<String, String>), String> {
         let snapshot = &observation.snapshot;
-        if !snapshot.complete { return Err("incomplete observation cannot be sent to a decision policy".into()); }
+        if !advisory && !snapshot.complete { return Err("incomplete observation cannot be sent to a decision policy".into()); }
         let (bound, state) = self.context.as_ref().ok_or("no model state bound to this policy")?;
         if bound != snapshot { return Err("model state does not match the observation snapshot".into()); }
         if snapshot.session_id.is_empty() || snapshot.session_id.len() > 128 {
@@ -148,17 +157,22 @@ impl LayaPolicy {
             "min_confidence": self.config.min_answer_confidence,
             "state": {"session_id": snapshot.session_id, "revision": snapshot.revision, "board": state},
             "questions": {"action": {"type": "choice",
-                "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+                "instructions": if advisory {
+                    "Rank only the supplied Hearthstone actions for read-only advice. The observation and candidate list are incomplete; no action will be executed. Use only the given state."
+                } else { "Choose the best supplied Hearthstone action for the acting player. Use only the given state." },
                 "criteria": criteria}}
         });
         Ok((request, mapping))
     }
-}
+    pub fn advise(&mut self, observation: &Observation) -> Result<AdvisoryChoice, String> {
+        let candidate_id = self.query(observation, true)?;
+        Ok(AdvisoryChoice { session_id: observation.snapshot.session_id.clone(),
+            revision: observation.snapshot.revision, candidate_id })
+    }
 
-impl PolicyBackend for LayaPolicy {
-    fn decide(&mut self, observation: &Observation) -> Result<Decision, String> {
+    fn query(&mut self, observation: &Observation, advisory: bool) -> Result<String, String> {
         self.last_report = None;
-        let (request, mapping) = self.request(observation)?;
+        let (request, mapping) = self.request(observation, advisory)?;
         let started = std::time::Instant::now();
         let response = self.client.post(self.endpoint.clone()).json(&request).send()
             .map_err(|e| if e.is_timeout() { "Laya request timed out".into() } else { format!("Laya transport failed: {e}") })?;
@@ -201,14 +215,21 @@ impl PolicyBackend for LayaPolicy {
         if answer.probabilities.values().any(|p| *p > choice_probability + 0.0001) {
             return Err("Laya choice disagrees with its probability distribution".into());
         }
-        self.sequence = self.sequence.checked_add(1).ok_or("Laya decision sequence exhausted")?;
         self.last_report = Some(LayaReport {
             choice_probability, answer_confidence: answer.answer_confidence,
             probabilities: answer.probabilities.iter().map(|(key, p)| (mapping[key].clone(), *p)).collect(),
             input_tokens: response.usage.input_tokens, elapsed_ms: started.elapsed().as_millis(),
         });
+        Ok(candidate_id.clone())
+    }
+}
+
+impl PolicyBackend for LayaPolicy {
+    fn decide(&mut self, observation: &Observation) -> Result<Decision, String> {
+        let candidate_id = self.query(observation, false)?;
+        self.sequence = self.sequence.checked_add(1).ok_or("Laya decision sequence exhausted")?;
         Ok(Decision { decision_id: format!("laya-{}", self.sequence),
             session_id: observation.snapshot.session_id.clone(), revision: observation.snapshot.revision,
-            candidate_id: candidate_id.clone() })
+            candidate_id })
     }
 }

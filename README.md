@@ -3,21 +3,25 @@
 Rust 主控 + 可替换本地模型后端的炉石 Agent 工程起点。
 
 当前版本支持本地环境检测、Power.log 离线回放、实时 JSON 观测，以及离线决策与执行保护演示。
-**通过游戏日志读取观测，尚未连接本地模型，不会读取游戏进程内存或发送鼠标输入。实时观测仍标记为不可执行。**
+**通过游戏日志读取观测，已连接本地 Laya 模型用于合成样例推理，不会读取游戏进程内存或发送鼠标输入。实时观测仍标记为不可执行。**
 
 ## 运行
 
 ```powershell
 cd D:\HearthAgent
 cargo run --offline -- demo
+cargo run --offline -- deck
+cargo run --offline -- laya-demo
 cargo run --offline -- inspect D:\Hearthstone
 cargo run --offline -- watch D:\Hearthstone
 cargo run --offline -- replay <Power.log路径> --json
+cargo run --offline -- review <Power.log路径>
+cargo run --offline -- advise fixtures/wild-druid-attacks.log
 cargo test --offline
 cargo clippy --offline --all-targets -- -D warnings
 ```
 
-当前无第三方依赖，需要已安装 Rust 工具链。离线示例中的卡牌实体和动作是虚构测试数据。
+需要已安装 Rust 工具链及缓存的 Cargo 依赖（reqwest、serde、serde_json）。`laya-demo` 还需要先启动本地服务，见 [Laya 接入](docs/laya.md)。离线示例中的卡牌实体和动作是虚构测试数据。
 
 ## 目录与接口
 
@@ -39,6 +43,8 @@ cargo clippy --offline --all-targets -- -D warnings
 
 当前尝试账本只保存在内存中。进程重启后，未来的真实适配器必须重新同步；一次状态只能提交一次动作，超时需通过重新观察和协调恢复，不能用改决策 ID 的方式重发。
 
-用户已指定 Laya；模型与本地服务接口调查见 [Laya 接入](docs/laya.md)。尚未安装模型或验证炉石决策能力。Rust 核心不依赖 Hearthbuddy/GreyMagic DLL，未复制其反编译实现。
+用户已指定 Laya；安装、运行和实测结果见 [Laya 接入](docs/laya.md)。已验证 CUDA 推理和 Rust HTTP 通路，但当前模型未通过合成斩杀样例，尚不能用于真实对局决策。Rust 核心不依赖 Hearthbuddy/GreyMagic DLL，未复制其反编译实现。
 
 日志接入说明：[实时监听](docs/watch.md)，[第三局验证](docs/third-game-validation.md)。
+
+首版范围已确认为[用户指定的狂野德鲁伊卡组](docs/target-deck.md)。新增[只读攻击预览与历史选项窗口](docs/action-preview.md)，尚未形成完整合法动作集或自动执行闭环。

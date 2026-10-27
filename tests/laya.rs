@@ -168,3 +168,40 @@ fn only_loopback_http_endpoints_and_finite_configuration_are_accepted() {
         assert!(LayaPolicy::new("http://127.0.0.1:8000", LayaConfig { min_answer_confidence: cutoff, ..LayaConfig::default() }).is_err());
     }
 }
+
+#[test]
+fn advisory_ranking_preserves_incompleteness_and_cannot_enable_execution() {
+    let mut observation = fixture();
+    observation.snapshot.complete = false;
+    let (url, server) = server(200, good().to_string(), Duration::ZERO);
+    let mut policy = policy(&url, &observation, Duration::from_secs(2));
+    let advice = policy.advise(&observation).unwrap();
+    assert_eq!(advice.candidate_id, "attack-choice");
+    assert_eq!(advice.revision, observation.snapshot.revision);
+    let request = server.join().unwrap();
+    assert!(request["questions"]["action"]["instructions"].as_str().unwrap().contains("incomplete"));
+    assert!(!observation.snapshot.complete);
+    assert!(policy.decide(&observation).unwrap_err().contains("incomplete"));
+    // Even if an external caller manually fabricates a Decision from advice,
+    // the unchanged observation still prevents it reaching the executor.
+    let fabricated = Decision { decision_id: "fabricated".into(), session_id: advice.session_id,
+        revision: advice.revision, candidate_id: advice.candidate_id };
+    assert_eq!(Controller::default().execute(&observation, &fabricated, &mut RecordingExecutor::default()),
+        Err(ControlError::IncompleteState));
+}
+
+#[test]
+fn advisory_path_keeps_confidence_and_response_identity_validation() {
+    for invalid in ["low_confidence", "unknown_label"] {
+        let mut response = good();
+        if invalid == "low_confidence" { response["answers"]["action"]["answer_confidence"] = json!(0.5); }
+        else { response["answers"]["action"]["choice"] = json!("invented"); }
+        let (url, server) = server(200, response.to_string(), Duration::ZERO);
+        let mut observation = fixture();
+        observation.snapshot.complete = false;
+        let mut policy = policy(&url, &observation, Duration::from_secs(2));
+        assert!(policy.advise(&observation).is_err());
+        assert!(policy.last_report.is_none());
+        server.join().unwrap();
+    }
+}

@@ -3,7 +3,8 @@ use std::process::Command;
 #[test]
 fn invalid_command_arguments_fail_with_usage_status() {
     for args in [vec!["replay"], vec!["replay", "unused", "--invalid"],
-        vec!["watch"], vec!["watch", "unused", "--invalid"]] {
+        vec!["watch"], vec!["watch", "unused", "--invalid"], vec!["review"], vec!["review", "unused", "--invalid"],
+        vec!["deck", "code", "extra"], vec!["advise"], vec!["advise", "unused", "url", "extra"]] {
         let output = Command::new(env!("CARGO_BIN_EXE_hearth-agent")).args(&args).output().unwrap();
         assert_eq!(output.status.code(), Some(2), "{args:?}");
         assert!(String::from_utf8(output.stderr).unwrap().contains("Usage:"));
