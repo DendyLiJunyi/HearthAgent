@@ -167,6 +167,36 @@ fn bounded_transport_rejects_redirects_status_failures_oversize_and_non_json() {
 }
 
 #[test]
+fn duplicate_response_keys_cannot_be_overwritten_into_valid_decisions_or_advice() {
+    let valid = good().to_string();
+    let action = good()["answers"]["action"].to_string();
+    let bodies = [
+        valid.replace("\"answers\":{", &format!("\"answers\":{{\"action\":{action},")),
+        valid.replace("\"probabilities\":{", "\"probabilities\":{\"c0\":0.01,"),
+        valid.replace("\"probabilities\":{", "\"probabilities\":{\"c\\u0030\":0.01,"),
+        valid.replace("\"truncated\":false", "\"truncated\":true,\"truncated\":false"),
+        valid.replace("\"answer_confidence\":0.9", "\"answer_confidence\":0.1,\"answer_confidence\":0.9"),
+    ];
+    for body in bodies {
+        assert_ne!(body, valid);
+        for advisory in [false, true] {
+            let (url, server) = server(200, body.clone(), Duration::ZERO);
+            let mut observation = fixture();
+            observation.snapshot.complete = !advisory;
+            let mut policy = policy(&url, &observation, Duration::from_secs(2));
+            let error = if advisory {
+                policy.advise(&observation).unwrap_err()
+            } else {
+                policy.decide(&observation).unwrap_err()
+            };
+            assert_eq!(error, "invalid Laya response schema");
+            assert!(policy.last_report.is_none());
+            server.join().unwrap();
+        }
+    }
+}
+
+#[test]
 fn inference_timeout_does_not_return_a_late_decision() {
     let (url, server) = server(200, good().to_string(), Duration::from_millis(300));
     let observation = fixture();

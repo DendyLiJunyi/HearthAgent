@@ -48,7 +48,7 @@ pub fn board_json(board: &BoardView<'_>) -> String {
         p.observed_deck_count, p.observed_secret_count)).collect::<Vec<_>>().join(",");
     format!(concat!("{{\"perspective\":{},\"perspective_source\":{},\"perspective_conflicting\":{},\"complete\":false,\"actionable\":false,",
         "\"turn\":{},\"active_player\":{},\"invalid_fields\":{},\"players\":[{}]}}"),
-        optional(board.perspective), string(board.perspective.map(|_| "local_main_action_submission")), board.perspective_conflicting,
+        optional(board.perspective), string(board.perspective_source), board.perspective_conflicting,
         optional(board.turn), optional(board.active_player), board.invalid_fields, players)
 }
 
@@ -64,10 +64,12 @@ pub fn game_json(game: &Game) -> String {
         .map(|(kind, count)| format!("{}:{}", quote(kind), count)).collect::<Vec<_>>().join(",");
     format!(concat!("{{\"game_entity\":{},\"players\":[{}],\"entities\":[{}],",
         "\"unresolved_references\":{},\"malformed_records\":{},\"ignored_power_records\":{},",
-        "\"ignored_power_record_types\":{{{}}},\"power_structure\":{},\"board\":{},\"logged_options\":{},\"action_preview\":{},\"logged_choices\":{}}}"),
+        "\"ignored_power_record_types\":{{{}}},\"power_structure\":{},\"board\":{},\"logged_options\":{},\"action_preview\":{},\"logged_choices\":{},\"choice_preview\":{}}}"),
         optional(game.game_entity), players, entities, game.unresolved_references,
         game.malformed_records, game.ignored_power_records, ignored_types,
         game.structure.to_json(), board_json(&BoardView::from_game(game)), game.options.to_json(),
         serde_json::to_string(&crate::preview::ActionPreview::from_game(game)).expect("preview contains only JSON-safe values"),
-        serde_json::to_string(&game.choices).expect("choices contain only JSON-safe values"))
+        serde_json::to_string(&game.choices).expect("choices contain only JSON-safe values"),
+        serde_json::to_string(&crate::choice_preview::ChoicePreview::from_game(game))
+            .expect("choice preview contains only JSON-safe values"))
 }

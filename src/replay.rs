@@ -200,9 +200,12 @@ pub(crate) fn build_game(lines: &[String]) -> Game {
     let aliases = aliases(lines, &game.players);
     game.choices = crate::choices::Choices::from_lines(lines, |reference| resolve(reference, game.game_entity, &aliases));
     let mut context = None;
-    for line in lines {
+    for (index, line) in lines.iter().enumerate() {
         if let Some(player) = crate::perspective::submitted_player(&game, line) {
             game.perspective.record(player);
+        }
+        if let Some(player) = crate::perspective::submitted_mulligan_player(&game, line, &lines[..index]) {
+            game.perspective.record_mulligan(player);
         }
         let Some(text) = power(line) else { continue; };
         game.structure.observe(text);
@@ -255,7 +258,7 @@ pub fn read(reader: impl BufRead) -> io::Result<Replay> {
 }
 
 fn read_with_limits(mut reader: impl BufRead, max_line: usize, max_game_bytes: usize) -> io::Result<Replay> {
-    read_with_visitor(&mut reader, max_line, max_game_bytes, None)
+    read_with_visitor(&mut reader, max_line, max_game_bytes, None, None, None)
 }
 
 /// Visit each observed option packet before a following record can invalidate
@@ -265,13 +268,50 @@ fn read_with_limits(mut reader: impl BufRead, max_line: usize, max_game_bytes: u
 pub fn visit_option_windows(
     reader: impl BufRead, visitor: &mut dyn FnMut(usize, &Game, bool),
 ) -> io::Result<Replay> {
-    read_with_visitor(reader, MAX_LINE, MAX_GAME_BYTES, Some(visitor))
+    read_with_visitor(reader, MAX_LINE, MAX_GAME_BYTES, Some(visitor), None, None)
 }
 
 type WindowVisitor<'a> = Option<&'a mut dyn FnMut(usize, &Game, bool)>;
 
+/// A contiguous choice or submission record group, not a complete transaction.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct ChoiceWindow {
+    pub kind: &'static str,
+    pub packet_id: Option<u32>,
+}
+
+type ChoiceVisitor<'a> = Option<&'a mut dyn FnMut(usize, &Game, bool, ChoiceWindow)>;
+
+/// Visit every choice/submission prefix before the next record mutates state.
+/// No future aliases, card identities or submission results are imported.
+pub fn visit_choice_windows(
+    reader: impl BufRead, visitor: &mut dyn FnMut(usize, &Game, bool, ChoiceWindow),
+) -> io::Result<Replay> {
+    read_with_visitor(reader, MAX_LINE, MAX_GAME_BYTES, None, Some(visitor), None)
+}
+
+type SubmissionVisitor<'a> = Option<&'a mut dyn FnMut(usize, &Game)>;
+
+/// Emit each complete local SendOption line with its prefix-frozen correlation.
+/// No later state or response is used, and no execution success is inferred.
+pub fn visit_option_submissions(
+    reader: impl BufRead, visitor: &mut dyn FnMut(usize, &Game),
+) -> io::Result<Replay> {
+    read_with_visitor(reader, MAX_LINE, MAX_GAME_BYTES, None, None, Some(visitor))
+}
+
+fn choice_record(line: &str) -> Option<(&'static str, &str)> {
+    for (marker, kind) in [(" GameState.DebugPrintEntityChoices() - ", "packet"),
+        (" GameState.DebugPrintEntitiesChosen() - ", "submission")] {
+        if let Some((_, text)) = line.split_once(marker) { return Some((kind, text.trim())); }
+    }
+    None
+}
+
 fn read_with_visitor(
     mut reader: impl BufRead, max_line: usize, max_game_bytes: usize, mut visitor: WindowVisitor<'_>,
+    mut choice_visitor: ChoiceVisitor<'_>,
+    mut submission_visitor: SubmissionVisitor<'_>,
 ) -> io::Result<Replay> {
     let mut result = Replay::default();
     let mut lines = Vec::new();
@@ -279,6 +319,7 @@ fn read_with_visitor(
     let mut started = false;
     let mut size = 0;
     let mut option_window = false;
+    let mut choice_window: Option<ChoiceWindow> = None;
     loop {
         bytes.clear();
         // Bound allocation even if a corrupt file never supplies a newline.
@@ -293,6 +334,15 @@ fn read_with_visitor(
         let is_option = line.contains(" GameState.DebugPrintOptions() - ");
         let new_packet = line.split_once(" GameState.DebugPrintOptions() - ")
             .is_some_and(|(_, text)| text.trim_start().starts_with("id="));
+        let choice = choice_record(line);
+        if let Some(window) = choice_window {
+            if choice.is_none_or(|(kind, text)| kind != window.kind || text.starts_with("id=")) {
+                if let Some(visit) = &mut choice_visitor {
+                    visit(result.games.len() + 1, &build_game(&lines), true, window);
+                }
+                choice_window = None;
+            }
+        }
         if option_window && (!is_option || new_packet) {
             if let Some(visit) = &mut visitor { visit(result.games.len() + 1, &build_game(&lines), true); }
             option_window = false;
@@ -307,11 +357,28 @@ fn read_with_visitor(
                 return Err(io::Error::new(io::ErrorKind::InvalidData, "active game exceeds limit"));
             }
             lines.push(line.to_string());
+            if line.contains(" GameState.SendOption() - ") {
+                if let Some(visit) = &mut submission_visitor {
+                    visit(result.games.len() + 1, &build_game(&lines));
+                }
+            }
             if is_option { option_window = true; }
+            if let Some((kind, text)) = choice {
+                if choice_window.is_none() {
+                    let packet_id = text.split_whitespace().next()
+                        .and_then(|head| head.strip_prefix("id=")).and_then(|id| id.parse().ok());
+                    choice_window = Some(ChoiceWindow { kind, packet_id });
+                }
+            }
         }
     }
     if option_window {
         if let Some(visit) = &mut visitor { visit(result.games.len() + 1, &build_game(&lines), false); }
+    }
+    if let Some(window) = choice_window {
+        if let Some(visit) = &mut choice_visitor {
+            visit(result.games.len() + 1, &build_game(&lines), false, window);
+        }
     }
     if started { result.games.push(build_game(&lines)); }
     Ok(result)

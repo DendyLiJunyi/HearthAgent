@@ -1,0 +1,192 @@
+{
+  "source": "offline_rust_laya_http_smoke",
+  "actionable": false,
+  "game_input_sent": false,
+  "status": "passed_transport_and_gating",
+  "rows": [
+    {
+      "command": "advise",
+      "fixture": "wild-rogue-attacks.log",
+      "result": {
+        "action_preview": {
+          "actionable": false,
+          "blocked_by": [],
+          "candidates": [
+            {
+              "action": {
+                "Attack": {
+                  "source": 10,
+                  "target": 20
+                }
+              },
+              "id": "p7-s44-o1-t0",
+              "option_index": 1,
+              "source_entity": 10,
+              "target_index": 0
+            },
+            {
+              "action": {
+                "Attack": {
+                  "source": 10,
+                  "target": 21
+                }
+              },
+              "id": "p7-s44-o1-t1",
+              "option_index": 1,
+              "source_entity": 10,
+              "target_index": 1
+            }
+          ],
+          "complete": false,
+          "legality_verified": false,
+          "observed_power_sequence": 44,
+          "omitted": {
+            "client_did_not_report_valid": 1
+          },
+          "option_packet_id": 7,
+          "perspective": 1
+        },
+        "actionable": false,
+        "advice_method": "confidence_gated_original_and_reversed_order",
+        "candidate_order_check_required": true,
+        "complete": false,
+        "game_input_sent": false,
+        "game_number": 1,
+        "ignored_partial_line": false,
+        "model_query_attempted": true,
+        "reason": "Laya abstained or did not return a gated choice",
+        "source": "frozen_log_advice",
+        "status": "no_advice"
+      }
+    },
+    {
+      "command": "advise-choice",
+      "fixture": "wild-rogue-choice.log",
+      "result": {
+        "actionable": false,
+        "advice_method": "confidence_gated_original_and_reversed_order",
+        "candidate_order_check_required": true,
+        "choice_preview": {
+          "actionable": false,
+          "blocked_by": [],
+          "choice": {
+            "choice_id": 7,
+            "maximum": 1,
+            "minimum": 1,
+            "offered_cards": [
+              {
+                "card_id": "CFM_630",
+                "card_type": "SPELL",
+                "combat": {
+                  "attacks_this_turn": null,
+                  "cant_attack": null,
+                  "cant_attack_heroes": null,
+                  "cant_be_damaged": null,
+                  "charge": null,
+                  "divine_shield": null,
+                  "frozen": null,
+                  "lifesteal": null,
+                  "poisonous": null,
+                  "rush": null,
+                  "silenced": null,
+                  "stealth": null,
+                  "taunt": null,
+                  "windfury": null
+                },
+                "entity_id": 20,
+                "observed_armor": null,
+                "observed_attack": null,
+                "observed_cost": 0,
+                "observed_cost_resource": null,
+                "observed_damage": null,
+                "observed_durability": null,
+                "observed_health": null
+              },
+              {
+                "card_id": "DED_004",
+                "card_type": "WEAPON",
+                "combat": {
+                  "attacks_this_turn": null,
+                  "cant_attack": null,
+                  "cant_attack_heroes": null,
+                  "cant_be_damaged": null,
+                  "charge": null,
+                  "divine_shield": null,
+                  "frozen": null,
+                  "lifesteal": null,
+                  "poisonous": null,
+                  "rush": null,
+                  "silenced": null,
+                  "stealth": null,
+                  "taunt": null,
+                  "windfury": null
+                },
+                "entity_id": 21,
+                "observed_armor": null,
+                "observed_attack": null,
+                "observed_cost": null,
+                "observed_cost_resource": null,
+                "observed_damage": null,
+                "observed_durability": null,
+                "observed_health": null
+              }
+            ],
+            "source_card_id": "TLC_515",
+            "source_entity": 10
+          },
+          "complete": false,
+          "legality_verified": false
+        },
+        "complete": false,
+        "game_input_sent": false,
+        "game_number": 1,
+        "ignored_partial_line": false,
+        "model_query_attempted": true,
+        "reason": "Laya abstained or did not return a gated choice",
+        "source": "frozen_choice_advice",
+        "status": "no_advice"
+      }
+    }
+  ],
+  "health_before": {
+    "status": "ok",
+    "loaded": [
+      "multilingual"
+    ],
+    "revisions": {
+      "multilingual": "7b928d828b7b0e022f929d9bd2e44165aa270148"
+    },
+    "device": "cuda",
+    "device_is_preference": false,
+    "checkpoint_devices": {
+      "multilingual": "cuda"
+    },
+    "cpu_fallbacks": {
+      "multilingual": {
+        "count": 0,
+        "last_reason": null
+      }
+    }
+  },
+  "health_after": {
+    "status": "ok",
+    "loaded": [
+      "multilingual"
+    ],
+    "revisions": {
+      "multilingual": "7b928d828b7b0e022f929d9bd2e44165aa270148"
+    },
+    "device": "cuda",
+    "device_is_preference": false,
+    "checkpoint_devices": {
+      "multilingual": "cuda"
+    },
+    "cpu_fallbacks": {
+      "multilingual": {
+        "count": 0,
+        "last_reason": null
+      }
+    }
+  },
+  "owned_server_stopped": true
+}

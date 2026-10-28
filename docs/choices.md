@@ -25,6 +25,8 @@
 
 四项新增回归覆盖所有者/数量/实体不一致、正常匹配仍非执行确认、后到及复用 ID、未知所有者/类型、损坏包和未完成列表；原逐行回放与实时一致性测试也覆盖新增字段。全套 85 项 Rust 测试通过，Clippy 无警告。
 
-在本机现有日志回放中检查了 20 个局末保留的最近提交：列表均完整，所有者和声明数量均匹配，没有未观察实体。结果保存为 [关联回放报告](choice-correlation-review.json)。这只覆盖每局最后保留的提交，不是所有历史选择包，也不是目标德鲁伊卡组验证或多阶段 UI 验收。
+The existing corpus check covered the last retained submission in each of 20 games: lists, owners and declared counts matched, with no unobserved entities. See [correlation report](choice-correlation-review.json). This does not cover all historical choice packets, establish Rogue deck coverage, or validate multi-stage UI execution.
 
 本次对四个本机会话共 20 局的 129 个选择包回放，格式错误与未知选择类型均为 0；其中 MULLIGAN 40、GENERAL 88、TARGET 1。原始日志未提交，通用回归采用合成数据。尚待验证这些选择与具体卡牌、多阶段 UI 和实际执行结果之间的对应关系。
+
+The newer [choice-window exporter](choice-windows.md) reviews every packet and submission prefix, instead of only the last retained submission in each game.

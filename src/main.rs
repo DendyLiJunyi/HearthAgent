@@ -5,6 +5,28 @@ use hearth_agent::protocol::{Action, Candidate, Observation, Phase, Snapshot};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("review-submissions") {
+        if args.len() != 2 {
+            eprintln!("Usage: hearth-agent review-submissions <Power.log>");
+            std::process::exit(2);
+        }
+        if let Err(error) = review_submissions(&args[1]) {
+            eprintln!("Submission review failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
+    if args.first().map(String::as_str) == Some("review-choices") {
+        if args.len() != 2 {
+            eprintln!("Usage: hearth-agent review-choices <Power.log>");
+            std::process::exit(2);
+        }
+        if let Err(error) = review_choices(&args[1]) {
+            eprintln!("Choice review failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.first().map(String::as_str) == Some("loop-demo") {
         if args.len() != 1 {
             eprintln!("Usage: hearth-agent loop-demo");
@@ -16,13 +38,13 @@ fn main() {
         }
         return;
     }
-    if args.first().map(String::as_str) == Some("advise") {
+    if matches!(args.first().map(String::as_str), Some("advise" | "advise-choice")) {
         if args.len() < 2 || args.len() > 3 {
-            eprintln!("Usage: hearth-agent advise <Power.log> [http://127.0.0.1:8791]");
+            eprintln!("Usage: hearth-agent advise|advise-choice <Power.log> [http://127.0.0.1:8791]");
             std::process::exit(2);
         }
         let endpoint = args.get(2).map(String::as_str).unwrap_or("http://127.0.0.1:8791");
-        match advise(&args[1], endpoint) {
+        match advise(&args[1], endpoint, args[0] == "advise-choice") {
             Ok(report) => println!("{report}"),
             Err(error) => { eprintln!("Advice failed: {error}"); std::process::exit(1); }
         }
@@ -201,6 +223,49 @@ fn loop_demo() -> std::io::Result<()> {
     Ok(())
 }
 
+fn review_submissions(path: &str) -> std::io::Result<()> {
+    use std::io::{Read, Write};
+    let file = std::fs::File::open(path)?;
+    let length = file.metadata()?.len();
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+    let mut output_error = None;
+    hearth_agent::replay::visit_option_submissions(std::io::BufReader::new(file.take(length)),
+        &mut |number, game| {
+            if output_error.is_some() { return; }
+            let row = serde_json::json!({
+                "protocol_version": 1, "source": "offline_option_submission",
+                "game_number": number, "actionable": false, "complete": false,
+                "submission_number": game.options.submissions_seen,
+                "malformed_submissions": game.options.malformed_submissions,
+                "submission": game.options.latest_submission,
+            });
+            if let Err(error) = writeln!(out, "{row}") { output_error = Some(error); }
+        })?;
+    match output_error { Some(error) => Err(error), None => Ok(()) }
+}
+
+fn review_choices(path: &str) -> std::io::Result<()> {
+    use std::io::{Read, Write};
+    let file = std::fs::File::open(path)?;
+    let length = file.metadata()?.len();
+    let stdout = std::io::stdout();
+    let mut out = stdout.lock();
+    let mut output_error = None;
+    hearth_agent::replay::visit_choice_windows(std::io::BufReader::new(file.take(length)),
+        &mut |number, game, boundary, window| {
+            if output_error.is_some() { return; }
+            let board = hearth_agent::export::board_json(&hearth_agent::board::BoardView::from_game(game));
+            let line = format!("{{\"protocol_version\":1,\"source\":\"offline_choice_window\",\"game_number\":{number},\"actionable\":false,\"complete\":false,\"packet_boundary_observed\":{boundary},\"window\":{},\"board\":{board},\"logged_choices\":{},\"choice_preview\":{}}}",
+                serde_json::to_string(&window).expect("choice window is JSON-safe"),
+                serde_json::to_string(&game.choices).expect("choices are JSON-safe"),
+                serde_json::to_string(&hearth_agent::choice_preview::ChoicePreview::from_game(game))
+                    .expect("choice preview is JSON-safe"));
+            if let Err(error) = writeln!(out, "{line}") { output_error = Some(error); }
+        })?;
+    match output_error { Some(error) => Err(error), None => Ok(()) }
+}
+
 fn review(path: &str) -> std::io::Result<()> {
     use std::io::{Read, Write};
     let file = std::fs::File::open(path)?;
@@ -220,7 +285,7 @@ fn review(path: &str) -> std::io::Result<()> {
     match output_error { Some(error) => Err(error), None => Ok(()) }
 }
 
-fn advise(path: &str, endpoint: &str) -> Result<serde_json::Value, String> {
+fn advise(path: &str, endpoint: &str, choice_mode: bool) -> Result<serde_json::Value, String> {
     use std::io::Read;
     use hearth_agent::laya::{LayaConfig, LayaPolicy};
     let file = std::fs::File::open(path).map_err(|e| e.to_string())?;
@@ -233,27 +298,51 @@ fn advise(path: &str, endpoint: &str) -> Result<serde_json::Value, String> {
         report["status"] = "no_game".into();
         return Ok(report);
     };
-    let preview = hearth_agent::preview::ActionPreview::from_game(game);
-    report["action_preview"] = serde_json::to_value(&preview).map_err(|e| e.to_string())?;
-    if replay.ignored_partial_line || preview.candidates.is_empty() {
+    let (candidates, phase, revision, extra) = if choice_mode {
+        report["source"] = "frozen_choice_advice".into();
+        let preview = hearth_agent::choice_preview::ChoicePreview::from_game(game);
+        report["choice_preview"] = serde_json::to_value(&preview).map_err(|e| e.to_string())?;
+        let Some(choice) = preview.choice else {
+            report["status"] = "blocked".into();
+            return Ok(report);
+        };
+        let candidates: Vec<Candidate> = choice.offered_cards.iter().map(|card| Candidate {
+            id: format!("choice-{}-entity-{}", choice.choice_id, card.entity_id),
+            action: Action::ChooseOptions { choice_id: choice.choice_id, entities: vec![card.entity_id] },
+        }).collect();
+        // Frozen-file byte length is a diagnostic revision, not a live transaction sequence.
+        (candidates, Phase::Choosing, length, serde_json::json!({"offered_choice": choice}))
+    } else {
+        let preview = hearth_agent::preview::ActionPreview::from_game(game);
+        report["action_preview"] = serde_json::to_value(&preview).map_err(|e| e.to_string())?;
+        let candidates = preview.candidates.iter().map(|c| Candidate {
+            id: c.id.clone(), action: c.action.clone(),
+        }).collect();
+        (candidates, Phase::OurTurn, preview.observed_power_sequence.unwrap_or(0),
+            serde_json::json!({"omitted": preview.omitted}))
+    };
+    if replay.ignored_partial_line || candidates.is_empty() {
         report["status"] = "blocked".into();
         return Ok(report);
     }
     let snapshot = Snapshot {
         session_id: format!("frozen-advice-{}-{}-{}", std::process::id(), replay.games.len(),
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos()),
-        revision: preview.observed_power_sequence.unwrap_or(0), phase: Phase::OurTurn, complete: false,
+        revision, phase, complete: false,
     };
-    let observation = Observation { snapshot, candidates: preview.candidates.iter().map(|c| Candidate {
-        id: c.id.clone(), action: c.action.clone(),
-    }).collect() };
+    let observation = Observation { snapshot, candidates };
     let board: serde_json::Value = serde_json::from_str(&hearth_agent::export::board_json(
         &hearth_agent::board::BoardView::from_game(game))).map_err(|e| e.to_string())?;
     let mut policy = LayaPolicy::new(endpoint, LayaConfig::default())?;
-    policy.bind_state(&observation.snapshot, serde_json::json!({"observation":board,
-        "candidate_coverage_complete":false, "omitted":preview.omitted}))?;
+    let board = hearth_agent::model_state::compact_board(&board)?;
+    let mut state = serde_json::json!({"observation":board, "candidate_coverage_complete":false});
+    state.as_object_mut().expect("state is an object")
+        .extend(extra.as_object().expect("extra state is an object").clone());
+    policy.bind_state(&observation.snapshot, state)?;
     report["model_query_attempted"] = true.into();
-    match policy.advise(&observation) {
+    report["advice_method"] = "confidence_gated_original_and_reversed_order".into();
+    report["candidate_order_check_required"] = (observation.candidates.len() > 1).into();
+    match policy.advise_consistent(&observation) {
         Ok(advice) => {
             report["status"] = "advice".into();
             report["advice"] = serde_json::to_value(advice).map_err(|e| e.to_string())?;

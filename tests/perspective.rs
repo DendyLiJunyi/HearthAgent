@@ -120,3 +120,76 @@ fn every_byte_prefix_agrees_with_replay_and_submission_requires_a_complete_line(
         assert_eq!(stream.game().as_ref().map(game_json), expected.games.last().map(game_json));
     }
 }
+
+fn mulligan_fixture() -> String {
+    let mut log = fixture().replace("value=MAIN_ACTION", "value=BEGIN_MULLIGAN");
+    log += &power("TAG_CHANGE Entity=3 tag=MULLIGAN_STATE value=INPUT");
+    for id in [21, 22] {
+        log += &power(&format!("FULL_ENTITY - Creating ID={id} CardID=LOCAL_OPENING"));
+        log += &power("tag=ZONE value=HAND");
+        log += &power("tag=CONTROLLER value=2");
+    }
+    log += "D 0 GameState.DebugPrintEntityChoices() - id=7 Player=3 TaskList=1 ChoiceType=MULLIGAN CountMin=0 CountMax=3\n";
+    log += "D 0 GameState.DebugPrintEntityChoices() - Source=GameEntity\n";
+    for (index, id) in [20, 21, 22].iter().enumerate() {
+        log += &format!("D 0 GameState.DebugPrintEntityChoices() - Entities[{index}]={id}\n");
+    }
+    log
+}
+
+const SEND_MULLIGAN: &str = "D 0 GameState.SendChoices() - id=7 ChoiceType=MULLIGAN\n";
+
+#[test]
+fn local_mulligan_send_establishes_identity_and_preserves_redaction() {
+    let log = mulligan_fixture();
+    assert_eq!(parse(&log).perspective.player_id(), None);
+    let game = parse(&(log + SEND_MULLIGAN));
+    assert_eq!(game.perspective.player_id(), Some(2));
+    let board = board_json(&BoardView::from_game(&game));
+    assert!(board.contains("local_mulligan_submission"));
+    assert!(board.contains("LOCAL_OPENING"));
+    assert!(!board.contains("OPPONENT_PRIVATE"));
+    assert!(board.contains("\"actionable\":false"));
+}
+
+#[test]
+fn mulligan_identity_rejects_ambiguous_incomplete_and_future_packets() {
+    let base = mulligan_fixture();
+    for log in [
+        base.replace("CountMax=3", "CountMax=4"),
+        base.replace("Player=3 TaskList", "Player=2 TaskList"),
+        base.replace("Entities[2]=22", "Entities[3]=22"),
+        base.replace("Entities[2]=22", "Entities[2]=10"),
+        base.replace("value=INPUT", "value=DONE"),
+        base.replace("value=BEGIN_MULLIGAN", "value=MAIN_ACTION"),
+        base.clone() + &power("TAG_CHANGE Entity=22 tag=ZONE value=DECK"),
+        base.clone() + "D 0 GameState.DebugPrintEntityChoices() - id=7 Player=3 TaskList=1 ChoiceType=MULLIGAN CountMin=0 CountMax=3\n",
+    ] {
+        assert_eq!(parse(&(log + SEND_MULLIGAN)).perspective.player_id(), None);
+    }
+    assert_eq!(parse(&(fixture() + SEND_MULLIGAN + &base)).perspective.player_id(), None);
+    let server_only = base.clone() + "D 0 GameState.DebugPrintEntitiesChosen() - id=7 Player=3 EntitiesCount=0\n";
+    assert_eq!(parse(&server_only).perspective.player_id(), None);
+    assert_eq!(parse(&(base + &SEND_MULLIGAN.replace("MULLIGAN", "GENERAL"))).perspective.player_id(), None);
+}
+
+#[test]
+fn mulligan_identity_is_prefix_bound_conflict_latched_and_reset_between_games() {
+    let mut log = mulligan_fixture() + SEND_MULLIGAN;
+    log += &power("TAG_CHANGE Entity=1 tag=STEP value=MAIN_ACTION");
+    log += submission();
+    assert_eq!(parse(&log).perspective.source(), Some("local_mulligan_submission"));
+    log += &power("TAG_CHANGE Entity=3 tag=CURRENT_PLAYER value=0");
+    log += &power("TAG_CHANGE Entity=2 tag=CURRENT_PLAYER value=1");
+    log += submission();
+    assert!(parse(&log).perspective.conflicting);
+    assert_eq!(parse(&log).perspective.source(), None);
+    log += &fixture();
+    assert_eq!(parse(&log).perspective.player_id(), None);
+    let mut stream = StreamState::default();
+    for end in 1..=log.len() {
+        stream.feed(&log.as_bytes()[end - 1..end]).unwrap();
+        let expected = read(Cursor::new(&log.as_bytes()[..end])).unwrap();
+        assert_eq!(stream.game().as_ref().map(game_json), expected.games.last().map(game_json));
+    }
+}

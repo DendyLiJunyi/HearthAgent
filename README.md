@@ -3,7 +3,7 @@
 Rust 主控 + 可替换本地模型后端的炉石 Agent 工程起点。
 
 当前版本支持本地环境检测、Power.log 离线回放、实时 JSON 观测，以及离线决策与执行保护演示。
-**通过游戏日志读取观测，已连接本地 Laya 模型用于合成样例推理，不会读取游戏进程内存或发送鼠标输入。实时观测仍标记为不可执行。**
+**Read-only game-log observation, offline Laya GPU diagnostics on real Rogue windows, and frozen attack/choice advice are implemented. No game process memory is read and no mouse input is sent. Observations remain incomplete and non-executable.**
 
 ## 运行
 
@@ -16,7 +16,9 @@ cargo run --offline -- inspect D:\Hearthstone
 cargo run --offline -- watch D:\Hearthstone
 cargo run --offline -- replay <Power.log路径> --json
 cargo run --offline -- review <Power.log路径>
-cargo run --offline -- advise fixtures/wild-druid-attacks.log
+cargo run --offline -- advise fixtures/wild-rogue-attacks.log
+cargo run --offline -- advise-choice fixtures/wild-rogue-choice.log
+cargo run --offline -- review-choices <Power.log>
 cargo test --offline
 cargo clippy --offline --all-targets -- -D warnings
 ```
@@ -47,4 +49,6 @@ cargo clippy --offline --all-targets -- -D warnings
 
 日志接入说明：[实时监听](docs/watch.md)，[第三局验证](docs/third-game-validation.md)。
 
-首版范围已确认为[用户指定的狂野德鲁伊卡组](docs/target-deck.md)。新增[只读攻击预览与历史选项窗口](docs/action-preview.md)，尚未形成完整合法动作集或自动执行闭环。
+The sole active target is the [user-specified Wild Rogue deck](docs/target-deck.md). [Read-only attack previews](docs/action-preview.md) do not provide complete legal actions or automatic gameplay.
+
+Latest Rogue work: [real-window Laya audit](docs/laya-real-diagnostic.md), [review and label workflow](docs/review-dataset.md), and [choice transaction history](docs/choice-windows.md).

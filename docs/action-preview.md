@@ -51,16 +51,12 @@ cargo build --offline --target-dir target/validation
 
 每次运行重写 dataset，零样本时输出空文件；无示例时示例文件写入 JSON null，避免残留上次结果。本工具生成待审查材料，不执行模型推理或游戏输入。
 
-2026-10-28 重新检查得到四个含 Power.log 的会话、16 个有选项窗口的局、563 个窗口、0 个受支持攻击样本。[诊断报告](attack-corpus-review.json) 保存了每局原因。20:27 会话中有选项窗口的四局均投影出 `HERO_09`，未见我方目标卡牌；原 Power.log 也没有 `CardID=HERO_06` 记录。用户随后澄清目前尚未进行德鲁伊对局，将稍后游玩；此前会话确认已撤销。目标卡组真实样本采集等待新对局，日志来源疑问已解决。
-
-同日追加日志后的最新报告已更新为五个会话、18 个有窗口的局、688 个窗口，受支持攻击样本仍为 0。报告里的目标卡组证据继续保持未确认。
-
-2026-10-27 的四会话语料检查得到 563 个历史选项窗口。限定用户目标卡组的来源后，没有窗口产生受支持攻击候选；不能把这些旧局的窗口统计当成目标卡组覆盖验证。合成目标卡组样例见 `fixtures/wild-druid-attacks.log`。
+Historical Druid review: the previous profile yielded no supported samples in 688 windows across five sessions. The earlier user confirmation for the October 27 20:27 session was withdrawn. These results do not validate the new Rogue target. The linked report now contains the latest Rogue review, not that historical run.
 
 ## 只读模型排序
 
 ```powershell
-cargo run --offline -- advise fixtures/wild-druid-attacks.log
+cargo run --offline -- advise fixtures/wild-rogue-attacks.log
 cargo run --offline -- advise <Power.log> http://127.0.0.1:8791
 ```
 
@@ -69,3 +65,17 @@ cargo run --offline -- advise <Power.log> http://127.0.0.1:8791
 `LayaPolicy::advise` 返回独立的 AdvisoryChoice 类型，不能直接传入需要 Decision 的控制器。原 `decide` 路径仍拒绝 incomplete 快照；即使外部代码手工复制字段造出 Decision，控制器仍拒绝不完整观测。HTTP 大小、超时、候选标签、概率和置信度检查共用原验证代码。
 
 命令保留默认 0.8 阈值，不通过降低阈值制造建议。本次合成攻击样例的真实 GPU 调用被模型弃权门槛拒绝，输出 `status=no_advice`。`model_query_attempted` 只说明尝试了查询流程，不保证网络请求已经发出。CLI 成功退出表示完成报告，不表示存在建议或建议正确。
+
+## Rogue migration
+
+Rogue is the sole active target. The current [corpus report](attack-corpus-review.json) identifies its deck code and profile hash, obtained from the same binary used for review. JSONL schema v2 binds `target_deck_code` into sample identity. Earlier Druid counts and synthetic GPU results above are historical; they are not Rogue validation. The Rogue fixture has not yet received a fresh GPU evaluation.
+
+## Rogue validation checkpoint (2026-10-28)
+
+Replayed 831 option windows across six sessions and 23 games with windows. The October 28 14:28:58 session contains five games with local Rogue hero evidence and visible cards overlapping the target deck. These yielded 47 unlabelled review samples and 85 attack candidates. Exact deck identity remains unconfirmed; these counts are not legal-action coverage or model accuracy.
+
+The current report is [attack-corpus-review.json](attack-corpus-review.json); local samples are in `.data/attack-review.jsonl` (schema v2). No labels or model-quality claims are inferred from player actions. Next review these samples and evaluate Laya on independently labelled cases before expanding execution.
+
+Validation: 115 Rust tests, 12 Python tests and Clippy with warnings denied passed. Formatting verification could not run because rustfmt is not installed. No game input was sent.
+
+Current advice behavior: the Rust CLI uses the lossless compact board and independently checks original/reversed candidate-order agreement at the unchanged confidence threshold. See [real-window model audit](laya-real-diagnostic.md). Frozen local choice ranking is available through `advise-choice`; see [choice workflow](choice-windows.md).

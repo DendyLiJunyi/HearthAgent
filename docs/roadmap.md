@@ -1,8 +1,10 @@
 # 接入顺序
 
+Latest consolidated checkpoint: [current project status](current-status.md). The historical notes below record earlier milestones and corpus sizes.
+
 ## 当前进展（2026-10-27）
 
-用户已确认首版为 Wild 狂野模式及指定德鲁伊卡组，见 [目标卡组](target-deck.md)。已落盘 30 张、18 种卡牌的配置、来源校验值和所需机制列表，支持 `deck` 解码命令。
+The active target is now the user-specified Wild Rogue deck: 30 cards and 18 distinct cards. See [target deck](target-deck.md). Druid corpus results below are historical and do not validate Rogue coverage.
 
 已添加选择事件诊断（129 个真实包无格式/未知类型错误）、提交列表长度检查和费用资源投影。选择包不声明候选总数，因此仍不认证完整性；CARD_ALTERNATE_COST 缺失时不默认法力支付。
 
@@ -47,3 +49,19 @@ Laya 后续进展：隔离环境、固定版本模型、Rust HTTP 适配器和 C
 需要游戏内托管对象时，再增加 C# 适配项目。现有逆向未恢复游戏实体定位，不能将进程读取接口当作完整游戏 SDK。
 
 真实接入前需补齐：协议版本、采集时间、状态完整度详情、事件序列缺口处理、去重账本恢复、操作截止时间、多阶段出牌事务、停止控制与轨迹记录。
+
+## Rogue validation checkpoint (2026-10-28)
+
+Replayed 831 option windows across six sessions and 23 games with windows. The October 28 14:28:58 session contains five games with local Rogue hero evidence and visible cards overlapping the target deck. These yielded 47 unlabelled review samples and 85 attack candidates. Exact deck identity remains unconfirmed; these counts are not legal-action coverage or model accuracy.
+
+The current report is [attack-corpus-review.json](attack-corpus-review.json); local samples are in `.data/attack-review.jsonl` (schema v2). No labels or model-quality claims are inferred from player actions. Next review these samples and evaluate Laya on independently labelled cases before expanding execution.
+
+Validation: 115 Rust tests, 12 Python tests and Clippy with warnings denied passed. Formatting verification could not run because rustfmt is not installed. No game input was sent.
+
+Review-data integrity validation is now implemented: [review workflow](review-dataset.md). All 47 Rogue samples pass structural validation, but remain unreviewed. A game-grouped manifest is available locally; real-window model accuracy remains unevaluated.
+
+The real Rogue development-window GPU audit and lossless board encoding are complete: [results](laya-real-diagnostic.md). Input truncation was eliminated in 164 compact-input trials, but strong order sensitivity remains. A full [choice-window review](choice-windows.md) now covers 38 packets and 38 submissions across the five user-confirmed Rogue games.
+
+Restricted local choice projection and `advise-choice` are implemented for reviewed Rogue choose-one mechanisms. Real replay exposed 16 local choice windows with 47 offered-card entries. A development-only choice audit completed 56 GPU trials without truncation; none reached 0.8 confidence, so gameplay policy acceptance remains unproven. Both advice commands reject candidate-order disagreement.
+
+Choice previews now reuse the typed-card parser for observed combat stats and cost resources. The enriched 56-trial diagnostic remained untruncated; 11/14 positions were order-stable, 2 trials exceeded 0.8, and no position was confident across every variant. Independent accuracy remains unknown. Final regression checkpoint: 129 Rust tests, 39 Python tests, Clippy passed.

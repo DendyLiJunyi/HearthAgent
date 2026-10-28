@@ -1,0 +1,31 @@
+{
+  "armor": null,
+  "attack": null,
+  "card_id": null,
+  "card_type": null,
+  "combat": {
+    "attacks_this_turn": null,
+    "cant_attack": null,
+    "cant_attack_heroes": null,
+    "cant_be_damaged": null,
+    "charge": null,
+    "divine_shield": null,
+    "frozen": null,
+    "lifesteal": null,
+    "poisonous": null,
+    "rush": null,
+    "silenced": null,
+    "stealth": null,
+    "taunt": null,
+    "windfury": null
+  },
+  "cost": null,
+  "cost_resource": null,
+  "damage": null,
+  "durability": null,
+  "entity_id": null,
+  "exhausted": null,
+  "health": null,
+  "position": null,
+  "public_zone": null
+}

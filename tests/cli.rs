@@ -4,7 +4,10 @@ use std::process::Command;
 fn invalid_command_arguments_fail_with_usage_status() {
     for args in [vec!["replay"], vec!["replay", "unused", "--invalid"],
         vec!["watch"], vec!["watch", "unused", "--invalid"], vec!["review"], vec!["review", "unused", "--invalid"],
-        vec!["deck", "code", "extra"], vec!["advise"], vec!["advise", "unused", "url", "extra"], vec!["loop-demo", "extra"]] {
+        vec!["deck", "code", "extra"], vec!["advise"], vec!["advise", "unused", "url", "extra"], vec!["loop-demo", "extra"],
+        vec!["review-choices"], vec!["review-choices", "unused", "extra"],
+        vec!["review-submissions"], vec!["review-submissions", "unused", "extra"],
+        vec!["advise-choice"], vec!["advise-choice", "unused", "url", "extra"]] {
         let output = Command::new(env!("CARGO_BIN_EXE_hearth-agent")).args(&args).output().unwrap();
         assert_eq!(output.status.code(), Some(2), "{args:?}");
         assert!(String::from_utf8(output.stderr).unwrap().contains("Usage:"));
@@ -37,4 +40,17 @@ fn json_replay_of_missing_file_fails_without_publishing_a_snapshot() {
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
     assert!(String::from_utf8(output.stderr).unwrap().contains("Replay failed:"));
+}
+
+#[test]
+fn unsupported_choice_advice_is_blocked_before_model_transport() {
+    let output = Command::new(env!("CARGO_BIN_EXE_hearth-agent"))
+        .args(["advise-choice", "fixtures/wild-rogue-attacks.log", "http://127.0.0.1:1"])
+        .output().unwrap();
+    assert!(output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(report["status"], "blocked");
+    assert_eq!(report["model_query_attempted"], false);
+    assert_eq!(report["game_input_sent"], false);
+    assert_eq!(report["actionable"], false);
 }

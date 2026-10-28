@@ -1,0 +1,15 @@
+{
+  "source": "explicit_user_confirmation",
+  "recorded_date": "2026-10-28",
+  "session": "Hearthstone_2026_10_28_14_28_58",
+  "game_numbers": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "deck_code": "AAEBAau2Bwbw5gKh9APj0wTc2gSI2QeF6wcM7QL1uwLn3QP+7gO9gAT3nwS3swT13QTungatpwbBlweD1QcAAA==",
+  "statement": "User confirmed all five games used this exact Rogue deck.",
+  "scope": "External provenance only; not an inference from visible cards and not a model feature."
+}

@@ -1,12 +1,18 @@
 {
   "source": "offline_option_windows",
   "actionable": false,
+  "target_deck": {
+    "name": "User Wild Rogue",
+    "class": "ROGUE",
+    "deck_code": "AAEBAau2Bwbw5gKh9APj0wTc2gSI2QeF6wcM7QL1uwLn3QP+7gO9gAT3nwS3swT13QTungatpwbBlweD1QcAAA==",
+    "profile_sha256": "c0863916cda3fa56ecf53fa12e3d8bd22821bf44e9bc5fd1df87daf8af24d612"
+  },
   "note": "Counts describe observed prefixes, not legal-action coverage or game success.",
   "totals": {
-    "windows": 688,
-    "windows_with_attacks": 0,
-    "attack_candidates": 0,
-    "review_samples": 0
+    "windows": 831,
+    "windows_with_attacks": 47,
+    "attack_candidates": 85,
+    "review_samples": 47
   },
   "sessions": [
     {
@@ -426,6 +432,196 @@
             "unreviewed_source_mechanic": 33,
             "unsupported_source_action": 35,
             "sub_options_require_transaction": 10
+          }
+        }
+      ]
+    },
+    {
+      "session": "Hearthstone_2026_10_28_14_28_58",
+      "user_reported_target_session": false,
+      "games": [
+        {
+          "game_number": 1,
+          "windows": 23,
+          "windows_with_attacks": 6,
+          "attack_candidates": 13,
+          "review_samples": 6,
+          "visible_target_card_ids": [
+            "BE_017",
+            "CFM_630",
+            "CORE_EX1_145",
+            "CORE_RLK_567",
+            "DEEP_014",
+            "DMF_515",
+            "EX1_144",
+            "JAIL_225",
+            "LOOT_412",
+            "REV_825",
+            "REV_939",
+            "SW_412",
+            "TID_078",
+            "TLC_515",
+            "TOY_510",
+            "WC_016"
+          ],
+          "observed_local_hero_ids": [
+            "HERO_03"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 270,
+            "no_explicit_targets": 53,
+            "unsupported_source_action": 25,
+            "client_rejected_target": 29
+          }
+        },
+        {
+          "game_number": 2,
+          "windows": 22,
+          "windows_with_attacks": 2,
+          "attack_candidates": 2,
+          "review_samples": 2,
+          "visible_target_card_ids": [
+            "BE_017",
+            "CFM_630",
+            "CORE_EX1_145",
+            "DMF_515",
+            "EX1_144",
+            "JAIL_225",
+            "LOOT_412",
+            "TID_078",
+            "TLC_515",
+            "WC_016"
+          ],
+          "observed_local_hero_ids": [
+            "HERO_03"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 203,
+            "no_explicit_targets": 29,
+            "unsupported_source_action": 11,
+            "client_rejected_target": 5,
+            "sub_options_require_transaction": 14,
+            "unreviewed_source_mechanic": 3
+          }
+        },
+        {
+          "game_number": 3,
+          "windows": 42,
+          "windows_with_attacks": 21,
+          "attack_candidates": 48,
+          "review_samples": 21,
+          "visible_target_card_ids": [
+            "BE_017",
+            "CFM_630",
+            "DEEP_014",
+            "DMF_515",
+            "EX1_144",
+            "JAIL_225",
+            "LOOT_412",
+            "REV_939",
+            "SW_412",
+            "TID_078",
+            "TOY_510",
+            "TSC_916"
+          ],
+          "observed_local_hero_ids": [
+            "HERO_03"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 3,
+            "not_our_turn": 3
+          },
+          "omitted": {
+            "client_did_not_report_valid": 469,
+            "client_rejected_target": 98,
+            "no_explicit_targets": 146,
+            "unsupported_source_action": 54,
+            "sub_options_require_transaction": 23,
+            "unreviewed_source_mechanic": 19
+          }
+        },
+        {
+          "game_number": 4,
+          "windows": 31,
+          "windows_with_attacks": 6,
+          "attack_candidates": 9,
+          "review_samples": 6,
+          "visible_target_card_ids": [
+            "BE_017",
+            "CFM_630",
+            "CORE_EX1_145",
+            "CORE_RLK_567",
+            "DEEP_014",
+            "DMF_515",
+            "JAIL_225",
+            "LOOT_412",
+            "REV_939",
+            "TID_078",
+            "TOY_510",
+            "TSC_916",
+            "WC_016"
+          ],
+          "observed_local_hero_ids": [
+            "HERO_03"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 312,
+            "no_explicit_targets": 63,
+            "client_rejected_target": 18,
+            "unsupported_source_action": 7,
+            "sub_options_require_transaction": 40
+          }
+        },
+        {
+          "game_number": 5,
+          "windows": 25,
+          "windows_with_attacks": 12,
+          "attack_candidates": 13,
+          "review_samples": 12,
+          "visible_target_card_ids": [
+            "BE_017",
+            "CORE_EX1_145",
+            "DEEP_014",
+            "DMF_515",
+            "EX1_144",
+            "JAIL_225",
+            "LOOT_412",
+            "REV_939",
+            "TID_078",
+            "TOY_510",
+            "TSC_916",
+            "WC_016"
+          ],
+          "observed_local_hero_ids": [
+            "HERO_03"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 232,
+            "no_explicit_targets": 58,
+            "client_rejected_target": 55,
+            "unsupported_source_action": 7,
+            "sub_options_require_transaction": 14
           }
         }
       ]

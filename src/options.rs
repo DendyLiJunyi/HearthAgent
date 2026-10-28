@@ -43,6 +43,9 @@ pub struct Options {
     pub malformed_records: usize,
     pub unsupported_records: usize,
     pub latest: Option<OptionSet>,
+    pub submissions_seen: usize,
+    pub malformed_submissions: usize,
+    pub latest_submission: Option<crate::option_submission::OptionSubmission>,
 }
 
 fn error_code(text: &str) -> String {
@@ -65,6 +68,12 @@ impl Options {
         let mut target_parent: Option<(usize, Option<usize>)> = None;
         let mut option_parent = None;
         for line in lines {
+            if line.contains(" GameState.SendOption() - ") {
+                result.submissions_seen += 1;
+                result.latest_submission = crate::option_submission::Selection::parse(line)
+                    .map(|selection| crate::option_submission::OptionSubmission::new(selection, sequence, result.latest.as_ref()));
+                if result.latest_submission.is_none() { result.malformed_submissions += 1; }
+            }
             let Some((_, text)) = line.split_once(" GameState.DebugPrintOptions() - ") else {
                 if line.contains(" GameState.DebugPrintPower() - ") { sequence += 1; }
                 if line.contains(" GameState.DebugPrintPower() - ")
@@ -187,8 +196,10 @@ impl Options {
             format!("{{\"id\":{},\"observed_power_sequence\":{},\"stale\":{},\"complete\":false,\"malformed_records\":{},\"unsupported_records\":{},\"options\":[{}]}}",
                 set.id, set.observed_power_sequence, set.stale, set.malformed_records, set.unsupported_records, options)
         }).unwrap_or("null".into());
-        format!("{{\"packets_seen\":{},\"malformed_records\":{},\"unsupported_records\":{},\"actionable\":false,\"latest\":{}}}",
-            self.packets_seen, self.malformed_records, self.unsupported_records, latest)
+        format!("{{\"packets_seen\":{},\"malformed_records\":{},\"unsupported_records\":{},\"actionable\":false,\"latest\":{},\"submissions_seen\":{},\"malformed_submissions\":{},\"latest_submission\":{}}}",
+            self.packets_seen, self.malformed_records, self.unsupported_records, latest,
+            self.submissions_seen, self.malformed_submissions,
+            serde_json::to_string(&self.latest_submission).expect("submission contains only JSON-safe fields"))
     }
 }
 

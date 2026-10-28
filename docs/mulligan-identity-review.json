@@ -1,0 +1,36 @@
+{
+  "session": "Hearthstone_2026_10_28_14_28_58",
+  "evidence": "prefix ends immediately after local mulligan send header",
+  "results": [
+    {
+      "game_number": 1,
+      "perspective": 1,
+      "source": "local_mulligan_submission",
+      "actionable": false
+    },
+    {
+      "game_number": 2,
+      "perspective": 1,
+      "source": "local_mulligan_submission",
+      "actionable": false
+    },
+    {
+      "game_number": 3,
+      "perspective": 2,
+      "source": "local_mulligan_submission",
+      "actionable": false
+    },
+    {
+      "game_number": 4,
+      "perspective": 1,
+      "source": "local_mulligan_submission",
+      "actionable": false
+    },
+    {
+      "game_number": 5,
+      "perspective": 2,
+      "source": "local_mulligan_submission",
+      "actionable": false
+    }
+  ]
+}

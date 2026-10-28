@@ -57,6 +57,7 @@ pub struct LayaPolicy {
 
 #[derive(Deserialize)]
 struct Response {
+    #[serde(deserialize_with = "unique_map")]
     answers: BTreeMap<String, Answer>,
     usage: Usage,
 }
@@ -66,6 +67,7 @@ struct Answer {
     #[serde(rename = "type")]
     kind: String,
     choice: String,
+    #[serde(deserialize_with = "unique_map")]
     probabilities: BTreeMap<String, f64>,
     answer_confidence: f64,
     abstention: String,
@@ -77,8 +79,37 @@ struct Usage {
     truncated: bool,
     state_tokens_dropped: u64,
     truncated_questions: Vec<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "unique_map")]
     options: BTreeMap<String, Value>,
+}
+
+// Serde's ordinary map reader overwrites duplicate keys. Protocol maps must
+// reject ambiguity, including escaped spellings of the same decoded key.
+fn unique_map<'de, D, T>(deserializer: D) -> Result<BTreeMap<String, T>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    struct UniqueMap<T>(std::marker::PhantomData<T>);
+    impl<'de, T: Deserialize<'de>> serde::de::Visitor<'de> for UniqueMap<T> {
+        type Value = BTreeMap<String, T>;
+
+        fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+            formatter.write_str("an object with unique keys")
+        }
+
+        fn visit_map<M: serde::de::MapAccess<'de>>(self, mut map: M) -> Result<Self::Value, M::Error> {
+            let mut result = BTreeMap::new();
+            while let Some(key) = map.next_key::<String>()? {
+                if result.contains_key(&key) {
+                    return Err(serde::de::Error::custom("duplicate protocol map key"));
+                }
+                result.insert(key, map.next_value()?);
+            }
+            Ok(result)
+        }
+    }
+    deserializer.deserialize_map(UniqueMap(std::marker::PhantomData))
 }
 
 impl LayaPolicy {
@@ -158,6 +189,21 @@ impl LayaPolicy {
         let candidate_id = self.query(observation, true)?;
         Ok(AdvisoryChoice { session_id: observation.snapshot.session_id.clone(),
             revision: observation.snapshot.revision, candidate_id })
+    }
+
+    /// Read-only order check, not a legality or correctness guarantee. Each query
+    /// independently retains the configured confidence and response validation.
+    pub fn advise_consistent(&mut self, observation: &Observation) -> Result<AdvisoryChoice, String> {
+        let first = self.advise(observation)?;
+        if observation.candidates.len() > 1 {
+            let mut reversed = observation.clone();
+            reversed.candidates.reverse();
+            let second = self.advise(&reversed)?;
+            if first.candidate_id != second.candidate_id {
+                return Err("Laya advice changes when candidate order is reversed".into());
+            }
+        }
+        Ok(first)
     }
 
     fn query(&mut self, observation: &Observation, advisory: bool) -> Result<String, String> {

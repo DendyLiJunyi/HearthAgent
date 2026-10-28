@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "actionable": false,
+  "samples": 47,
+  "groups": 5,
+  "annotation_counts": {
+    "unreviewed": 47
+  },
+  "dataset_sha256": "cbf5ddfcc92270f80344a4c0841c23029596028fc8eea86f25453c7beb42c453",
+  "eligible_evaluation_samples": 0,
+  "evaluation_ready": false,
+  "scope": "Preferences among supplied incomplete attack candidates only."
+}

@@ -59,6 +59,7 @@ pub struct PlayerView<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub struct BoardView<'a> {
     pub perspective: Option<u32>,
+    pub perspective_source: Option<&'static str>,
     pub perspective_conflicting: bool,
     pub players: Vec<PlayerView<'a>>,
     pub active_player: Option<u32>,
@@ -82,7 +83,7 @@ fn flag(entity: &Entity, key: &str, invalid: &mut usize) -> Option<bool> {
     }
 }
 
-fn card<'a>(entity: &'a Entity, public_zone: bool, visible: bool, invalid: &mut usize) -> CardView<'a> {
+pub(crate) fn card<'a>(entity: &'a Entity, public_zone: bool, visible: bool, invalid: &mut usize) -> CardView<'a> {
     let mut view = CardView {
         entity_id: entity.id,
         position: number(entity, "ZONE_POSITION", invalid).filter(|p| *p > 0),
@@ -186,7 +187,7 @@ impl<'a> BoardView<'a> {
         let active_player = if current.len() == 1 && players.iter().all(|p| p.current_player.is_some()) {
             Some(current[0].player_id)
         } else { None };
-        Self { perspective, perspective_conflicting: game.perspective.conflicting,
+        Self { perspective, perspective_source: game.perspective.source(), perspective_conflicting: game.perspective.conflicting,
             players, active_player, turn, invalid_fields: invalid }
     }
 }

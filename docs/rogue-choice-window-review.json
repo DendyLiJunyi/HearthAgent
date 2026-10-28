@@ -1,0 +1,52 @@
+{
+  "source": "offline_choice_window_review",
+  "actionable": false,
+  "complete": false,
+  "games_with_windows": 5,
+  "totals": {
+    "windows": 76,
+    "bounded_windows": 76,
+    "packet_windows": 38,
+    "known_local_packet_windows": 16,
+    "observed_choice_entities": 123,
+    "submission_windows": 38,
+    "complete_submitted_lists": 38,
+    "local_choice_previews": 16,
+    "projected_local_choice_cards": 47
+  },
+  "packet_kinds": {
+    "MULLIGAN": 10,
+    "GENERAL": 28
+  },
+  "visible_source_card_ids": {
+    "UNKNOWN_FROM_VISIBLE_PREFIX": 10,
+    "TLC_515": 2,
+    "TLC_515e": 1,
+    "TSC_940": 1,
+    "BE_017": 11,
+    "JAIL_206": 1,
+    "TSC_916": 2,
+    "TSC_654": 3,
+    "DED_002": 1,
+    "TSC_210": 2,
+    "UNG_029": 3,
+    "LEG_CS3_028": 1
+  },
+  "local_preview_sources": {
+    "TLC_515": 2,
+    "TLC_515e": 1,
+    "BE_017": 11,
+    "TSC_916": 2
+  },
+  "preview_blocked_by": {
+    "unknown_perspective": 22,
+    "no_current_local_choice": 36,
+    "game_not_running": 2
+  },
+  "issues": {
+    "submission_packet_was_stale": 26
+  },
+  "scope": "All observed choice/submission groups; boundaries do not prove candidate completeness, local ownership or successful execution.",
+  "session": "Hearthstone_2026_10_28_14_28_58",
+  "windows_sha256": "d2b68e217655a4a03439116fe9d939e92f280a027bd1ff0a7f9142fda1503bd8"
+}
