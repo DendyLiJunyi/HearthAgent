@@ -1,4 +1,4 @@
-# Synthetic fixture: no real player or account data. These are observed attack options, not a complete game.
+# Historical Druid fixture: superseded target, retained for rejection regression only.
 D 0 GameState.DebugPrintPower() - CREATE_GAME
 D 0 GameState.DebugPrintPower() - GameEntity EntityID=1
 D 0 GameState.DebugPrintPower() - tag=STATE value=RUNNING

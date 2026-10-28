@@ -41,7 +41,7 @@ cargo clippy --offline --all-targets -- -D warnings
 
 接入真实模型时实现 `PolicyBackend`；读取游戏时实现 `ObservationSource`；执行游戏操作时实现 `ActionExecutor`。模型计算后必须重新采集状态，不能把旧输入原样作为“新状态”交给执行器。
 
-当前尝试账本只保存在内存中。进程重启后，未来的真实适配器必须重新同步；一次状态只能提交一次动作，超时需通过重新观察和协调恢复，不能用改决策 ID 的方式重发。
+默认尝试账本保存在内存；可通过 `with_journal` 启用带独占锁和同步写入的持久账本。新增 `loop-demo` 演示强制二次观测、停止和重复提交拒绝，详见 [单步主控与持久账本](docs/control-runner.md)。真实适配器仍需提供稳定对局身份和独立结果恢复；不能用改决策 ID 的方式重发。
 
 用户已指定 Laya；安装、运行和实测结果见 [Laya 接入](docs/laya.md)。已验证 CUDA 推理和 Rust HTTP 通路，但当前模型未通过合成斩杀样例，尚不能用于真实对局决策。Rust 核心不依赖 Hearthbuddy/GreyMagic DLL，未复制其反编译实现。
 

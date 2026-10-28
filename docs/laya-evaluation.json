@@ -1,0 +1,5363 @@
+{
+  "model": "convaiinnovations/laya",
+  "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+  "subfolder": "multilingual",
+  "laya_version": "0.4.15",
+  "torch_version": "2.7.1+cu126",
+  "transformers_version": "4.57.6",
+  "actual_device": "cuda:0",
+  "suite_sha256": "c79301ee45891f75e2b595d5077738884e814d485632a8e7fd5e81a86b43614a",
+  "suite": [
+    {
+      "case": "lethal",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 0,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            }
+          ],
+          "rules": "The attack is legal and deals 3 damage. Reducing the enemy hero to 0 health wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 20",
+            "c1": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "attack",
+        "c1": "end"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "lethal",
+      "permutation": 0,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "The attack is legal and deals 3 damage. Reducing the enemy hero to 0 health wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 0
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 20",
+            "c1": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "attack",
+        "c1": "end"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "lethal",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 0,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            }
+          ],
+          "rules": "The attack is legal and deals 3 damage. Reducing the enemy hero to 0 health wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn",
+            "c1": "Attack with entity 10 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end",
+        "c1": "attack"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "lethal",
+      "permutation": 1,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "The attack is legal and deals 3 damage. Reducing the enemy hero to 0 health wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 0
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn",
+            "c1": "Attack with entity 10 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end",
+        "c1": "attack"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "armor",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 2,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            },
+            {
+              "attack": 5,
+              "can_attack": true,
+              "entity_id": 11,
+              "health": 5
+            }
+          ],
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 20",
+            "c1": "Attack with entity 11 against entity 20",
+            "c2": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "attack",
+        "c1": "lethal",
+        "c2": "end"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 0,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            },
+            {
+              "health": 5,
+              "entity_id": 11,
+              "can_attack": true,
+              "attack": 5
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 2
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 20",
+            "c1": "Attack with entity 11 against entity 20",
+            "c2": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "attack",
+        "c1": "lethal",
+        "c2": "end"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 2,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            },
+            {
+              "attack": 5,
+              "can_attack": true,
+              "entity_id": 11,
+              "health": 5
+            }
+          ],
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 20",
+            "c1": "End the current turn",
+            "c2": "Attack with entity 11 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "attack",
+        "c1": "end",
+        "c2": "lethal"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 1,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            },
+            {
+              "health": 5,
+              "entity_id": 11,
+              "can_attack": true,
+              "attack": 5
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 2
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 20",
+            "c1": "End the current turn",
+            "c2": "Attack with entity 11 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "attack",
+        "c1": "end",
+        "c2": "lethal"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 2,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 2,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            },
+            {
+              "attack": 5,
+              "can_attack": true,
+              "entity_id": 11,
+              "health": 5
+            }
+          ],
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 11 against entity 20",
+            "c1": "Attack with entity 10 against entity 20",
+            "c2": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "lethal",
+        "c1": "attack",
+        "c2": "end"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 2,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            },
+            {
+              "health": 5,
+              "entity_id": 11,
+              "can_attack": true,
+              "attack": 5
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 2
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 11 against entity 20",
+            "c1": "Attack with entity 10 against entity 20",
+            "c2": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "lethal",
+        "c1": "attack",
+        "c2": "end"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 3,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 2,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            },
+            {
+              "attack": 5,
+              "can_attack": true,
+              "entity_id": 11,
+              "health": 5
+            }
+          ],
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 11 against entity 20",
+            "c1": "End the current turn",
+            "c2": "Attack with entity 10 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "lethal",
+        "c1": "end",
+        "c2": "attack"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 3,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            },
+            {
+              "health": 5,
+              "entity_id": 11,
+              "can_attack": true,
+              "attack": 5
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 2
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 11 against entity 20",
+            "c1": "End the current turn",
+            "c2": "Attack with entity 10 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "lethal",
+        "c1": "end",
+        "c2": "attack"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 4,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 2,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            },
+            {
+              "attack": 5,
+              "can_attack": true,
+              "entity_id": 11,
+              "health": 5
+            }
+          ],
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn",
+            "c1": "Attack with entity 10 against entity 20",
+            "c2": "Attack with entity 11 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end",
+        "c1": "attack",
+        "c2": "lethal"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 4,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            },
+            {
+              "health": 5,
+              "entity_id": 11,
+              "can_attack": true,
+              "attack": 5
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 2
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn",
+            "c1": "Attack with entity 10 against entity 20",
+            "c2": "Attack with entity 11 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end",
+        "c1": "attack",
+        "c2": "lethal"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 5,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 2,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            },
+            {
+              "attack": 5,
+              "can_attack": true,
+              "entity_id": 11,
+              "health": 5
+            }
+          ],
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn",
+            "c1": "Attack with entity 11 against entity 20",
+            "c2": "Attack with entity 10 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end",
+        "c1": "lethal",
+        "c2": "attack"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "armor",
+      "permutation": 5,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal their attack value. Armor absorbs damage first. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            },
+            {
+              "health": 5,
+              "entity_id": 11,
+              "can_attack": true,
+              "attack": 5
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 2
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn",
+            "c1": "Attack with entity 11 against entity 20",
+            "c2": "Attack with entity 10 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end",
+        "c1": "lethal",
+        "c2": "attack"
+      },
+      "expected": "lethal"
+    },
+    {
+      "case": "target",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 0,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [
+            {
+              "attack": 0,
+              "entity_id": 21,
+              "health": 5,
+              "taunt": false
+            }
+          ],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            }
+          ],
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 20",
+            "c1": "Attack with entity 10 against entity 21",
+            "c2": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "attack",
+        "c1": "trade",
+        "c2": "end"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 0,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [
+            {
+              "taunt": false,
+              "health": 5,
+              "entity_id": 21,
+              "attack": 0
+            }
+          ],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 0
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 20",
+            "c1": "Attack with entity 10 against entity 21",
+            "c2": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "attack",
+        "c1": "trade",
+        "c2": "end"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 0,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [
+            {
+              "attack": 0,
+              "entity_id": 21,
+              "health": 5,
+              "taunt": false
+            }
+          ],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            }
+          ],
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 20",
+            "c1": "End the current turn",
+            "c2": "Attack with entity 10 against entity 21"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "attack",
+        "c1": "end",
+        "c2": "trade"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 1,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [
+            {
+              "taunt": false,
+              "health": 5,
+              "entity_id": 21,
+              "attack": 0
+            }
+          ],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 0
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 20",
+            "c1": "End the current turn",
+            "c2": "Attack with entity 10 against entity 21"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "attack",
+        "c1": "end",
+        "c2": "trade"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 2,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 0,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [
+            {
+              "attack": 0,
+              "entity_id": 21,
+              "health": 5,
+              "taunt": false
+            }
+          ],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            }
+          ],
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 21",
+            "c1": "Attack with entity 10 against entity 20",
+            "c2": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "trade",
+        "c1": "attack",
+        "c2": "end"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 2,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [
+            {
+              "taunt": false,
+              "health": 5,
+              "entity_id": 21,
+              "attack": 0
+            }
+          ],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 0
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 21",
+            "c1": "Attack with entity 10 against entity 20",
+            "c2": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "trade",
+        "c1": "attack",
+        "c2": "end"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 3,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 0,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [
+            {
+              "attack": 0,
+              "entity_id": 21,
+              "health": 5,
+              "taunt": false
+            }
+          ],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            }
+          ],
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 21",
+            "c1": "End the current turn",
+            "c2": "Attack with entity 10 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "trade",
+        "c1": "end",
+        "c2": "attack"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 3,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [
+            {
+              "taunt": false,
+              "health": 5,
+              "entity_id": 21,
+              "attack": 0
+            }
+          ],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 0
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "Attack with entity 10 against entity 21",
+            "c1": "End the current turn",
+            "c2": "Attack with entity 10 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "trade",
+        "c1": "end",
+        "c2": "attack"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 4,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 0,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [
+            {
+              "attack": 0,
+              "entity_id": 21,
+              "health": 5,
+              "taunt": false
+            }
+          ],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            }
+          ],
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn",
+            "c1": "Attack with entity 10 against entity 20",
+            "c2": "Attack with entity 10 against entity 21"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end",
+        "c1": "attack",
+        "c2": "trade"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 4,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [
+            {
+              "taunt": false,
+              "health": 5,
+              "entity_id": 21,
+              "attack": 0
+            }
+          ],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 0
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn",
+            "c1": "Attack with entity 10 against entity 20",
+            "c2": "Attack with entity 10 against entity 21"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end",
+        "c1": "attack",
+        "c2": "trade"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 5,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic immediate lethal; no live game data",
+          "opponent_hero": {
+            "armor": 0,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [
+            {
+              "attack": 0,
+              "entity_id": 21,
+              "health": 5,
+              "taunt": false
+            }
+          ],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [
+            {
+              "attack": 3,
+              "can_attack": true,
+              "entity_id": 10,
+              "health": 4
+            }
+          ],
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn",
+            "c1": "Attack with entity 10 against entity 21",
+            "c2": "Attack with entity 10 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end",
+        "c1": "trade",
+        "c2": "attack"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "target",
+      "permutation": 5,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "Both attacks are legal and deal 3 damage. Reducing enemy hero health to 0 wins immediately.",
+          "our_minions": [
+            {
+              "health": 4,
+              "entity_id": 10,
+              "can_attack": true,
+              "attack": 3
+            }
+          ],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [
+            {
+              "taunt": false,
+              "health": 5,
+              "entity_id": 21,
+              "attack": 0
+            }
+          ],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 0
+          },
+          "fixture": "synthetic immediate lethal; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn",
+            "c1": "Attack with entity 10 against entity 21",
+            "c2": "Attack with entity 10 against entity 20"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end",
+        "c1": "trade",
+        "c2": "attack"
+      },
+      "expected": "attack"
+    },
+    {
+      "case": "only_end",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "state": {
+        "board": {
+          "acting_player": 1,
+          "fixture": "synthetic no available moves; no live game data",
+          "opponent_hero": {
+            "armor": 0,
+            "entity_id": 20,
+            "health": 3,
+            "immune": false
+          },
+          "opponent_minions": [],
+          "our_hero": {
+            "entity_id": 1,
+            "health": 30
+          },
+          "our_minions": [],
+          "rules": "No attacks, playable cards, or hero powers are available."
+        },
+        "revision": 1,
+        "session_id": "synthetic-laya-demo"
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end"
+      },
+      "expected": "end"
+    },
+    {
+      "case": "only_end",
+      "permutation": 0,
+      "field_order": "reverse",
+      "state": {
+        "session_id": "synthetic-laya-demo",
+        "revision": 1,
+        "board": {
+          "rules": "No attacks, playable cards, or hero powers are available.",
+          "our_minions": [],
+          "our_hero": {
+            "health": 30,
+            "entity_id": 1
+          },
+          "opponent_minions": [],
+          "opponent_hero": {
+            "immune": false,
+            "health": 3,
+            "entity_id": 20,
+            "armor": 0
+          },
+          "fixture": "synthetic no available moves; no live game data",
+          "acting_player": 1
+        }
+      },
+      "questions": {
+        "action": {
+          "type": "choice",
+          "instructions": "Choose the best supplied Hearthstone action for the acting player. Use only the given state.",
+          "criteria": {
+            "c0": "End the current turn"
+          }
+        }
+      },
+      "mapping": {
+        "c0": "end"
+      },
+      "expected": "end"
+    }
+  ],
+  "repeats": 3,
+  "summaries": {
+    "lethal": {
+      "trials": 12,
+      "correct": 6,
+      "accepted_at_0_8": 0,
+      "accepted_correct": 0,
+      "first_candidate_correct": 6,
+      "semantic_choices": [
+        "attack",
+        "end"
+      ],
+      "all_variants_correct": false
+    },
+    "armor": {
+      "trials": 36,
+      "correct": 9,
+      "accepted_at_0_8": 0,
+      "accepted_correct": 0,
+      "first_candidate_correct": 12,
+      "semantic_choices": [
+        "attack",
+        "end",
+        "lethal"
+      ],
+      "all_variants_correct": false
+    },
+    "target": {
+      "trials": 36,
+      "correct": 12,
+      "accepted_at_0_8": 0,
+      "accepted_correct": 0,
+      "first_candidate_correct": 12,
+      "semantic_choices": [
+        "attack",
+        "end",
+        "trade"
+      ],
+      "all_variants_correct": false
+    },
+    "only_end": {
+      "trials": 6,
+      "correct": 6,
+      "accepted_at_0_8": 6,
+      "accepted_correct": 6,
+      "first_candidate_correct": 6,
+      "semantic_choices": [
+        "end"
+      ],
+      "all_variants_correct": true
+    }
+  },
+  "latency_scope": "warm direct predict calls; excludes load and warmup",
+  "median_ms": 28.548499976750463,
+  "p95_ms": 42.469400039408356,
+  "rows": [
+    {
+      "case": "lethal",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 31.342700007371604,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.4494,
+              "c1": 0.5506
+            },
+            "confidence": 0.0074,
+            "answer_confidence": 0.5506,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 209,
+          "output_tokens": 0,
+          "state_tokens": 161,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 29.66010000091046,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.4494,
+              "c1": 0.5506
+            },
+            "confidence": 0.0074,
+            "answer_confidence": 0.5506,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 209,
+          "output_tokens": 0,
+          "state_tokens": 161,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 29.431600007228553,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.4494,
+              "c1": 0.5506
+            },
+            "confidence": 0.0074,
+            "answer_confidence": 0.5506,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 209,
+          "output_tokens": 0,
+          "state_tokens": 161,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 34.57359998719767,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.4417,
+              "c1": 0.5583
+            },
+            "confidence": 0.0098,
+            "answer_confidence": 0.5583,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 208,
+          "output_tokens": 0,
+          "state_tokens": 160,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 34.861500025726855,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.4417,
+              "c1": 0.5583
+            },
+            "confidence": 0.0098,
+            "answer_confidence": 0.5583,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 208,
+          "output_tokens": 0,
+          "state_tokens": 160,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 42.63320000609383,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.4417,
+              "c1": 0.5583
+            },
+            "confidence": 0.0098,
+            "answer_confidence": 0.5583,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 208,
+          "output_tokens": 0,
+          "state_tokens": 160,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 32.1807999862358,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.4073,
+              "c1": 0.5927
+            },
+            "confidence": 0.0249,
+            "answer_confidence": 0.5927,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 209,
+          "output_tokens": 0,
+          "state_tokens": 161,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 26.799699990078807,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.4073,
+              "c1": 0.5927
+            },
+            "confidence": 0.0249,
+            "answer_confidence": 0.5927,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 209,
+          "output_tokens": 0,
+          "state_tokens": 161,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 31.549600011203438,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.4073,
+              "c1": 0.5927
+            },
+            "confidence": 0.0249,
+            "answer_confidence": 0.5927,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 209,
+          "output_tokens": 0,
+          "state_tokens": 161,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 1,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 29.23649997683242,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2846,
+              "c1": 0.7154
+            },
+            "confidence": 0.1384,
+            "answer_confidence": 0.7154,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 208,
+          "output_tokens": 0,
+          "state_tokens": 160,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 1,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 26.256099983584136,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2846,
+              "c1": 0.7154
+            },
+            "confidence": 0.1384,
+            "answer_confidence": 0.7154,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 208,
+          "output_tokens": 0,
+          "state_tokens": 160,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "lethal",
+      "permutation": 1,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 37.501499988138676,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2846,
+              "c1": 0.7154
+            },
+            "confidence": 0.1384,
+            "answer_confidence": 0.7154,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 208,
+          "output_tokens": 0,
+          "state_tokens": 160,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 147.48539996799082,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1659,
+              "c1": 0.188,
+              "c2": 0.6461
+            },
+            "confidence": 0.1858,
+            "answer_confidence": 0.6461,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 28.680100047495216,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1659,
+              "c1": 0.188,
+              "c2": 0.6461
+            },
+            "confidence": 0.1858,
+            "answer_confidence": 0.6461,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 33.47819996997714,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1659,
+              "c1": 0.188,
+              "c2": 0.6461
+            },
+            "confidence": 0.1858,
+            "answer_confidence": 0.6461,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "lethal",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 30.053900030907243,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2174,
+              "c1": 0.5908,
+              "c2": 0.1918
+            },
+            "confidence": 0.1267,
+            "answer_confidence": 0.5908,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "lethal",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 25.611599965486676,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2174,
+              "c1": 0.5908,
+              "c2": 0.1918
+            },
+            "confidence": 0.1267,
+            "answer_confidence": 0.5908,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "lethal",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 27.272700041066855,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2174,
+              "c1": 0.5908,
+              "c2": 0.1918
+            },
+            "confidence": 0.1267,
+            "answer_confidence": 0.5908,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 29.475800052750856,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1275,
+              "c1": 0.7451,
+              "c2": 0.1275
+            },
+            "confidence": 0.3224,
+            "answer_confidence": 0.7451,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 42.469400039408356,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1275,
+              "c1": 0.7451,
+              "c2": 0.1275
+            },
+            "confidence": 0.3224,
+            "answer_confidence": 0.7451,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 25.397200020961463,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1275,
+              "c1": 0.7451,
+              "c2": 0.1275
+            },
+            "confidence": 0.3224,
+            "answer_confidence": 0.7451,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 1,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 23.91029999125749,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1515,
+              "c1": 0.7341,
+              "c2": 0.1144
+            },
+            "confidence": 0.3075,
+            "answer_confidence": 0.7341,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 1,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 24.58989998558536,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1515,
+              "c1": 0.7341,
+              "c2": 0.1144
+            },
+            "confidence": 0.3075,
+            "answer_confidence": 0.7341,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 1,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 21.827699965797365,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1515,
+              "c1": 0.7341,
+              "c2": 0.1144
+            },
+            "confidence": 0.3075,
+            "answer_confidence": 0.7341,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 2,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 22.131299949251115,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1585,
+              "c1": 0.1796,
+              "c2": 0.662
+            },
+            "confidence": 0.205,
+            "answer_confidence": 0.662,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 2,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 22.93510001618415,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1585,
+              "c1": 0.1796,
+              "c2": 0.662
+            },
+            "confidence": 0.205,
+            "answer_confidence": 0.662,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 2,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 24.448399955872446,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1585,
+              "c1": 0.1796,
+              "c2": 0.662
+            },
+            "confidence": 0.205,
+            "answer_confidence": 0.662,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 2,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "attack",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 25.006000010762364,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1899,
+              "c1": 0.6526,
+              "c2": 0.1575
+            },
+            "confidence": 0.1944,
+            "answer_confidence": 0.6526,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 2,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "attack",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 27.388099988456815,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1899,
+              "c1": 0.6526,
+              "c2": 0.1575
+            },
+            "confidence": 0.1944,
+            "answer_confidence": 0.6526,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 2,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "attack",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 30.57129995431751,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1899,
+              "c1": 0.6526,
+              "c2": 0.1575
+            },
+            "confidence": 0.1944,
+            "answer_confidence": 0.6526,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 3,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 35.304300021380186,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1869,
+              "c1": 0.5001,
+              "c2": 0.313
+            },
+            "confidence": 0.0683,
+            "answer_confidence": 0.5001,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 3,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 30.391299980692565,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1869,
+              "c1": 0.5001,
+              "c2": 0.313
+            },
+            "confidence": 0.0683,
+            "answer_confidence": 0.5001,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 3,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 28.694700042251498,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1869,
+              "c1": 0.5001,
+              "c2": 0.313
+            },
+            "confidence": 0.0683,
+            "answer_confidence": 0.5001,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 3,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 31.653999991249293,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1497,
+              "c1": 0.714,
+              "c2": 0.1363
+            },
+            "confidence": 0.2751,
+            "answer_confidence": 0.714,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 3,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 27.815099980216473,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1497,
+              "c1": 0.714,
+              "c2": 0.1363
+            },
+            "confidence": 0.2751,
+            "answer_confidence": 0.714,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 3,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 27.009300014469773,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1497,
+              "c1": 0.714,
+              "c2": 0.1363
+            },
+            "confidence": 0.2751,
+            "answer_confidence": 0.714,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 4,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "attack",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 26.573800016194582,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.3255,
+              "c1": 0.3688,
+              "c2": 0.3057
+            },
+            "confidence": 0.0028,
+            "answer_confidence": 0.3688,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 4,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "attack",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 30.1076999749057,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.3255,
+              "c1": 0.3688,
+              "c2": 0.3057
+            },
+            "confidence": 0.0028,
+            "answer_confidence": 0.3688,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 4,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "attack",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 28.210200020112097,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.3255,
+              "c1": 0.3688,
+              "c2": 0.3057
+            },
+            "confidence": 0.0028,
+            "answer_confidence": 0.3688,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 4,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "attack",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 27.0499000325799,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2319,
+              "c1": 0.6111,
+              "c2": 0.1569
+            },
+            "confidence": 0.153,
+            "answer_confidence": 0.6111,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 4,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "attack",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 27.347099967300892,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2319,
+              "c1": 0.6111,
+              "c2": 0.1569
+            },
+            "confidence": 0.153,
+            "answer_confidence": 0.6111,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 4,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "attack",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 27.453000016976148,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2319,
+              "c1": 0.6111,
+              "c2": 0.1569
+            },
+            "confidence": 0.153,
+            "answer_confidence": 0.6111,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 5,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "lethal",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 26.686099998187274,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2818,
+              "c1": 0.3675,
+              "c2": 0.3507
+            },
+            "confidence": 0.0058,
+            "answer_confidence": 0.3675,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 5,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "lethal",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 26.022500009275973,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2818,
+              "c1": 0.3675,
+              "c2": 0.3507
+            },
+            "confidence": 0.0058,
+            "answer_confidence": 0.3675,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 5,
+      "field_order": "rust_sorted",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "lethal",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 26.88499999931082,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2818,
+              "c1": 0.3675,
+              "c2": 0.3507
+            },
+            "confidence": 0.0058,
+            "answer_confidence": 0.3675,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 256,
+          "output_tokens": 0,
+          "state_tokens": 193,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 5,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 0,
+      "choice": "lethal",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 26.717200002167374,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2272,
+              "c1": 0.5986,
+              "c2": 0.1742
+            },
+            "confidence": 0.1368,
+            "answer_confidence": 0.5986,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 5,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 1,
+      "choice": "lethal",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 26.264900050591677,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2272,
+              "c1": 0.5986,
+              "c2": 0.1742
+            },
+            "confidence": 0.1368,
+            "answer_confidence": 0.5986,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "armor",
+      "permutation": 5,
+      "field_order": "reverse",
+      "expected": "lethal",
+      "repeat": 2,
+      "choice": "lethal",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 24.812999996356666,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2272,
+              "c1": 0.5986,
+              "c2": 0.1742
+            },
+            "confidence": 0.1368,
+            "answer_confidence": 0.5986,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 255,
+          "output_tokens": 0,
+          "state_tokens": 192,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 24.46420001797378,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1068,
+              "c1": 0.464,
+              "c2": 0.4292
+            },
+            "confidence": 0.1278,
+            "answer_confidence": 0.464,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 23.739400028716773,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1068,
+              "c1": 0.464,
+              "c2": 0.4292
+            },
+            "confidence": 0.1278,
+            "answer_confidence": 0.464,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 25.130500027444214,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1068,
+              "c1": 0.464,
+              "c2": 0.4292
+            },
+            "confidence": 0.1278,
+            "answer_confidence": 0.464,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 31.045900017488748,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2599,
+              "c1": 0.4634,
+              "c2": 0.2767
+            },
+            "confidence": 0.0332,
+            "answer_confidence": 0.4634,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 27.650099946185946,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2599,
+              "c1": 0.4634,
+              "c2": 0.2767
+            },
+            "confidence": 0.0332,
+            "answer_confidence": 0.4634,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 29.27940001245588,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2599,
+              "c1": 0.4634,
+              "c2": 0.2767
+            },
+            "confidence": 0.0332,
+            "answer_confidence": 0.4634,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 30.804299982264638,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.0836,
+              "c1": 0.4886,
+              "c2": 0.4278
+            },
+            "confidence": 0.162,
+            "answer_confidence": 0.4886,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 37.174400000367314,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.0836,
+              "c1": 0.4886,
+              "c2": 0.4278
+            },
+            "confidence": 0.162,
+            "answer_confidence": 0.4886,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 1,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 34.4772000098601,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.0836,
+              "c1": 0.4886,
+              "c2": 0.4278
+            },
+            "confidence": 0.162,
+            "answer_confidence": 0.4886,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 1,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 40.12590000638738,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.314,
+              "c1": 0.3189,
+              "c2": 0.3671
+            },
+            "confidence": 0.0023,
+            "answer_confidence": 0.3671,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 1,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 47.613700036890805,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.314,
+              "c1": 0.3189,
+              "c2": 0.3671
+            },
+            "confidence": 0.0023,
+            "answer_confidence": 0.3671,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 1,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": true,
+      "elapsed_ms": 32.517499988898635,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.314,
+              "c1": 0.3189,
+              "c2": 0.3671
+            },
+            "confidence": 0.0023,
+            "answer_confidence": 0.3671,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 2,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 28.980800008866936,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1332,
+              "c1": 0.5105,
+              "c2": 0.3564
+            },
+            "confidence": 0.1085,
+            "answer_confidence": 0.5105,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 2,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 32.16419997625053,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1332,
+              "c1": 0.5105,
+              "c2": 0.3564
+            },
+            "confidence": 0.1085,
+            "answer_confidence": 0.5105,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 2,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 29.7300000092946,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1332,
+              "c1": 0.5105,
+              "c2": 0.3564
+            },
+            "confidence": 0.1085,
+            "answer_confidence": 0.5105,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 2,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 30.7281999848783,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2965,
+              "c1": 0.4116,
+              "c2": 0.2919
+            },
+            "confidence": 0.0122,
+            "answer_confidence": 0.4116,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 2,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 30.554800003301352,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2965,
+              "c1": 0.4116,
+              "c2": 0.2919
+            },
+            "confidence": 0.0122,
+            "answer_confidence": 0.4116,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 2,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 26.837000041268766,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2965,
+              "c1": 0.4116,
+              "c2": 0.2919
+            },
+            "confidence": 0.0122,
+            "answer_confidence": 0.4116,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 3,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 23.8911000196822,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1178,
+              "c1": 0.496,
+              "c2": 0.3862
+            },
+            "confidence": 0.1196,
+            "answer_confidence": 0.496,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 3,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 24.678200017660856,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1178,
+              "c1": 0.496,
+              "c2": 0.3862
+            },
+            "confidence": 0.1196,
+            "answer_confidence": 0.496,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 3,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 52.344099967740476,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.1178,
+              "c1": 0.496,
+              "c2": 0.3862
+            },
+            "confidence": 0.1196,
+            "answer_confidence": 0.496,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 3,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 24.100300041027367,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2587,
+              "c1": 0.3764,
+              "c2": 0.3649
+            },
+            "confidence": 0.012,
+            "answer_confidence": 0.3764,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 3,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 37.13760001119226,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2587,
+              "c1": 0.3764,
+              "c2": 0.3649
+            },
+            "confidence": 0.012,
+            "answer_confidence": 0.3764,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 3,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "end",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 28.92080001765862,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c1",
+            "probabilities": {
+              "c0": 0.2587,
+              "c1": 0.3764,
+              "c2": 0.3649
+            },
+            "confidence": 0.012,
+            "answer_confidence": 0.3764,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 4,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 29.55939999083057,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.0683,
+              "c1": 0.2833,
+              "c2": 0.6484
+            },
+            "confidence": 0.2522,
+            "answer_confidence": 0.6484,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 4,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 27.91659999638796,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.0683,
+              "c1": 0.2833,
+              "c2": 0.6484
+            },
+            "confidence": 0.2522,
+            "answer_confidence": 0.6484,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 4,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 25.96529998118058,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.0683,
+              "c1": 0.2833,
+              "c2": 0.6484
+            },
+            "confidence": 0.2522,
+            "answer_confidence": 0.6484,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 4,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 24.742399982642382,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1572,
+              "c1": 0.3433,
+              "c2": 0.4995
+            },
+            "confidence": 0.0856,
+            "answer_confidence": 0.4995,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 4,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 27.04070002073422,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1572,
+              "c1": 0.3433,
+              "c2": 0.4995
+            },
+            "confidence": 0.0856,
+            "answer_confidence": 0.4995,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 4,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "trade",
+      "correct": false,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 32.24559995578602,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1572,
+              "c1": 0.3433,
+              "c2": 0.4995
+            },
+            "confidence": 0.0856,
+            "answer_confidence": 0.4995,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 5,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 28.200200002174824,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.0897,
+              "c1": 0.3605,
+              "c2": 0.5497
+            },
+            "confidence": 0.1689,
+            "answer_confidence": 0.5497,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 5,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 28.625599981751293,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.0897,
+              "c1": 0.3605,
+              "c2": 0.5497
+            },
+            "confidence": 0.1689,
+            "answer_confidence": 0.5497,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 5,
+      "field_order": "rust_sorted",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 27.46880002086982,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.0897,
+              "c1": 0.3605,
+              "c2": 0.5497
+            },
+            "confidence": 0.1689,
+            "answer_confidence": 0.5497,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 250,
+          "output_tokens": 0,
+          "state_tokens": 187,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 5,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 0,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 27.195899980142713,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1792,
+              "c1": 0.3976,
+              "c2": 0.4232
+            },
+            "confidence": 0.0545,
+            "answer_confidence": 0.4232,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 5,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 1,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 28.1591999810189,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1792,
+              "c1": 0.3976,
+              "c2": 0.4232
+            },
+            "confidence": 0.0545,
+            "answer_confidence": 0.4232,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "target",
+      "permutation": 5,
+      "field_order": "reverse",
+      "expected": "attack",
+      "repeat": 2,
+      "choice": "attack",
+      "correct": true,
+      "accepted_at_0_8": false,
+      "first_candidate_correct": false,
+      "elapsed_ms": 34.28469999926165,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c2",
+            "probabilities": {
+              "c0": 0.1792,
+              "c1": 0.3976,
+              "c2": 0.4232
+            },
+            "confidence": 0.0545,
+            "answer_confidence": 0.4232,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 249,
+          "output_tokens": 0,
+          "state_tokens": 186,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "only_end",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "end",
+      "repeat": 0,
+      "choice": "end",
+      "correct": true,
+      "accepted_at_0_8": true,
+      "first_candidate_correct": true,
+      "elapsed_ms": 29.890500009059906,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c0",
+            "probabilities": {
+              "c0": 1.0
+            },
+            "confidence": 1.0,
+            "answer_confidence": 1.0,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 158,
+          "output_tokens": 0,
+          "state_tokens": 125,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "only_end",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "end",
+      "repeat": 1,
+      "choice": "end",
+      "correct": true,
+      "accepted_at_0_8": true,
+      "first_candidate_correct": true,
+      "elapsed_ms": 28.471399971749634,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c0",
+            "probabilities": {
+              "c0": 1.0
+            },
+            "confidence": 1.0,
+            "answer_confidence": 1.0,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 158,
+          "output_tokens": 0,
+          "state_tokens": 125,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "only_end",
+      "permutation": 0,
+      "field_order": "rust_sorted",
+      "expected": "end",
+      "repeat": 2,
+      "choice": "end",
+      "correct": true,
+      "accepted_at_0_8": true,
+      "first_candidate_correct": true,
+      "elapsed_ms": 28.028499975334853,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c0",
+            "probabilities": {
+              "c0": 1.0
+            },
+            "confidence": 1.0,
+            "answer_confidence": 1.0,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 158,
+          "output_tokens": 0,
+          "state_tokens": 125,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "only_end",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "end",
+      "repeat": 0,
+      "choice": "end",
+      "correct": true,
+      "accepted_at_0_8": true,
+      "first_candidate_correct": true,
+      "elapsed_ms": 28.32849998958409,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c0",
+            "probabilities": {
+              "c0": 1.0
+            },
+            "confidence": 1.0,
+            "answer_confidence": 1.0,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 157,
+          "output_tokens": 0,
+          "state_tokens": 124,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "only_end",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "end",
+      "repeat": 1,
+      "choice": "end",
+      "correct": true,
+      "accepted_at_0_8": true,
+      "first_candidate_correct": true,
+      "elapsed_ms": 30.66320001380518,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c0",
+            "probabilities": {
+              "c0": 1.0
+            },
+            "confidence": 1.0,
+            "answer_confidence": 1.0,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 157,
+          "output_tokens": 0,
+          "state_tokens": 124,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    },
+    {
+      "case": "only_end",
+      "permutation": 0,
+      "field_order": "reverse",
+      "expected": "end",
+      "repeat": 2,
+      "choice": "end",
+      "correct": true,
+      "accepted_at_0_8": true,
+      "first_candidate_correct": true,
+      "elapsed_ms": 32.24430000409484,
+      "response": {
+        "model": "laya-rl-agent",
+        "answers": {
+          "action": {
+            "type": "choice",
+            "choice": "c0",
+            "probabilities": {
+              "c0": 1.0
+            },
+            "confidence": 1.0,
+            "answer_confidence": 1.0,
+            "action": {
+              "act_probability": 1.0
+            },
+            "abstention": "passed",
+            "abstention_threshold": 0.0
+          }
+        },
+        "usage": {
+          "input_tokens": 157,
+          "output_tokens": 0,
+          "state_tokens": 124,
+          "state_tokens_dropped": 0,
+          "truncated": false,
+          "truncated_questions": []
+        }
+      }
+    }
+  ],
+  "actionable": false,
+  "scope": "four synthetic positions, not independent game samples; threshold-zero ranking diagnostic with a post-hoc 0.8 confidence filter, not Rust acceptance"
+}

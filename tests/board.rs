@@ -40,6 +40,43 @@ fn hidden_zones_never_export_cached_card_identity_or_stats() {
 }
 
 #[test]
+fn combat_tags_preserve_true_false_unknown_and_do_not_infer_silence_effects() {
+    let mut game = game();
+    game.entities.insert(10, entity(10, Some("PUBLIC_MINION"), &[
+        ("ZONE", "PLAY"), ("CONTROLLER", "1"), ("CARDTYPE", "MINION"),
+        ("TAUNT", "1"), ("DIVINE_SHIELD", "0"), ("SILENCED", "1"),
+        ("CANT_BE_DAMAGED", "0"), ("NUM_ATTACKS_THIS_TURN", "2")]));
+    let board = BoardView::from_game(&game);
+    let combat = &board.players[0].in_play[0].combat;
+    assert_eq!(combat.taunt, Some(true));
+    assert_eq!(combat.divine_shield, Some(false));
+    assert_eq!(combat.silenced, Some(true));
+    assert_eq!(combat.frozen, None);
+    assert_eq!(combat.attacks_this_turn, Some(2));
+    assert_eq!(board.invalid_fields, 0);
+    let json: serde_json::Value = serde_json::from_str(&board_json(&board)).unwrap();
+    assert_eq!(json["players"][0]["in_play"][0]["combat"]["taunt"], true);
+    assert!(json["players"][0]["in_play"][0]["combat"]["rush"].is_null());
+}
+
+#[test]
+fn invalid_combat_values_are_diagnostic_and_hidden_cards_do_not_leak_flags() {
+    let mut game = game();
+    game.entities.insert(10, entity(10, Some("PUBLIC_MINION"), &[
+        ("ZONE", "PLAY"), ("CONTROLLER", "1"), ("CARDTYPE", "MINION"),
+        ("FROZEN", "2"), ("RUSH", "unknown"), ("NUM_ATTACKS_THIS_TURN", "-1"), ("TAUNT", "1")]));
+    let board = BoardView::from_game(&game);
+    assert_eq!(board.invalid_fields, 3);
+    assert_eq!(board.players[0].in_play[0].combat.frozen, None);
+    game.entities.get_mut(&10).unwrap().tags.insert("ZONE".into(), "HAND".into());
+    let hidden = BoardView::from_game(&game);
+    assert_eq!(hidden.invalid_fields, 0);
+    assert_eq!(hidden.players[0].hand[0].combat, hearth_agent::board::CombatView::default());
+    let json: serde_json::Value = serde_json::from_str(&board_json(&hidden)).unwrap();
+    assert!(json["players"][0]["hand"][0]["combat"].as_object().unwrap().values().all(|value| value.is_null()));
+}
+
+#[test]
 fn public_entities_are_ordered_with_unknown_positions_last() {
     let mut game = game();
     for (id, position) in [(10, "3"), (11, "1"), (12, "0"), (13, "1")] {

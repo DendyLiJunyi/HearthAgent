@@ -15,7 +15,7 @@ pub struct FirstCandidatePolicy {
 impl PolicyBackend for FirstCandidatePolicy {
     fn decide(&mut self, observation: &Observation) -> Result<Decision, String> {
         let candidate = observation.candidates.first().ok_or("no candidates")?;
-        self.sequence += 1;
+        self.sequence = self.sequence.checked_add(1).ok_or("baseline decision sequence exhausted")?;
         Ok(Decision {
             decision_id: format!("baseline-{}", self.sequence),
             session_id: observation.snapshot.session_id.clone(),

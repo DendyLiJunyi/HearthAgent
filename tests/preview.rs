@@ -11,7 +11,7 @@ fn board() -> String {
     ["CREATE_GAME", "GameEntity EntityID=1", "tag=STATE value=RUNNING", "tag=STEP value=MAIN_ACTION",
         "Player EntityID=2 PlayerID=1", "tag=CURRENT_PLAYER value=1",
         "Player EntityID=3 PlayerID=2", "tag=CURRENT_PLAYER value=0",
-        "FULL_ENTITY - Creating ID=10 CardID=DRG_311t", "tag=ZONE value=PLAY", "tag=CARDTYPE value=MINION",
+        "FULL_ENTITY - Creating ID=10 CardID=LOOT_412", "tag=ZONE value=PLAY", "tag=CARDTYPE value=MINION",
         "tag=CONTROLLER value=1", "tag=ATK value=2",
         "FULL_ENTITY - Creating ID=20 CardID=ENEMY_HERO", "tag=ZONE value=PLAY", "tag=CARDTYPE value=HERO",
         "tag=CONTROLLER value=2"]
@@ -49,7 +49,9 @@ fn uncertain_sources_targets_and_suboptions_are_never_interpreted_as_attacks() {
         ((board() + &packet()).replace("entity=20 error=NONE", "entity=10 error=NONE"), "unsupported_target"),
         ((board() + &packet()).replace("mainEntity=10", "mainEntity=20"), "source_not_ours"),
         ((board() + &packet()).replace("tag=ATK value=2", "tag=ATK value=0"), "unknown_or_zero_attack"),
-        ((board() + &packet()).replace("CardID=DRG_311t", "CardID=UNKNOWN_ACTIVATED_MINION"), "unreviewed_source_mechanic"),
+        ((board() + &packet()).replace("CardID=LOOT_412", "CardID=UNKNOWN_ACTIVATED_MINION"), "unreviewed_source_mechanic"),
+        ((board() + &packet()).replace("CardID=LOOT_412", "CardID=DRG_311t"), "unreviewed_source_mechanic"),
+        ((board() + &packet()).replace("CardID=LOOT_412", "CardID=BE_017"), "unreviewed_source_mechanic"),
         (board() + &packet() + &option("subOption 0 entity=42 error=NONE"), "sub_options_require_transaction"),
         ((board() + &packet()).replace(&option("target 0 entity=20 error=NONE errorParam="), ""), "no_explicit_targets"),
     ] {
@@ -106,4 +108,18 @@ fn consecutive_headers_new_games_and_partial_tail_never_merge_review_windows() {
     }).unwrap();
     assert_eq!(windows, [(1, 7, 1, true), (1, 8, 0, true), (2, 7, 1, false)]);
     assert!(replay.ignored_partial_line);
+}
+
+#[test]
+fn target_migration_accepts_rogue_hero_and_rejects_druid_and_old_god_sources() {
+    let historical = parse(include_str!("../fixtures/archive/wild-druid-attacks.log"));
+    assert!(ActionPreview::from_game(&historical).candidates.is_empty());
+    let rogue_log = include_str!("../fixtures/wild-rogue-attacks.log");
+    assert_eq!(ActionPreview::from_game(&parse(rogue_log)).candidates.len(), 2);
+    // The local hero must be linked through HERO_ENTITY and retain the reviewed class prefix.
+    let hero_log = rogue_log.replace("tag=HEALTH value=30", "tag=HEALTH value=30\nD 0 GameState.DebugPrintPower() - tag=ATK value=3")
+        .replace("mainEntity=10", "mainEntity=4");
+    assert_eq!(ActionPreview::from_game(&parse(&hero_log)).candidates.len(), 2);
+    assert!(ActionPreview::from_game(&parse(&hero_log.replace("HERO_03bg", "HERO_06g"))).candidates.is_empty());
+    assert!(ActionPreview::from_game(&parse(&rogue_log.replace("LOOT_412", "BE_017"))).candidates.is_empty());
 }

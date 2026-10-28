@@ -1,0 +1,434 @@
+{
+  "source": "offline_option_windows",
+  "actionable": false,
+  "note": "Counts describe observed prefixes, not legal-action coverage or game success.",
+  "totals": {
+    "windows": 688,
+    "windows_with_attacks": 0,
+    "attack_candidates": 0,
+    "review_samples": 0
+  },
+  "sessions": [
+    {
+      "session": "Hearthstone_2026_10_27_09_44_35",
+      "user_reported_target_session": false,
+      "games": [
+        {
+          "game_number": 1,
+          "windows": 38,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_04"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 2,
+            "not_our_turn": 2
+          },
+          "omitted": {
+            "client_did_not_report_valid": 383,
+            "no_explicit_targets": 85,
+            "unreviewed_source_mechanic": 78,
+            "unsupported_source_action": 12
+          }
+        },
+        {
+          "game_number": 2,
+          "windows": 33,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 487,
+            "no_explicit_targets": 69,
+            "unreviewed_source_mechanic": 20,
+            "unsupported_source_action": 23
+          }
+        },
+        {
+          "game_number": 3,
+          "windows": 60,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 675,
+            "no_explicit_targets": 183,
+            "unreviewed_source_mechanic": 122,
+            "unsupported_source_action": 16
+          }
+        }
+      ]
+    },
+    {
+      "session": "Hearthstone_2026_10_27_12_30_44",
+      "user_reported_target_session": false,
+      "games": [
+        {
+          "game_number": 1,
+          "windows": 34,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 369,
+            "no_explicit_targets": 117,
+            "unsupported_source_action": 33,
+            "unreviewed_source_mechanic": 21
+          }
+        },
+        {
+          "game_number": 2,
+          "windows": 1,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {}
+        },
+        {
+          "game_number": 3,
+          "windows": 24,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 3,
+            "not_our_turn": 3
+          },
+          "omitted": {
+            "client_did_not_report_valid": 198,
+            "no_explicit_targets": 33,
+            "unsupported_source_action": 24,
+            "unreviewed_source_mechanic": 6
+          }
+        },
+        {
+          "game_number": 4,
+          "windows": 60,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1,
+            "unclosed_power_structure": 21
+          },
+          "omitted": {
+            "client_did_not_report_valid": 454,
+            "no_explicit_targets": 84,
+            "unsupported_source_action": 10,
+            "unreviewed_source_mechanic": 31
+          }
+        },
+        {
+          "game_number": 5,
+          "windows": 9,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 98,
+            "no_explicit_targets": 7,
+            "unsupported_source_action": 7,
+            "unreviewed_source_mechanic": 2
+          }
+        }
+      ]
+    },
+    {
+      "session": "Hearthstone_2026_10_27_16_35_11",
+      "user_reported_target_session": false,
+      "games": [
+        {
+          "game_number": 2,
+          "windows": 47,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_04"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 486,
+            "no_explicit_targets": 98,
+            "unreviewed_source_mechanic": 85
+          }
+        },
+        {
+          "game_number": 3,
+          "windows": 43,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 2,
+            "not_our_turn": 2
+          },
+          "omitted": {
+            "client_did_not_report_valid": 448,
+            "no_explicit_targets": 109,
+            "unsupported_source_action": 35,
+            "unreviewed_source_mechanic": 57
+          }
+        },
+        {
+          "game_number": 4,
+          "windows": 31,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 3,
+            "not_our_turn": 3
+          },
+          "omitted": {
+            "client_did_not_report_valid": 266,
+            "unreviewed_source_mechanic": 64,
+            "no_explicit_targets": 29,
+            "unsupported_source_action": 2
+          }
+        },
+        {
+          "game_number": 5,
+          "windows": 27,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 338,
+            "no_explicit_targets": 42,
+            "unsupported_source_action": 13,
+            "unreviewed_source_mechanic": 25
+          }
+        }
+      ]
+    },
+    {
+      "session": "Hearthstone_2026_10_27_20_27_56",
+      "user_reported_target_session": false,
+      "games": [
+        {
+          "game_number": 1,
+          "windows": 34,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 3,
+            "not_our_turn": 3
+          },
+          "omitted": {
+            "client_did_not_report_valid": 411,
+            "no_explicit_targets": 60,
+            "unreviewed_source_mechanic": 48,
+            "unsupported_source_action": 2
+          }
+        },
+        {
+          "game_number": 4,
+          "windows": 37,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 3,
+            "not_our_turn": 3
+          },
+          "omitted": {
+            "client_did_not_report_valid": 399,
+            "no_explicit_targets": 49,
+            "unsupported_source_action": 40,
+            "unreviewed_source_mechanic": 37
+          }
+        },
+        {
+          "game_number": 6,
+          "windows": 24,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 1,
+            "not_our_turn": 1
+          },
+          "omitted": {
+            "client_did_not_report_valid": 267,
+            "no_explicit_targets": 16,
+            "unsupported_source_action": 3,
+            "unreviewed_source_mechanic": 55
+          }
+        },
+        {
+          "game_number": 7,
+          "windows": 61,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 2,
+            "not_our_turn": 2
+          },
+          "omitted": {
+            "client_did_not_report_valid": 813,
+            "no_explicit_targets": 181,
+            "unreviewed_source_mechanic": 45,
+            "unsupported_source_action": 18
+          }
+        }
+      ]
+    },
+    {
+      "session": "Hearthstone_2026_10_28_09_19_04",
+      "user_reported_target_session": false,
+      "games": [
+        {
+          "game_number": 1,
+          "windows": 19,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 2,
+            "not_our_turn": 2
+          },
+          "omitted": {
+            "client_did_not_report_valid": 253,
+            "no_explicit_targets": 56,
+            "unsupported_source_action": 14,
+            "sub_options_require_transaction": 5
+          }
+        },
+        {
+          "game_number": 2,
+          "windows": 106,
+          "windows_with_attacks": 0,
+          "attack_candidates": 0,
+          "review_samples": 0,
+          "visible_target_card_ids": [],
+          "observed_local_hero_ids": [
+            "HERO_09"
+          ],
+          "target_deck_confirmed": false,
+          "blocked_by": {
+            "unknown_perspective": 3,
+            "not_our_turn": 3,
+            "invalid_observation": 40
+          },
+          "omitted": {
+            "client_did_not_report_valid": 728,
+            "no_explicit_targets": 215,
+            "unreviewed_source_mechanic": 33,
+            "unsupported_source_action": 35,
+            "sub_options_require_transaction": 10
+          }
+        }
+      ]
+    }
+  ]
+}

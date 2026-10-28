@@ -1,0 +1,282 @@
+{
+  "name": "User Wild Rogue",
+  "mode": "wild",
+  "class": "ROGUE",
+  "deck_code": "AAEBAau2Bwbw5gKh9APj0wTc2gSI2QeF6wcM7QL1uwLn3QP+7gO9gAT3nwS3swT13QTungatpwbBlweD1QcAAA==",
+  "hero": {
+    "dbfId": 121643,
+    "id": "HERO_03bg",
+    "name": "Tess Greymane"
+  },
+  "source": {
+    "url": "https://api.hearthstonejson.com/v1/latest/enUS/cards.json",
+    "retrieved_date": "2026-10-27",
+    "sha256": "06e61ce4afd2bce9c2ff53de8c2c1cc0080df27aa4743c8eee3d63894d10dc04",
+    "note": "Static metadata snapshot; live costs and transformations must come from observations."
+  },
+  "attack_preview": {
+    "hero_prefix": "HERO_03",
+    "reviewed_minion_card_ids": [
+      "LOOT_412",
+      "TID_078"
+    ],
+    "unreviewed_minion_card_ids": [
+      "BE_017"
+    ],
+    "note": "Old God powers and generated/copy sources are not assumed to be ordinary attacks."
+  },
+  "cards": [
+    {
+      "dbfId": 365,
+      "id": "EX1_144",
+      "name": "Shadowstep",
+      "cost": 0,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "friendly_minion_target",
+        "return_to_hand",
+        "cost_modifier"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 40437,
+      "id": "CFM_630",
+      "name": "Counterfeit Coin",
+      "cost": 0,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "temporary_mana"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 45936,
+      "id": "LOOT_412",
+      "name": "Kobold Illusionist",
+      "cost": 5,
+      "type": "MINION",
+      "count": 1,
+      "required_features": [
+        "deathrattle",
+        "hand_minion_copy",
+        "summon_modified_stats",
+        "placement"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 61159,
+      "id": "DMF_515",
+      "name": "Swindle",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "combo",
+        "typed_draw"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 63358,
+      "id": "WC_016",
+      "name": "Shroud of Concealment",
+      "cost": 3,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "typed_draw",
+        "conditional_stealth",
+        "turn_scoped_effect"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 64033,
+      "id": "SW_412",
+      "name": "SI:7 Extortion",
+      "cost": 1,
+      "type": "SPELL",
+      "count": 1,
+      "required_features": [
+        "tradeable",
+        "undamaged_character_target",
+        "spell_damage"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 65597,
+      "id": "DED_004",
+      "name": "Blackwater Cutlass",
+      "cost": 1,
+      "type": "WEAPON",
+      "count": 2,
+      "required_features": [
+        "weapon_equip",
+        "tradeable",
+        "random_hand_spell_discount"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 69623,
+      "id": "CORE_EX1_145",
+      "name": "Preparation",
+      "cost": 0,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "next_spell_discount",
+        "turn_scoped_effect"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 72119,
+      "id": "TSC_916",
+      "name": "Gone Fishin'",
+      "cost": 1,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "dredge",
+        "deck_order",
+        "combo",
+        "draw"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 76259,
+      "id": "TID_078",
+      "name": "Shattershambler",
+      "cost": 1,
+      "type": "MINION",
+      "count": 1,
+      "required_features": [
+        "battlecry",
+        "next_deathrattle_minion_discount",
+        "immediate_death",
+        "placement"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 77148,
+      "id": "REV_825",
+      "name": "Double Cross",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 1,
+      "required_features": [
+        "secret",
+        "opponent_mana_trigger",
+        "draw"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 77557,
+      "id": "REV_939",
+      "name": "Serrated Bone Spike",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "minion_damage",
+        "death_condition",
+        "next_card_discount"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 102254,
+      "id": "DEEP_014",
+      "name": "Quick Pick",
+      "cost": 2,
+      "type": "WEAPON",
+      "count": 2,
+      "required_features": [
+        "weapon_equip",
+        "hero_attack_trigger",
+        "draw"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 103341,
+      "id": "TOY_510",
+      "name": "Dig for Treasure",
+      "cost": 1,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "typed_draw",
+        "pirate_condition",
+        "generate_coin"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 117697,
+      "id": "TLC_515",
+      "name": "Cultist Map",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "discover_from_deck",
+        "conditional_second_choice",
+        "turn_scoped_effect"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 125571,
+      "id": "JAIL_225",
+      "name": "Nab",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 2,
+      "required_features": [
+        "minion_damage",
+        "death_condition",
+        "shuffle_copy",
+        "cost_modifier"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 126088,
+      "id": "CORE_RLK_567",
+      "name": "Shadow of Demise",
+      "cost": 0,
+      "type": "SPELL",
+      "count": 1,
+      "required_features": [
+        "hand_transformation",
+        "last_spell_history"
+      ],
+      "simulation_supported": false
+    },
+    {
+      "dbfId": 128389,
+      "id": "BE_017",
+      "name": "N'Zoth, Dream's End",
+      "cost": 15,
+      "type": "MINION",
+      "count": 1,
+      "required_features": [
+        "old_god_unreviewed",
+        "deathrattle_summon_history",
+        "dynamic_cost",
+        "generated_choices"
+      ],
+      "simulation_supported": false
+    }
+  ]
+}

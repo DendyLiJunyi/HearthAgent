@@ -103,3 +103,70 @@ fn choices_match_replay_at_every_line_boundary_and_ignore_partial_submission() {
     let partial = &log[..log.len() - 1];
     assert!(!parse(partial).choices.latest_submission.unwrap().list_complete);
 }
+
+#[test]
+fn submission_correlation_checks_owner_bounds_and_observed_entities_separately() {
+    let game = parse(&(base() + &packet(7, 2, "GENERAL")
+        + &chosen("id=7 Player=3 EntitiesCount=2")
+        + &chosen("Entities[0]=10") + &chosen("Entities[1]=99")));
+    let submission = game.choices.latest_submission.unwrap();
+    assert!(submission.list_complete); // Length correctness is independent of semantics.
+    let correlation = submission.correlation;
+    assert!(correlation.packet_seen);
+    assert_eq!(correlation.owner_matches, Some(false));
+    assert_eq!(correlation.declared_count_within_bounds, Some(false));
+    assert_eq!(correlation.unobserved_entities, [99]);
+    assert_eq!(correlation.packet_was_stale, Some(false));
+    assert!(!correlation.candidate_list_complete && !correlation.execution_confirmed);
+}
+
+#[test]
+fn matching_submission_is_not_execution_confirmation() {
+    let game = parse(&(base() + &packet(7, 2, "TARGET")
+        + &chosen("id=7 Player=2 EntitiesCount=1") + &chosen("Entities[0]=11")));
+    let submission = game.choices.latest_submission.unwrap();
+    let correlation = &submission.correlation;
+    assert_eq!(correlation.owner_matches, Some(true));
+    assert_eq!(correlation.declared_count_within_bounds, Some(true));
+    assert_eq!(correlation.packet_kind, Some("TARGET"));
+    assert!(correlation.unobserved_entities.is_empty());
+    assert!(!correlation.execution_confirmed);
+    let json = serde_json::to_string(&submission).unwrap();
+    assert!(!json.contains("context") && !json.contains("source_seen"));
+}
+
+#[test]
+fn later_or_reused_choice_ids_cannot_repair_submission_context() {
+    let submitted = base() + &chosen("id=7 Player=2 EntitiesCount=1") + &chosen("Entities[0]=10");
+    let game = parse(&(submitted + &packet(7, 2, "GENERAL")));
+    let correlation = game.choices.latest_submission.unwrap().correlation;
+    assert!(!correlation.packet_seen);
+    assert_eq!(correlation.owner_matches, None);
+    assert_eq!(correlation.declared_count_within_bounds, None);
+
+    let original = base() + &packet(7, 2, "GENERAL")
+        + &chosen("id=7 Player=2 EntitiesCount=1") + &chosen("Entities[0]=99");
+    let replacement = packet(7, 3, "TARGET").replace("Entities[1]=11", "Entities[1]=99");
+    let game = parse(&(original + &replacement));
+    let correlation = game.choices.latest_submission.unwrap().correlation;
+    assert_eq!(correlation.packet_kind, Some("GENERAL"));
+    assert_eq!(correlation.owner_matches, Some(true));
+    assert_eq!(correlation.unobserved_entities, [99]);
+}
+
+#[test]
+fn uncertain_packets_and_incomplete_submissions_keep_their_diagnostics() {
+    let uncertain = packet(7, 2, "FUTURE_KIND").replace("Player=2 TaskList=", "Player=Unknown TaskList=");
+    let initial = base() + &uncertain + &choice("Entities[4]=12")
+        + &power("TAG_CHANGE Entity=1 tag=TURN value=2")
+        + &chosen("id=7 Player=2 EntitiesCount=1");
+    let game = parse(&initial);
+    let submission = game.choices.latest_submission.unwrap();
+    assert!(!submission.list_complete);
+    assert_eq!(submission.correlation.owner_matches, None);
+    assert_eq!(submission.correlation.packet_kind, Some("UNKNOWN"));
+    assert_eq!(submission.correlation.packet_malformed_records, Some(1));
+    assert_eq!(submission.correlation.packet_was_stale, Some(true));
+    let broken = parse(&(initial + &chosen("Entities[1]=10")));
+    assert!(!broken.choices.latest_submission.unwrap().list_complete);
+}

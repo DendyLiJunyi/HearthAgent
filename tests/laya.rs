@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
-use hearth_agent::controller::{ControlError, Controller};
+use hearth_agent::controller::{ControlError, Controller, ExecutionWindow};
 use hearth_agent::executor::RecordingExecutor;
 use hearth_agent::laya::{LayaConfig, LayaPolicy};
 use hearth_agent::policy::PolicyBackend;
@@ -67,6 +67,7 @@ fn valid_response_preserves_snapshot_and_maps_short_labels_back_to_candidate_ids
     let (url, server) = server(200, good().to_string(), Duration::ZERO);
     let observation = fixture();
     let mut policy = policy(&url, &observation, Duration::from_secs(2));
+    let window = ExecutionWindow::new(&observation.snapshot, Duration::from_secs(10)).unwrap();
     let decision = policy.decide(&observation).unwrap();
     assert_eq!(decision.candidate_id, "attack-choice");
     assert_eq!(decision.session_id, observation.snapshot.session_id);
@@ -81,7 +82,46 @@ fn valid_response_preserves_snapshot_and_maps_short_labels_back_to_candidate_ids
     assert_eq!(request["questions"]["action"]["criteria"].as_object().unwrap().len(), 2);
     let mut changed = observation.clone();
     changed.snapshot.revision += 1;
-    assert_eq!(Controller::default().execute(&changed, &decision, &mut RecordingExecutor::default()), Err(ControlError::StaleDecision));
+    assert_eq!(Controller::default().execute(&changed, &decision, &window, &mut RecordingExecutor::default()), Err(ControlError::StaleDecision));
+}
+
+#[test]
+fn valid_model_reply_after_dispatch_deadline_never_reaches_executor() {
+    let (url, server) = server(200, good().to_string(), Duration::from_millis(30));
+    let observation = fixture();
+    let mut policy = policy(&url, &observation, Duration::from_secs(2));
+    let window = ExecutionWindow::new(&observation.snapshot, Duration::from_millis(10)).unwrap();
+    let decision = policy.decide(&observation).unwrap();
+    server.join().unwrap();
+    let mut executor = RecordingExecutor::default();
+    assert_eq!(Controller::default().execute(&observation, &decision, &window, &mut executor),
+        Err(ControlError::DeadlineExpired));
+    assert!(executor.records.is_empty());
+}
+
+#[test]
+fn mulligan_choices_and_placement_are_described_without_losing_identity() {
+    for (phase, actions, expected_text) in [
+        (Phase::Mulligan, [Action::Mulligan { choice_id: 17, replace: vec![] },
+            Action::Mulligan { choice_id: 17, replace: vec![10] }], "mulligan packet 17, replace entities []"),
+        (Phase::Choosing, [Action::ChooseOptions { choice_id: 23, entities: vec![10, 11] },
+            Action::ChooseOptions { choice_id: 23, entities: vec![12] }], "choice packet 23, select entities [10, 11]"),
+        (Phase::OurTurn, [Action::PlayCard { source: 10, target: Some(20), position: Some(2) },
+            Action::EndTurn], "board position Some(2)"),
+    ] {
+        let mut input = fixture();
+        input.snapshot.phase = phase;
+        for (candidate, action) in input.candidates.iter_mut().zip(actions) { candidate.action = action; }
+        let (url, server) = server(200, good().to_string(), Duration::ZERO);
+        let mut policy = policy(&url, &input, Duration::from_secs(2));
+        let window = ExecutionWindow::new(&input.snapshot, Duration::from_secs(10)).unwrap();
+        let decision = policy.decide(&input).unwrap();
+        let request = server.join().unwrap();
+        assert!(request["questions"]["action"]["criteria"]["c0"].as_str().unwrap().contains(expected_text));
+        let mut executor = RecordingExecutor::default();
+        assert!(Controller::default().execute(&input, &decision, &window, &mut executor).is_ok());
+        assert_eq!(executor.records[0].1.action, input.candidates[0].action);
+    }
 }
 
 #[test]
@@ -150,7 +190,7 @@ fn incomplete_stale_ambiguous_and_large_requests_are_rejected_before_transport()
     assert!(policy.decide(&bad).unwrap_err().contains("1..=16"));
     let mut bad = observation.clone(); bad.candidates = vec![bad.candidates[0].clone(); 17];
     assert!(policy.decide(&bad).unwrap_err().contains("1..=16"));
-    let mut bad = observation.clone(); bad.candidates[0].action = Action::ChooseOption { entity: 42 };
+    let mut bad = observation.clone(); bad.candidates[0].action = Action::ChooseOptions { choice_id: 7, entities: vec![42] };
     assert!(policy.decide(&bad).unwrap_err().contains("phase"));
     assert!(policy.bind_state(&observation.snapshot, json!({"text": "x".repeat(16384)})).is_err());
     assert!(policy.decide(&observation).unwrap_err().contains("no model state"));
@@ -186,7 +226,8 @@ fn advisory_ranking_preserves_incompleteness_and_cannot_enable_execution() {
     // the unchanged observation still prevents it reaching the executor.
     let fabricated = Decision { decision_id: "fabricated".into(), session_id: advice.session_id,
         revision: advice.revision, candidate_id: advice.candidate_id };
-    assert_eq!(Controller::default().execute(&observation, &fabricated, &mut RecordingExecutor::default()),
+    let window = ExecutionWindow::new(&observation.snapshot, Duration::from_secs(10)).unwrap();
+    assert_eq!(Controller::default().execute(&observation, &fabricated, &window, &mut RecordingExecutor::default()),
         Err(ControlError::IncompleteState));
 }
 

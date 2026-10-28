@@ -1,0 +1,178 @@
+﻿[
+    {
+        "session":  "Hearthstone_2026_10_27_09_44_35",
+        "game_number":  1,
+        "invalid_fields":  0,
+        "public_characters":  8,
+        "known_combat_values":  8,
+        "unknown_combat_values":  104
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_09_44_35",
+        "game_number":  2,
+        "invalid_fields":  0,
+        "public_characters":  7,
+        "known_combat_values":  2,
+        "unknown_combat_values":  96
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_09_44_35",
+        "game_number":  3,
+        "invalid_fields":  0,
+        "public_characters":  6,
+        "known_combat_values":  9,
+        "unknown_combat_values":  75
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_12_30_44",
+        "game_number":  1,
+        "invalid_fields":  0,
+        "public_characters":  6,
+        "known_combat_values":  3,
+        "unknown_combat_values":  81
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_12_30_44",
+        "game_number":  2,
+        "invalid_fields":  0,
+        "public_characters":  2,
+        "known_combat_values":  0,
+        "unknown_combat_values":  28
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_12_30_44",
+        "game_number":  3,
+        "invalid_fields":  0,
+        "public_characters":  3,
+        "known_combat_values":  2,
+        "unknown_combat_values":  40
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_12_30_44",
+        "game_number":  4,
+        "invalid_fields":  0,
+        "public_characters":  5,
+        "known_combat_values":  2,
+        "unknown_combat_values":  68
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_12_30_44",
+        "game_number":  5,
+        "invalid_fields":  0,
+        "public_characters":  5,
+        "known_combat_values":  4,
+        "unknown_combat_values":  66
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_16_35_11",
+        "game_number":  1,
+        "invalid_fields":  0,
+        "public_characters":  2,
+        "known_combat_values":  0,
+        "unknown_combat_values":  28
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_16_35_11",
+        "game_number":  2,
+        "invalid_fields":  0,
+        "public_characters":  8,
+        "known_combat_values":  13,
+        "unknown_combat_values":  99
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_16_35_11",
+        "game_number":  3,
+        "invalid_fields":  0,
+        "public_characters":  7,
+        "known_combat_values":  5,
+        "unknown_combat_values":  93
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_16_35_11",
+        "game_number":  4,
+        "invalid_fields":  0,
+        "public_characters":  6,
+        "known_combat_values":  6,
+        "unknown_combat_values":  78
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_16_35_11",
+        "game_number":  5,
+        "invalid_fields":  0,
+        "public_characters":  3,
+        "known_combat_values":  1,
+        "unknown_combat_values":  41
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  1,
+        "invalid_fields":  0,
+        "public_characters":  8,
+        "known_combat_values":  9,
+        "unknown_combat_values":  103
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  2,
+        "invalid_fields":  0,
+        "public_characters":  2,
+        "known_combat_values":  0,
+        "unknown_combat_values":  28
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  3,
+        "invalid_fields":  0,
+        "public_characters":  2,
+        "known_combat_values":  0,
+        "unknown_combat_values":  28
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  4,
+        "invalid_fields":  0,
+        "public_characters":  11,
+        "known_combat_values":  9,
+        "unknown_combat_values":  145
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  5,
+        "invalid_fields":  0,
+        "public_characters":  2,
+        "known_combat_values":  0,
+        "unknown_combat_values":  28
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  6,
+        "invalid_fields":  0,
+        "public_characters":  8,
+        "known_combat_values":  6,
+        "unknown_combat_values":  106
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  7,
+        "invalid_fields":  0,
+        "public_characters":  5,
+        "known_combat_values":  3,
+        "unknown_combat_values":  67
+    },
+    {
+        "session":  "Hearthstone_2026_10_28_09_19_04",
+        "game_number":  1,
+        "invalid_fields":  0,
+        "public_characters":  9,
+        "known_combat_values":  15,
+        "unknown_combat_values":  111
+    },
+    {
+        "session":  "Hearthstone_2026_10_28_09_19_04",
+        "game_number":  2,
+        "invalid_fields":  0,
+        "public_characters":  9,
+        "known_combat_values":  11,
+        "unknown_combat_values":  115
+    }
+]

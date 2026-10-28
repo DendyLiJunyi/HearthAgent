@@ -35,6 +35,10 @@ cargo run --offline -- watch D:\Hearthstone --once
 
 缺失值不填 0。数字只接受 u32 范围，布尔标签只接受 0/1。没有 DAMAGE 不等于零伤害，没有 EXHAUSTED 不等于可攻击。
 
+卡牌视图新增 `combat` 对象：`taunt`、`divine_shield`、`stealth`、`frozen`、`charge`、`rush`、`windfury`、`poisonous`、`lifesteal`、`silenced`、`cant_be_damaged`、`cant_attack`、`cant_attack_heroes` 和 `attacks_this_turn`。分别读取对应同名大写标签（最后一个为 NUM_ATTACKS_THIS_TURN）；只是最后观测值，不推导攻击次数上限、免疫规则或沉默后的其他属性。数字/布尔格式错误仍计入 `invalid_fields`，隐藏手牌的整个 combat 对象各值均为 null。
+
+2026-10-28 当前本机日志的 22 个局末快照中，124 个公开在场英雄/随从共 108 个已知战斗值、1628 个未知值，invalid_fields 总数为 0。报告见 [战斗投影检查](combat-projection-review.json)。这是已记录字段的覆盖诊断，不是完整战斗规则验证；大量未出现的标签不能默认 false。
+
 `cost_resource` 仅根据已观测 CARD_ALTERNATE_COST 映射：0=mana、1=health、2=armor、3=corpses、4=opponents_health、5=alt_tavern_coin。映射经本机客户端 enum 和消费代码核对；缺失为 null，未知值计入 invalid_fields，不能默认法力支付。该字段遵守相同手牌遮蔽规则。静态卡牌费用不覆盖实时 COST，也不构成支付可行性判断。
 
 ## 原始数据与隐藏信息

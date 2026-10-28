@@ -27,10 +27,11 @@ fn cards_json(cards: &[CardView<'_>]) -> String {
     let cards = cards.iter().map(|c| format!(concat!(
         "{{\"entity_id\":{},\"position\":{},\"public_zone\":{},\"card_id\":{},",
         "\"card_type\":{},\"cost\":{},\"cost_resource\":{},\"attack\":{},\"health\":{},\"damage\":{},",
-        "\"armor\":{},\"durability\":{},\"exhausted\":{}}}"),
+        "\"armor\":{},\"durability\":{},\"exhausted\":{},\"combat\":{}}}"),
         c.entity_id, optional(c.position), c.public_zone, string(c.card_id),
         string(c.card_type), optional(c.cost), string(c.cost_resource), optional(c.attack), optional(c.health),
-        optional(c.damage), optional(c.armor), optional(c.durability), optional(c.exhausted)))
+        optional(c.damage), optional(c.armor), optional(c.durability), optional(c.exhausted),
+        serde_json::to_string(&c.combat).expect("combat view contains only JSON-safe values")))
         .collect::<Vec<_>>().join(",");
     format!("[{cards}]")
 }

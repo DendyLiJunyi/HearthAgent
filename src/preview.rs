@@ -90,7 +90,7 @@ impl ActionPreview {
             }
             let reviewed_source = match source.tag("CARDTYPE") {
                 Some("MINION") => source.card_id.as_deref().is_some_and(|id| crate::deck::TARGET_ATTACK_SOURCES.contains(&id)),
-                Some("HERO") => source.card_id.as_deref().is_some_and(|id| id.starts_with("HERO_06"))
+                Some("HERO") => source.card_id.as_deref().is_some_and(|id| id.starts_with(crate::deck::TARGET_HERO_PREFIX))
                     && board.players.iter().any(|p| Some(p.player_id) == board.perspective && p.hero_entity == Some(source.id)),
                 _ => false,
             };

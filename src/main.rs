@@ -1,10 +1,21 @@
-use hearth_agent::controller::Controller;
+use hearth_agent::controller::{Controller, ExecutionWindow};
 use hearth_agent::executor::RecordingExecutor;
 use hearth_agent::policy::{FirstCandidatePolicy, PolicyBackend};
 use hearth_agent::protocol::{Action, Candidate, Observation, Phase, Snapshot};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("loop-demo") {
+        if args.len() != 1 {
+            eprintln!("Usage: hearth-agent loop-demo");
+            std::process::exit(2);
+        }
+        if let Err(error) = loop_demo() {
+            eprintln!("Loop demo failed: {error}");
+            std::process::exit(1);
+        }
+        return;
+    }
     if args.first().map(String::as_str) == Some("advise") {
         if args.len() < 2 || args.len() > 3 {
             eprintln!("Usage: hearth-agent advise <Power.log> [http://127.0.0.1:8791]");
@@ -123,7 +134,7 @@ fn main() {
         return;
     }
     if args != ["demo"] {
-        println!("Hearth Agent 0.1.0\nCommands: demo; deck [deck-code]; laya-demo [loopback-url]; inspect [directory]; replay <Power.log> [--json]; review <Power.log>; advise <Power.log> [loopback-url]; watch <directory> [--once]\nRead-only observation and offline demo; no game input is sent.");
+        println!("Hearth Agent 0.1.0\nCommands: demo; loop-demo; deck [deck-code]; laya-demo [loopback-url]; inspect [directory]; replay <Power.log> [--json]; review <Power.log>; advise <Power.log> [loopback-url]; watch <directory> [--once]\nRead-only observation and offline demo; no game input is sent.");
         if !args.is_empty() { std::process::exit(2); }
         return;
     }
@@ -139,13 +150,55 @@ fn main() {
     let mut policy = FirstCandidatePolicy::default();
     let mut controller = Controller::default();
     let mut executor = RecordingExecutor::default();
+    let window = ExecutionWindow::new(&observation.snapshot, std::time::Duration::from_secs(10))
+        .expect("valid demo budget");
     let decision = policy.decide(&observation).expect("demo candidates exist");
     println!("Observation: {:?}", observation.snapshot);
     println!("Decision: {decision:?}");
     // Offline fixture is immutable; live operation must reacquire the observation here.
-    let outcome = controller.execute(&observation, &decision, &mut executor).expect("valid demo");
+    let outcome = controller.execute(&observation, &decision, &window, &mut executor).expect("valid demo");
     println!("Outcome: {outcome:?} (no game input sent)");
-    println!("Duplicate: {:?}", controller.execute(&observation, &decision, &mut executor));
+    println!("Duplicate: {:?}", controller.execute(&observation, &decision, &window, &mut executor));
+}
+
+fn loop_demo() -> std::io::Result<()> {
+    use std::collections::VecDeque;
+    use std::io::Write;
+    use hearth_agent::protocol::ObservationSource;
+    use hearth_agent::runner::StepRunner;
+    struct Source(VecDeque<Observation>);
+    impl ObservationSource for Source {
+        fn observe(&mut self) -> Result<Observation, String> {
+            self.0.pop_front().ok_or_else(|| "synthetic observations exhausted".into())
+        }
+    }
+    let initial = Observation {
+        snapshot: Snapshot { session_id: "synthetic-loop-demo".into(), revision: 1, phase: Phase::OurTurn, complete: true },
+        candidates: vec![Candidate { id: "end".into(), action: Action::EndTurn }],
+    };
+    let stdout = std::io::stdout();
+    let mut output = stdout.lock();
+    for scenario in ["stable", "changed_revision", "changed_candidate", "cancelled", "duplicate"] {
+        let mut runner = StepRunner::default();
+        let mut refreshed = initial.clone();
+        match scenario {
+            "changed_revision" => refreshed.snapshot.revision += 1,
+            "changed_candidate" => refreshed.candidates[0].action = Action::Attack { source: 10, target: 20 },
+            "cancelled" => runner.stop_token().stop(),
+            _ => {},
+        }
+        let mut executor = RecordingExecutor::default();
+        let mut policy = FirstCandidatePolicy::default();
+        let mut source = Source([initial.clone(), refreshed.clone(), initial.clone(), refreshed].into());
+        if scenario == "duplicate" {
+            runner.step(&mut source, &mut policy, &mut executor, std::time::Duration::from_secs(10));
+        }
+        let result = runner.step(&mut source, &mut policy, &mut executor, std::time::Duration::from_secs(10));
+        writeln!(output, "{}", serde_json::json!({"source": "synthetic_loop_demo",
+            "scenario": scenario, "game_input_sent": false, "recorded_actions": executor.records.len(),
+            "trace": result.trace}))?;
+    }
+    Ok(())
 }
 
 fn review(path: &str) -> std::io::Result<()> {

@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use serde::Serialize;
 
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct ChoiceSet {
     pub id: u32,
     pub owner_entity: Option<u32>,
@@ -28,6 +28,44 @@ pub struct ChoiceSubmission {
     pub malformed_records: usize,
     /// Only the submitted list has a declared length. This is not execution confirmation.
     pub list_complete: bool,
+    pub correlation: SubmissionCorrelation,
+    /// Freeze the packet at the submission header; later packets cannot repair it.
+    #[serde(skip)]
+    context: Option<ChoiceSet>,
+}
+
+/// Diagnostic comparison only. Missing candidates can reflect incomplete logs;
+/// neither a matching packet nor a complete submitted list proves execution.
+#[derive(Default, Debug, Serialize, PartialEq, Eq)]
+pub struct SubmissionCorrelation {
+    pub packet_seen: bool,
+    pub packet_kind: Option<&'static str>,
+    pub packet_was_stale: Option<bool>,
+    pub packet_malformed_records: Option<usize>,
+    pub owner_matches: Option<bool>,
+    pub declared_count_within_bounds: Option<bool>,
+    pub unobserved_entities: Vec<u32>,
+    pub candidate_list_complete: bool,
+    pub execution_confirmed: bool,
+}
+
+impl ChoiceSubmission {
+    fn correlate(&mut self) {
+        let Some(packet) = &self.context else { return; };
+        self.correlation = SubmissionCorrelation {
+            packet_seen: true,
+            packet_kind: Some(packet.kind),
+            packet_was_stale: Some(packet.stale),
+            packet_malformed_records: Some(packet.malformed_records),
+            owner_matches: self.owner_entity.zip(packet.owner_entity).map(|(a, b)| a == b),
+            declared_count_within_bounds: Some(
+                (packet.minimum..=packet.maximum).contains(&self.expected_count)),
+            unobserved_entities: self.entities.iter().copied()
+                .filter(|entity| !packet.entities.contains(entity)).collect(),
+            candidate_list_complete: false,
+            execution_confirmed: false,
+        };
+    }
 }
 
 #[derive(Default, Debug, Serialize, PartialEq, Eq)]
@@ -115,8 +153,11 @@ impl Choices {
                         let (owner, count) = rest.rsplit_once(" EntitiesCount=")?;
                         let expected_count = count.parse().ok()?;
                         if expected_count > 1024 { return None; }
-                        Some(ChoiceSubmission { id, owner_entity: resolve(owner), expected_count,
-                            entities: Vec::new(), malformed_records: 0, list_complete: expected_count == 0 })
+                        let mut submission = ChoiceSubmission { id, owner_entity: resolve(owner), expected_count,
+                            entities: Vec::new(), malformed_records: 0, list_complete: expected_count == 0,
+                            correlation: SubmissionCorrelation::default(), context: result.sets.get(&id).cloned() };
+                        submission.correlate();
+                        Some(submission)
                     })();
                     if let Some(submission) = &parsed {
                         if let Some(set) = result.sets.get_mut(&submission.id) { set.stale = true; }
@@ -135,6 +176,7 @@ impl Choices {
                     }
                     submission.list_complete = submission.malformed_records == 0
                         && submission.entities.len() == submission.expected_count as usize;
+                    submission.correlate();
                 } else { result.malformed_records += 1; }
                 continue;
             }

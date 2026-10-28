@@ -7,9 +7,9 @@ use serde::Serialize;
 /// Reviewed ordinary attack sources for the first deck. An arbitrary in-play
 /// minion POWER option may be an activated ability (for example a Titan).
 pub const TARGET_ATTACK_SOURCES: &[&str] = &[
-    "BOT_434", "DMF_060", "JAM_028", "DRG_311t", "SW_422t", "END_009t",
-    "MIS_301t", "TTN_950t", "TTN_950t2",
+    "LOOT_412", "TID_078",
 ];
+pub const TARGET_HERO_PREFIX: &str = "HERO_03";
 
 #[derive(Debug, PartialEq, Eq, Serialize)]
 pub struct Deck {
@@ -74,5 +74,5 @@ pub fn decode(code: &str) -> Result<Deck, String> {
 }
 
 pub fn target_profile() -> serde_json::Value {
-    serde_json::from_str(include_str!("../config/decks/wild-druid.json")).expect("validated target deck profile")
+    serde_json::from_str(include_str!("../config/decks/wild-rogue.json")).expect("validated target deck profile")
 }

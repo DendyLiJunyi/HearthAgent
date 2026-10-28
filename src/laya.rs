@@ -9,7 +9,7 @@ use reqwest::{redirect, Url};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use crate::policy::PolicyBackend;
-use crate::protocol::{Action, Decision, Observation, Phase, Snapshot};
+use crate::protocol::{Decision, Observation, Snapshot};
 
 const MAX_RESPONSE_BYTES: u64 = 64 * 1024;
 const MAX_STATE_BYTES: usize = 16 * 1024;
@@ -134,19 +134,9 @@ impl LayaPolicy {
             if candidate.id.is_empty() || candidate.id.len() > 128 || !seen.insert(&candidate.id) {
                 return Err("candidate IDs must be nonempty, unique, and at most 128 bytes".into());
             }
-            let phase_valid = match (&snapshot.phase, &candidate.action) {
-                (Phase::Choosing, Action::ChooseOption { .. }) => true,
-                (Phase::OurTurn, action) => !matches!(action, Action::ChooseOption { .. }),
-                _ => false,
-            };
-            if !phase_valid { return Err("candidate does not match an actionable interaction phase".into()); }
-            let description = match candidate.action {
-                Action::PlayCard { source, target } => format!("Play card {source}; target {target:?}"),
-                Action::Attack { source, target } => format!("Attack with entity {source} against entity {target}"),
-                Action::HeroPower { target } => format!("Use hero power; target {target:?}"),
-                Action::ChooseOption { entity } => format!("Choose entity {entity}"),
-                Action::EndTurn => "End the current turn".into(),
-            };
+            if !candidate.action.allowed_in(&snapshot.phase) { return Err("candidate does not match an actionable interaction phase".into()); }
+            if !candidate.action.well_formed() { return Err("candidate has an invalid action shape".into()); }
+            let description = candidate.action.description();
             // Short labels preserve the option-token budget; map back locally after validation.
             let label = format!("c{index}");
             criteria.insert(label.clone(), description);

@@ -6,7 +6,13 @@ fn user_deck_and_pinned_card_profile_agree() {
     let profile = target_profile();
     let deck = decode(profile["deck_code"].as_str().unwrap()).unwrap();
     assert_eq!(deck.format, "wild");
-    assert_eq!(deck.hero_dbf_id, 71062);
+    assert_eq!(deck.hero_dbf_id, 121643);
+    assert_eq!(profile["class"], "ROGUE");
+    assert_eq!(profile["hero"]["id"], "HERO_03bg");
+    assert_eq!(profile["attack_preview"]["hero_prefix"], hearth_agent::deck::TARGET_HERO_PREFIX);
+    let reviewed: Vec<&str> = profile["attack_preview"]["reviewed_minion_card_ids"].as_array().unwrap()
+        .iter().map(|value| value.as_str().unwrap()).collect();
+    assert_eq!(reviewed, hearth_agent::deck::TARGET_ATTACK_SOURCES);
     assert_eq!(deck.total_cards, 30);
     assert_eq!(deck.cards.len(), 18);
     assert_eq!(deck.cards.values().filter(|&&n| n == 1).count(), 6);

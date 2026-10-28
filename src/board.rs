@@ -2,6 +2,26 @@
 //! Only an identified local player's hand may expose observed card information.
 use crate::replay::{Entity, Game};
 
+/// Last-observed combat tags, not a reconstructed rules engine. In particular,
+/// missing flags are unknown and silence does not synthesize other flag values.
+#[derive(Default, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct CombatView {
+    pub taunt: Option<bool>,
+    pub divine_shield: Option<bool>,
+    pub stealth: Option<bool>,
+    pub frozen: Option<bool>,
+    pub charge: Option<bool>,
+    pub rush: Option<bool>,
+    pub windfury: Option<bool>,
+    pub poisonous: Option<bool>,
+    pub lifesteal: Option<bool>,
+    pub silenced: Option<bool>,
+    pub cant_be_damaged: Option<bool>,
+    pub cant_attack: Option<bool>,
+    pub cant_attack_heroes: Option<bool>,
+    pub attacks_this_turn: Option<u32>,
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct CardView<'a> {
     pub entity_id: u32,
@@ -17,6 +37,7 @@ pub struct CardView<'a> {
     pub armor: Option<u32>,
     pub durability: Option<u32>,
     pub exhausted: Option<bool>,
+    pub combat: CombatView,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -68,6 +89,7 @@ fn card<'a>(entity: &'a Entity, public_zone: bool, visible: bool, invalid: &mut 
         public_zone,
         card_id: None, card_type: None, cost: None, cost_resource: None, attack: None, health: None,
         damage: None, armor: None, durability: None, exhausted: None,
+        combat: CombatView::default(),
     };
     if visible {
         view.card_id = entity.card_id.as_deref();
@@ -91,6 +113,22 @@ fn card<'a>(entity: &'a Entity, public_zone: bool, visible: bool, invalid: &mut 
         view.armor = number(entity, "ARMOR", invalid);
         view.durability = number(entity, "DURABILITY", invalid);
         view.exhausted = flag(entity, "EXHAUSTED", invalid);
+        view.combat = CombatView {
+            taunt: flag(entity, "TAUNT", invalid),
+            divine_shield: flag(entity, "DIVINE_SHIELD", invalid),
+            stealth: flag(entity, "STEALTH", invalid),
+            frozen: flag(entity, "FROZEN", invalid),
+            charge: flag(entity, "CHARGE", invalid),
+            rush: flag(entity, "RUSH", invalid),
+            windfury: flag(entity, "WINDFURY", invalid),
+            poisonous: flag(entity, "POISONOUS", invalid),
+            lifesteal: flag(entity, "LIFESTEAL", invalid),
+            silenced: flag(entity, "SILENCED", invalid),
+            cant_be_damaged: flag(entity, "CANT_BE_DAMAGED", invalid),
+            cant_attack: flag(entity, "CANT_ATTACK", invalid),
+            cant_attack_heroes: flag(entity, "CANT_ATTACK_HEROES", invalid),
+            attacks_this_turn: number(entity, "NUM_ATTACKS_THIS_TURN", invalid),
+        };
     }
     view
 }
