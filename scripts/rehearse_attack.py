@@ -5,14 +5,19 @@ import json
 from pathlib import Path
 import tempfile
 from attack_geometry import plan_attack
+from spell_geometry import plan_spell
+from minion_geometry import plan_minion
 from ui_attempt import run_attempt
 from validate_review import strict_json
 
 
-def rehearse(inputs, receipt, observe=None, inserted_events=4):
+def rehearse(inputs, receipt, observe=None, inserted_events=4, mode='attack', collect_evidence=None):
     """observe is injectable for tests; this module has no game input adapter."""
+    if mode not in ('attack', 'spell', 'minion'):
+        raise ValueError('unsupported rehearsal mode')
+    planner = {'attack': plan_attack, 'spell': plan_spell, 'minion': plan_minion}[mode]
     baseline = copy.deepcopy(inputs)
-    planned = plan_attack(**baseline)
+    planned = planner(**baseline)
     records = []
     if observe is None:
         observe = lambda: copy.deepcopy(baseline)
@@ -21,21 +26,22 @@ def rehearse(inputs, receipt, observe=None, inserted_events=4):
         current = observe()
         # Compare the whole source envelope, including board/candidate fields
         # which might change without altering the resulting screen coordinates.
-        if current != baseline or plan_attack(**current) != planned:
+        if current != baseline or planner(**current) != planned:
             raise ValueError('attack observation or plan changed')
 
     def record():
         records.append(copy.deepcopy(planned['gesture']))
         return inserted_events
 
+    if collect_evidence is None:
+        collect_evidence = lambda: {
+            'status': 'recorded_without_game_evidence', 'execution_confirmed': False,
+            'automatic_retry_allowed': False}
     report = run_attempt(receipt, {
-        'source': 'offline_attack_rehearsal', 'game_input_sent': False,
+        'source': f'offline_{mode}_rehearsal', 'game_input_sent': False,
         'binding': planned['binding'], 'candidate_id': planned['candidate_id'],
         'frame_sha256': planned['frame_sha256'],
-    }, preflight, record, lambda: {
-        'status': 'recorded_without_game_evidence', 'execution_confirmed': False,
-        'automatic_retry_allowed': False,
-    }, expected_events=len(planned['gesture']))
+    }, preflight, record, collect_evidence, expected_events=len(planned['gesture']))
     return {'plan': planned, 'receipt': report, 'recorded_gestures': records,
             'game_input_sent': False}
 
@@ -43,10 +49,11 @@ def rehearse(inputs, receipt, observe=None, inserted_events=4):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('fixture', type=Path)
+    parser.add_argument('--mode', choices=('attack', 'spell', 'minion'), default='attack')
     args = parser.parse_args()
     inputs = strict_json(args.fixture.read_text(encoding='utf-8'))
     with tempfile.TemporaryDirectory(prefix='hearth-attack-rehearsal-') as directory:
-        result = rehearse(inputs, Path(directory) / 'attempt.json')
+        result = rehearse(inputs, Path(directory) / 'attempt.json', mode=args.mode)
     print(json.dumps(result, indent=2))
 
 

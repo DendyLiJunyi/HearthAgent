@@ -19,6 +19,58 @@ fn fixture() -> String {
 }
 
 #[test]
+fn ordinary_minion_placement_requires_known_contiguous_board_slots() {
+    for card in ["LOOT_412", "TID_078"] {
+        let log = fixture().replace("EX1_144", card).replace("value=SPELL", "value=MINION")
+            .replace("tag=ZONE value=PLAY", "tag=ZONE value=PLAY\nD 0 GameState.DebugPrintPower() - tag=ZONE_POSITION value=1")
+            .lines().filter(|line| !line.contains("target 0")).collect::<Vec<_>>().join("\n") + "\n";
+        let game = replay::read(Cursor::new(&log)).unwrap().games.remove(0);
+        assert!(card_play_preview::from_game(&game).candidates.is_empty());
+        let preview = card_play_preview::from_window(&game, true);
+        assert_eq!(preview.candidates.len(), 2);
+        for (i, candidate) in preview.candidates.iter().enumerate() {
+            assert_eq!(candidate.action, Action::PlayCard { source: 10, target: None, position: Some(i as u32 + 1) });
+        }
+        let game = replay::read(Cursor::new(log.replace("tag=ZONE_POSITION value=1", "tag=ZONE_POSITION value=3"))).unwrap().games.remove(0);
+        assert!(card_play_preview::from_window(&game, true).candidates.is_empty());
+    }
+}
+
+#[test]
+fn untargeted_mana_spells_require_observed_boundary_and_no_target_or_alternate_branch() {
+    for card in ["CFM_630", "CORE_EX1_145", "GAME_005"] {
+        let log = fixture().replace("EX1_144", card).lines()
+            .filter(|line| !line.contains("target 0")).collect::<Vec<_>>().join("\n") + "\n";
+        let game = replay::read(Cursor::new(&log)).unwrap().games.remove(0);
+        assert!(card_play_preview::from_game(&game).candidates.is_empty());
+        let preview = card_play_preview::from_window(&game, true);
+        assert_eq!(preview.candidates.len(), 1);
+        assert_eq!(preview.candidates[0].action, Action::PlayCard { source: 10, target: None, position: None });
+        assert!(!preview.actionable && !preview.complete && !preview.legality_verified);
+        for suffix in ["target 0 entity=20 error=NONE", "subOption 0 entity=10 error=NONE",
+                       "option 1 type=POWER mainEntity=10 error=NONE"] {
+            let changed = format!("{log}D 0 GameState.DebugPrintOptions() - {suffix}\n");
+            let game = replay::read(Cursor::new(changed)).unwrap().games.remove(0);
+            assert!(card_play_preview::from_window(&game, true).candidates.is_empty(), "{card}: {suffix}");
+        }
+    }
+}
+
+#[test]
+fn actual_window_visitor_does_not_enable_untargeted_spell_at_eof() {
+    let log = fixture().replace("EX1_144", "CFM_630").lines()
+        .filter(|line| !line.contains("target 0")).collect::<Vec<_>>().join("\n") + "\n";
+    for (suffix, expected) in [("", 0),
+        ("D 0 GameState.SendOption() - selectedOption=0 selectedSubOption=-1 selectedTarget=0 selectedPosition=0\n", 1)] {
+        let mut counts = Vec::new();
+        replay::visit_option_windows(Cursor::new(format!("{log}{suffix}")), &mut |_, game, boundary| {
+            counts.push(card_play_preview::from_window(game, boundary).candidates.len());
+        }).unwrap();
+        assert_eq!(counts, vec![expected]);
+    }
+}
+
+#[test]
 fn damage_spells_accept_explicit_enemy_minions_but_never_heroes() {
     for card in ["REV_939", "JAIL_225"] {
         let log = fixture().replace("EX1_144", card)

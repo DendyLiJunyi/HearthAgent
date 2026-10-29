@@ -87,4 +87,31 @@ The rehearsal exercises a full simulated batch followed by evidence timeout,
 a partial batch, and a failed batch. Five regression tests also cover duplicate
 reservation refusal, preflight changes during persistence, dispatch exceptions,
 disk-write failure and invalid evidence claims. These validate orchestration,
-not Windows input delivery. Live testing remains deferred.
+not Windows input delivery.
+
+## October 29 live milestone
+
+The user resumed testing and authorized one practice-match action. The current
+screen showed the Innkeeper opponent and an enabled End Turn button at 1920x1080,
+DPI 96. In session `Hearthstone_2026_10_29_20_47_14`, game 10, turn 2, the adapter
+inserted its single three-event batch. The result was
+`submission_and_handoff_observed`: matching client submission and opponent-turn
+handoff were both observed. The adapter stopped after that one action.
+
+The durable local receipt is
+`.data/ui-attempts/Hearthstone_2026_10_29_20_47_14-game10-turn2-end-turn.json`.
+It retains `execution_confirmed=false` and `automatic_retry_allowed=false`:
+correlated log evidence does not establish independent input causation. Do not
+rerun that command or reuse the reservation. This test validates the one-shot
+end-turn path, not Laya decisions, card plays, attacks or autonomous gameplay.
+
+After this milestone, the one-shot adapter was updated to use the shared
+`LogObserver` for both baseline acquisition and post-input evidence. This adds
+frozen-prefix replay, content-rewrite detection and failure latching to the
+existing session/identity/truncation checks. Regression tests pass; this revised
+reader integration has not been exercised with another live click.
+
+The practice game's observed hand differed from the pinned Rogue deck. The user
+explicitly reconfirmed that the original supplied deck remains the target. This
+game validates only generic end-turn input and is not added to the confirmed
+original-deck corpus.

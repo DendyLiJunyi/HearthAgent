@@ -44,7 +44,9 @@ def png_dimensions(data):
     raise ValueError('PNG has no complete end chunk')
 
 
-def prepare(snapshot, probe, frame, candidate_id):
+def prepare(snapshot, probe, frame, candidate_id, mode='attack'):
+    if mode not in ('attack', 'spell', 'minion'):
+        raise ValueError('unsupported calibration mode')
     if (snapshot.get('protocol_version') != 1 or snapshot.get('status') != 'observed_log_state'
             or snapshot.get('backlog') is not False or type(snapshot.get('pending_bytes')) is not int
             or snapshot['pending_bytes'] != 0 or not isinstance(snapshot.get('game'), dict)):
@@ -63,7 +65,7 @@ def prepare(snapshot, probe, frame, candidate_id):
     if (rect['right'] - rect['left'], rect['bottom'] - rect['top']) != (width, height):
         raise ValueError('capture dimensions differ from window client area')
     game = snapshot['game']
-    preview, board = game['action_preview'], game['board']
+    preview, board = game['action_preview' if mode == 'attack' else 'card_play_preview'], game['board']
     if preview['blocked_by'] or not preview['candidates'] or board['perspective'] is None:
         raise ValueError('no supported attack preview to annotate')
     if board['perspective'] != board['active_player']:
@@ -82,6 +84,14 @@ def prepare(snapshot, probe, frame, candidate_id):
         for card in cards:
             entities.append({'entity_id': card['entity_id'], 'card_id': card.get('card_id'),
                              'player_id': player['player_id'], 'box': None})
+        if mode != 'attack' and player['player_id'] == board['perspective']:
+            hand = [{key: copy.deepcopy(card.get(key)) for key in
+                     ('entity_id', 'card_id', 'card_type', 'position', 'public_zone')}
+                    for card in player.get('hand', [])]
+            public_players[-1]['hand'] = hand
+            for card in hand:
+                entities.append({'entity_id': card['entity_id'], 'card_id': card['card_id'],
+                                 'player_id': player['player_id'], 'zone': 'hand', 'box': None})
     identities = [entity['entity_id'] for entity in entities]
     if len(identities) != len(set(identities)):
         raise ValueError('duplicate public entity ID')
@@ -104,6 +114,7 @@ def main():
     parser.add_argument('--frame', type=Path, required=True)
     parser.add_argument('--candidate', required=True)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--mode', choices=('attack', 'spell', 'minion'), default='attack')
     args = parser.parse_args()
     paths = [path.resolve() for path in (args.snapshot, args.probe, args.frame, args.output)]
     if len(set(paths)) != len(paths):
@@ -112,7 +123,7 @@ def main():
            [(args.snapshot, 16 * 1024 * 1024), (args.probe, 64 * 1024), (args.frame, 64 * 1024 * 1024)]):
         parser.error('input exceeds size limit')
     result = prepare(strict_json(args.snapshot.read_text(encoding='utf-8')),
-                     strict_json(args.probe.read_text(encoding='utf-8')), args.frame.read_bytes(), args.candidate)
+                     strict_json(args.probe.read_text(encoding='utf-8')), args.frame.read_bytes(), args.candidate, args.mode)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open('x', encoding='utf-8') as output:
         output.write(json.dumps(result, indent=2, allow_nan=False) + '\n')

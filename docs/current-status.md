@@ -1,9 +1,12 @@
 # Current project checkpoint — 2026-10-29
 
-The sole target is the user's Wild Rogue deck. The user confirmed that all five
-games in the October 28 14:28:58 session used that exact list. The project remains
-a read-only observation and offline advice system; automatic gameplay is not
-implemented.
+The targets are the original Wild Rogue deck and the October 29 N'Zoth Rogue
+variant, recorded in [user preferences](user-project-preferences.md).
+The user confirmed that all five
+games in the October 28 14:28:58 session used that exact list and reconfirmed the
+original deck after the October 29 practice test. The project provides observation
+and offline advice, plus a one-shot end-turn adapter with one live test showing
+a matching submission and turn handoff. Automatic gameplay is not implemented.
 
 ## Working components
 
@@ -38,8 +41,8 @@ implemented.
 | Early local identity | Established at mulligan submission in all five confirmed Rogue games |
 | Client submission audit | 142 sends across five Rogue games; all referenced options/targets observed |
 | End-turn progression audit | Ordered end-step/next-turn/action-phase evidence after all 21 end-turn sends; causation unverified |
-| Rust regression tests | 146 passed |
-| Python regression tests | 89 passed |
+| Rust regression tests | 151 passed |
+| Python regression tests | 123 passed |
 | Clippy | Passed with warnings denied |
 
 The held-out game was not sent to either real-window GPU diagnostic. Neither
@@ -71,10 +74,13 @@ outside the desktop-restricted sandbox after the user opened Hearthstone. The
 recorded as a non-actionable calibration draft. A separate [one-shot end-turn
 experiment](one-shot-ui-test.md) is implemented; its first live run aborted on
 a changed turn before dispatch. Hand/minion entity mapping, production input
-integration and successful click confirmation remain unfinished. No game input
-has been sent.
+integration remain unfinished. On October 29, the user authorized one practice
+action: the end-turn adapter inserted three mouse events, and the log recorded
+the matching submission and opponent-turn handoff. This is the first live input
+milestone, not a completed autonomous turn or match.
 
-Live input testing is deferred at the user's request. Offline post-input checks
+The authorized one-action test is complete; further input is not authorized by
+that single-action request. Post-input checks
 now require a matching new submission and observed opponent-turn handoff, with
 bounded waiting and refusal of changed sessions, conflicting sends, and late
 results. These checks still do not certify causation or authorize a retry.

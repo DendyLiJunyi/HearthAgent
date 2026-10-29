@@ -58,13 +58,21 @@ def assess_end_turn(before, after, option_index):
 
 def wait_for_evidence(before, option_index, session, observe, timeout=8.0,
                       clock=time.monotonic, sleep=time.sleep):
+    initial = {'status': 'pending', 'matching_submission_observed': False,
+               'turn_handoff_observed': False, 'execution_confirmed': False,
+               'automatic_retry_allowed': False}
+    return wait_for_assessment(lambda after: assess_end_turn(before, after, option_index),
+                               initial, session, observe, timeout, clock, sleep)
+
+
+def wait_for_assessment(assess, initial, session, observe, timeout=8.0,
+                        clock=time.monotonic, sleep=time.sleep):
+    """Callback must honor the remaining-time budget; late evidence is discarded."""
     if not math.isfinite(timeout) or not 0 < timeout <= 30:
         raise ValueError('evidence timeout must be finite and between 0 and 30 seconds')
     started = clock()
     deadline = started + timeout
-    result = {'status': 'pending', 'matching_submission_observed': False,
-              'turn_handoff_observed': False, 'execution_confirmed': False,
-              'automatic_retry_allowed': False}
+    result = dict(initial)
     while clock() < deadline:
         try:
             observed_session, after = observe(max(.01, deadline - clock()))
@@ -75,7 +83,7 @@ def wait_for_evidence(before, option_index, session, observe, timeout=8.0,
         if observed_session != session:
             return dict(result, status='session_changed')
         try:
-            result = assess_end_turn(before, after, option_index)
+            result = assess(after)
         except (KeyError, TypeError, ValueError):
             return dict(result, status='invalid_observation')
         if result['status'] != 'pending':

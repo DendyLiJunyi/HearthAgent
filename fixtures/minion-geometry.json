@@ -1,0 +1,116 @@
+{
+  "observation": {
+    "snapshot": {
+      "session_id": "synthetic-geometry",
+      "game_number": 1,
+      "revision": 7,
+      "phase": "OurTurn",
+      "complete": false
+    },
+    "candidates": [
+      {
+        "id": "play-10-20",
+        "action": {
+          "PlayCard": {
+            "source": 10,
+            "target": null,
+            "position": 1
+          }
+        }
+      }
+    ],
+    "board": {
+      "perspective": 1,
+      "active_player": 1,
+      "players": [
+        {
+          "player_id": 1,
+          "in_play": [],
+          "hand": [
+            {
+              "entity_id": 10,
+              "card_id": "LOOT_412",
+              "card_type": "MINION",
+              "public_zone": false
+            }
+          ]
+        },
+        {
+          "player_id": 2,
+          "in_play": [
+            {
+              "entity_id": 20,
+              "card_type": "MINION",
+              "public_zone": true
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "candidate_id": "play-10-20",
+  "calibration": {
+    "annotation_status": "reviewed",
+    "binding": {
+      "session_id": "synthetic-geometry",
+      "game_number": 1,
+      "revision": 7
+    },
+    "frame_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "window": {
+      "hwnd": 123,
+      "pid": 456,
+      "dpi": 96,
+      "foreground": true,
+      "minimized": false,
+      "client_screen_rect": {
+        "left": -1920,
+        "top": 0,
+        "right": 0,
+        "bottom": 1080
+      }
+    },
+    "entities": [
+      {
+        "entity_id": 10,
+        "box": [
+          0.4,
+          0.85,
+          0.5,
+          0.95
+        ]
+      },
+      {
+        "entity_id": 20,
+        "box": [
+          0.45,
+          0.1,
+          0.55,
+          0.25
+        ]
+      }
+    ],
+    "minion_drop_boxes": [
+      [
+        0.45,
+        0.5,
+        0.55,
+        0.6
+      ]
+    ]
+  },
+  "current_window": {
+    "hwnd": 123,
+    "pid": 456,
+    "dpi": 96,
+    "foreground": true,
+    "minimized": false,
+    "client_screen_rect": {
+      "left": -1920,
+      "top": 0,
+      "right": 0,
+      "bottom": 1080
+    }
+  },
+  "frame_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

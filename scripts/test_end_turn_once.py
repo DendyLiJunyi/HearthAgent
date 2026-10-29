@@ -15,6 +15,7 @@ import time
 from probe_game_window import probe, client_point
 from ui_result import wait_for_evidence
 from ui_attempt import run_attempt
+from observe_spell import LogObserver
 
 
 class MouseInput(ctypes.Structure):
@@ -36,12 +37,6 @@ def mouse_batch(point, desktop):
     y = round((point['y'] - top) * 65535 / (height - 1))
     return (Input * 3)(Input(0, MouseInput(x, y, 0, 0xC001, 0, 0)),
                        Input(0, MouseInput(0, 0, 0, 2, 0, 0)), Input(0, MouseInput(0, 0, 0, 4, 0, 0)))
-
-
-def replay(binary, log, timeout=10):
-    result = subprocess.run([str(binary.resolve()), 'replay', str(log), '--json'],
-                            capture_output=True, check=True, timeout=timeout)
-    return json.loads(result.stdout.splitlines()[-1])
 
 
 def check_baseline(row, game_number, turn):
@@ -84,9 +79,11 @@ def main():
         raise RuntimeError('expected session is no longer current')
     log = sessions[-1] / 'Power.log'
     initial_stat = log.stat()
-    file_identity = (initial_stat.st_dev, initial_stat.st_ino)
     stamp = (initial_stat.st_size, initial_stat.st_mtime_ns)
-    before = replay(binary, log)
+    observer = LogObserver(log, binary)
+    observed_session, before = observer(10)
+    if observed_session != args.session or before is None:
+        raise RuntimeError('expected session changed while acquiring baseline')
     option_index = check_baseline(before, args.game, args.turn)
     geometry = probe()
     if geometry['status'] != 'window_found' or geometry['errors']:
@@ -143,22 +140,7 @@ def main():
             or user.GetAsyncKeyState(0x1B) & 0x8000):
             raise RuntimeError('state or focus changed after reservation')
     def collect_evidence():
-        def observe(remaining):
-            current_sessions = sorted(p for p in (args.installation / 'Logs').iterdir()
-                                      if p.is_dir() and p.name.startswith('Hearthstone_'))
-            if not current_sessions or current_sessions[-1].name != args.session:
-                return None, None
-            current_stat = log.stat()
-            if ((current_stat.st_dev, current_stat.st_ino) != file_identity
-                    or current_stat.st_size < stamp[0]):
-                raise RuntimeError('log was replaced or truncated')
-            row = replay(binary, log, timeout=min(2, remaining))
-            final_stat = log.stat()
-            if ((final_stat.st_dev, final_stat.st_ino) != file_identity
-                    or final_stat.st_size < current_stat.st_size):
-                raise RuntimeError('log changed identity during observation')
-            return args.session, row
-        return wait_for_evidence(before, option_index, args.session, observe)
+        return wait_for_evidence(before, option_index, args.session, observer)
     report = run_attempt(path, metadata, preflight,
                          lambda: user.SendInput(3, inputs, ctypes.sizeof(Input)), collect_evidence)
     print(json.dumps(report, indent=2))

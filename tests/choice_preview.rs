@@ -24,6 +24,23 @@ fn preview(log: &str) -> ChoicePreview {
 }
 
 #[test]
+fn stick_up_exposes_only_current_local_observed_offers() {
+    let log = fixture().replace("TLC_515", "WW_411")
+        .replace("CFM_630", "WW_325").replace("DED_004", "WW_377")
+        .replace("value=WEAPON", "value=SPELL");
+    let projected = preview(&log);
+    assert!(!projected.actionable && !projected.legality_verified);
+    let choice = projected.choice.unwrap();
+    assert_eq!(choice.source_card_id, "WW_411");
+    assert_eq!(choice.offered_cards.iter().map(|c| c.card_id.as_str()).collect::<Vec<_>>(), ["WW_325", "WW_377"]);
+    for invalid in [log.replace("Player=2 TaskList", "Player=3 TaskList"),
+                    log.replace("value=SETASIDE", "value=DECK"),
+                    log.clone() + "D 0 GameState.DebugPrintEntitiesChosen() - id=7 Player=2 EntitiesCount=1\n"] {
+        assert!(preview(&invalid).choice.is_none());
+    }
+}
+
+#[test]
 fn local_reviewed_choice_preserves_order_zero_and_unknown_cost_without_execution() {
     let result = preview(&fixture());
     assert!(result.blocked_by.is_empty());

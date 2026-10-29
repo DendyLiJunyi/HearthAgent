@@ -69,7 +69,7 @@ fn project(game: &Game) -> Result<LocalChoice, &'static str> {
     }
     let source_id = source.card_id.as_deref().ok_or("unknown_source_card")?;
     let reviewed = matches!((source_id, source.tag("CARDTYPE")),
-        ("TLC_515" | "TSC_916", Some("SPELL")) | ("TLC_515e", Some("ENCHANTMENT"))
+        ("TLC_515" | "TSC_916" | "WW_411", Some("SPELL")) | ("TLC_515e", Some("ENCHANTMENT"))
         | ("BE_017", Some("MINION")));
     if !reviewed { return Err("unreviewed_choice_mechanic"); }
     if set.entities.is_empty() || set.entities.len() > 16 { return Err("unsupported_choice_count"); }
