@@ -59,7 +59,7 @@ fn main() {
         let code = args.get(1).map(String::as_str).unwrap_or_else(|| profile["deck_code"].as_str().expect("target deck code"));
         match hearth_agent::deck::decode(code) {
             Ok(deck) => println!("{}", serde_json::json!({"deck": deck, "legality_verified": false,
-                "target_profile": if code == profile["deck_code"].as_str().unwrap() { profile } else { serde_json::Value::Null }})),
+                "target_profile": hearth_agent::deck::profile_for_code(code) })),
             Err(error) => { eprintln!("Deck decode failed: {error}"); std::process::exit(1); }
         }
         return;
@@ -277,7 +277,7 @@ fn review(path: &str, card_plays: bool) -> std::io::Result<()> {
     hearth_agent::replay::visit_option_windows(std::io::BufReader::new(file.take(length)),
         &mut |number, game, boundary| {
             if output_error.is_some() { return; }
-            let preview = if card_plays { hearth_agent::card_play_preview::from_game(game) }
+            let preview = if card_plays { hearth_agent::card_play_preview::from_window(game, boundary) }
                 else { hearth_agent::preview::ActionPreview::from_game(game) };
             let source = if card_plays { "offline_card_play_window" } else { "offline_option_window" };
             let board = hearth_agent::export::board_json(&hearth_agent::board::BoardView::from_game(game));

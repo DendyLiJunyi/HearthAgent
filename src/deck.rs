@@ -76,3 +76,11 @@ pub fn decode(code: &str) -> Result<Deck, String> {
 pub fn target_profile() -> serde_json::Value {
     serde_json::from_str(include_str!("../config/decks/wild-rogue.json")).expect("validated target deck profile")
 }
+
+/// Explicit variants keep historical corpus identity separate from new decks.
+pub fn profile_for_code(code: &str) -> Option<serde_json::Value> {
+    let original = target_profile();
+    let variant: serde_json::Value = serde_json::from_str(include_str!(
+        "../config/decks/wild-rogue-nzoth-2026-10-29.json")).expect("validated Rogue variant");
+    [original, variant].into_iter().find(|p| p["deck_code"].as_str() == Some(code.trim()))
+}

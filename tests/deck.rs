@@ -25,6 +25,33 @@ fn user_deck_and_pinned_card_profile_agree() {
 }
 
 #[test]
+fn october_variant_is_registered_without_relabeling_original_deck() {
+    let profile: serde_json::Value = serde_json::from_str(include_str!(
+        "../config/decks/wild-rogue-nzoth-2026-10-29.json")).unwrap();
+    let code = profile["deck_code"].as_str().unwrap();
+    let deck = decode(code).unwrap();
+    assert_eq!(deck.total_cards, 30);
+    assert_eq!(deck.cards.len(), 20);
+    assert_eq!(hearth_agent::deck::profile_for_code(code), Some(profile.clone()));
+    let original = target_profile();
+    assert_eq!(hearth_agent::deck::profile_for_code(original["deck_code"].as_str().unwrap()), Some(original.clone()));
+    assert_ne!(original["deck_code"], profile["deck_code"]);
+    assert!(hearth_agent::deck::profile_for_code("unknown").is_none());
+    let cards = profile["cards"].as_array().unwrap();
+    assert_eq!(cards.len(), deck.cards.len());
+    for card in cards {
+        assert_eq!(deck.cards[&(card["dbfId"].as_u64().unwrap() as u32)], card["count"].as_u64().unwrap() as u32);
+        assert_eq!(card["simulation_supported"], false);
+    }
+    assert_eq!(deck.cards[&45535], 1);
+    assert_eq!(deck.cards[&63359], 1);
+    assert_eq!(deck.cards[&100936], 1);
+    assert_eq!(deck.cards[&117697], 1);
+    assert_eq!(deck.cards[&125571], 1);
+    assert!(!deck.cards.contains_key(&77148));
+}
+
+#[test]
 fn malformed_or_unsupported_decks_are_rejected_without_guessing() {
     for bytes in [
         vec![], vec![0, 2], // version
