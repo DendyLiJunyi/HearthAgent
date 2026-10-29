@@ -64,12 +64,12 @@ fn main() {
         }
         return;
     }
-    if args.first().map(String::as_str) == Some("review") {
+    if matches!(args.first().map(String::as_str), Some("review" | "review-card-plays")) {
         if args.len() != 2 {
-            eprintln!("Usage: hearth-agent review <Power.log>");
+            eprintln!("Usage: hearth-agent review|review-card-plays <Power.log>");
             std::process::exit(2);
         }
-        if let Err(error) = review(&args[1]) {
+        if let Err(error) = review(&args[1], args[0] == "review-card-plays") {
             eprintln!("Review failed: {error}");
             std::process::exit(1);
         }
@@ -239,6 +239,7 @@ fn review_submissions(path: &str) -> std::io::Result<()> {
                 "submission_number": game.options.submissions_seen,
                 "malformed_submissions": game.options.malformed_submissions,
                 "submission": game.options.latest_submission,
+                "source_observation": hearth_agent::export::submission_source_json(game),
             });
             if let Err(error) = writeln!(out, "{row}") { output_error = Some(error); }
         })?;
@@ -266,7 +267,7 @@ fn review_choices(path: &str) -> std::io::Result<()> {
     match output_error { Some(error) => Err(error), None => Ok(()) }
 }
 
-fn review(path: &str) -> std::io::Result<()> {
+fn review(path: &str, card_plays: bool) -> std::io::Result<()> {
     use std::io::{Read, Write};
     let file = std::fs::File::open(path)?;
     let length = file.metadata()?.len();
@@ -276,9 +277,11 @@ fn review(path: &str) -> std::io::Result<()> {
     hearth_agent::replay::visit_option_windows(std::io::BufReader::new(file.take(length)),
         &mut |number, game, boundary| {
             if output_error.is_some() { return; }
-            let preview = hearth_agent::preview::ActionPreview::from_game(game);
+            let preview = if card_plays { hearth_agent::card_play_preview::from_game(game) }
+                else { hearth_agent::preview::ActionPreview::from_game(game) };
+            let source = if card_plays { "offline_card_play_window" } else { "offline_option_window" };
             let board = hearth_agent::export::board_json(&hearth_agent::board::BoardView::from_game(game));
-            let line = format!("{{\"protocol_version\":1,\"source\":\"offline_option_window\",\"game_number\":{number},\"actionable\":false,\"complete\":false,\"packet_boundary_observed\":{boundary},\"board\":{board},\"action_preview\":{}}}",
+            let line = format!("{{\"protocol_version\":1,\"source\":\"{source}\",\"game_number\":{number},\"actionable\":false,\"complete\":false,\"packet_boundary_observed\":{boundary},\"board\":{board},\"action_preview\":{}}}",
                 serde_json::to_string(&preview).expect("preview contains only JSON-safe values"));
             if let Err(error) = writeln!(out, "{line}") { output_error = Some(error); }
         })?;

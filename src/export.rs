@@ -64,12 +64,34 @@ pub fn game_json(game: &Game) -> String {
         .map(|(kind, count)| format!("{}:{}", quote(kind), count)).collect::<Vec<_>>().join(",");
     format!(concat!("{{\"game_entity\":{},\"players\":[{}],\"entities\":[{}],",
         "\"unresolved_references\":{},\"malformed_records\":{},\"ignored_power_records\":{},",
-        "\"ignored_power_record_types\":{{{}}},\"power_structure\":{},\"board\":{},\"logged_options\":{},\"action_preview\":{},\"logged_choices\":{},\"choice_preview\":{}}}"),
+        "\"ignored_power_record_types\":{{{}}},\"power_structure\":{},\"board\":{},\"logged_options\":{},\"action_preview\":{},\"logged_choices\":{},\"choice_preview\":{},\"card_play_preview\":{}}}"),
         optional(game.game_entity), players, entities, game.unresolved_references,
         game.malformed_records, game.ignored_power_records, ignored_types,
         game.structure.to_json(), board_json(&BoardView::from_game(game)), game.options.to_json(),
         serde_json::to_string(&crate::preview::ActionPreview::from_game(game)).expect("preview contains only JSON-safe values"),
         serde_json::to_string(&game.choices).expect("choices contain only JSON-safe values"),
         serde_json::to_string(&crate::choice_preview::ChoicePreview::from_game(game))
-            .expect("choice preview contains only JSON-safe values"))
+            .expect("choice preview contains only JSON-safe values"),
+        serde_json::to_string(&crate::card_play_preview::from_game(game))
+            .expect("card preview contains only JSON-safe values"))
+}
+
+/// Project the latest submission's source from the current redacted board.
+/// Call at the submission visitor boundary to avoid importing later card state.
+pub fn submission_source_json(game: &Game) -> serde_json::Value {
+    let Some(id) = game.options.latest_submission.as_ref()
+        .and_then(|submission| submission.correlation.source_entity) else {
+        return serde_json::Value::Null;
+    };
+    let board = BoardView::from_game(game);
+    for player in &board.players {
+        for (zone, cards) in [("in_play", &player.in_play), ("hand", &player.hand)] {
+            if let Some(card) = cards.iter().find(|card| card.entity_id == id) {
+                return serde_json::json!({"entity_id": id, "player_id": player.player_id,
+                    "zone": zone, "public_zone": card.public_zone,
+                    "card_id": card.card_id, "card_type": card.card_type});
+            }
+        }
+    }
+    serde_json::Value::Null
 }

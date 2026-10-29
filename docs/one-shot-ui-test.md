@@ -20,8 +20,9 @@ Without `--execute`, it checks only the baseline. With `--execute`, it reserves
 a unique session/game/turn attempt file and fsyncs it before sending exactly one
 move/down/up batch. Existing reservations prevent duplicate attempts. A partial
 or failed SendInput result is never retried. The tool does not certify execution
-or automatically proceed to another action; the operator must inspect fresh
-screen/log evidence afterward.
+or automatically proceed to another action. After a full input insertion it now
+performs bounded read-only checks described below; screen confirmation remains
+an operator task.
 
 ```powershell
 .venv/Scripts/python.exe scripts/test_end_turn_once.py --session <session-directory-name> --game <game-number> --turn <turn-number>
@@ -39,3 +40,51 @@ Three regression tests cover exact game/turn binding, stale/incomplete/opponent
 state rejection, and the Windows INPUT layout and bounded virtual-screen mouse
 coordinates. Actual click delivery and post-click confirmation still need a
 successful live test. The user was asked to leave a turn for that test.
+
+## Post-input evidence checks (2026-10-29)
+
+The user deferred live testing; this addition was built and tested offline only.
+After a full three-event input insertion, the one-shot tool observes for at most
+eight seconds, bounding each Rust replay subprocess by the remaining budget.
+It requires exactly one new submission with the expected selection and prior
+packet ID, followed by the next turn's stable MAIN_ACTION phase with the other
+known player active. This reports `submission_and_handoff_observed`, not causal
+execution confirmation. Existing incomplete observations remain incomplete.
+
+Different or multiple submissions, game/session changes, a changed perspective,
+invalid state, or unexpected turn/player stop the check. Partial or unfinished
+prefixes remain pending until timeout. Results arriving at or after the deadline
+are discarded. File replacement or truncation fails observation. No failure
+triggers another input or clears the attempt reservation.
+
+The result is saved in the attempt file with `execution_confirmed=false` and
+`automatic_retry_allowed=false`. Seven new tests cover success-shaped evidence,
+conflicting evidence, unfinished prefixes, deadline handling, session/read/schema
+failures, and integration with the actual Rust replay JSON on a synthetic log.
+No live clicks were performed for this update.
+
+## Offline dispatch rehearsal
+
+The live experiment now shares `ui_attempt.run_attempt` with offline tests.
+Reservations are exclusive and fsynced before dispatch; receipt updates use an
+fsynced temporary file and atomic replacement. An existing reservation blocks a
+repeat regardless of its recorded outcome. The tool rechecks preconditions
+after persisting dispatch intent, immediately before the input call.
+
+Preflight failures and dispatch exceptions produce stable status codes rather
+than exposing adapter error text. Partial input insertion skips evidence
+collection and never retries. Evidence cannot grant execution confirmation or
+permission to retry. A receipt-write failure before dispatch prevents input;
+failure after dispatch leaves the existing reservation blocking another attempt.
+
+Run the synthetic rehearsal without opening or controlling Hearthstone:
+
+```powershell
+.venv/Scripts/python.exe scripts/ui_attempt.py
+```
+
+The rehearsal exercises a full simulated batch followed by evidence timeout,
+a partial batch, and a failed batch. Five regression tests also cover duplicate
+reservation refusal, preflight changes during persistence, dispatch exceptions,
+disk-write failure and invalid evidence claims. These validate orchestration,
+not Windows input delivery. Live testing remains deferred.

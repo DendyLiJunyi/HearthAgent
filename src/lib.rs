@@ -15,6 +15,7 @@ pub mod options;
 pub mod option_submission;
 pub mod perspective;
 pub mod preview;
+pub mod card_play_preview;
 pub mod protocol;
 pub mod replay;
 pub mod structure;

@@ -1,6 +1,7 @@
 use std::fs;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicU64, Ordering};
 use hearth_agent::controller::{ControlError, Controller, ExecutionWindow};
 use hearth_agent::executor::{ActionExecutor, ExecutionOutcome, RecordingExecutor};
 use hearth_agent::protocol::*;
@@ -8,8 +9,10 @@ use hearth_agent::protocol::*;
 struct TemporaryJournal(PathBuf);
 impl TemporaryJournal {
     fn new() -> Self {
-        Self(std::env::temp_dir().join(format!("hearth-agent-journal-{}-{}.jsonl", std::process::id(),
-            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos())))
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        Self(std::env::temp_dir().join(format!("hearth-agent-journal-{}-{}-{}.jsonl", std::process::id(),
+            SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos(),
+            NEXT.fetch_add(1, Ordering::Relaxed))))
     }
 }
 impl Drop for TemporaryJournal {

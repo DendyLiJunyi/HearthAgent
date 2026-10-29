@@ -8,12 +8,13 @@ import argparse
 import ctypes
 from ctypes import wintypes
 import json
-import os
 from pathlib import Path
 import subprocess
 import time
 
 from probe_game_window import probe, client_point
+from ui_result import wait_for_evidence
+from ui_attempt import run_attempt
 
 
 class MouseInput(ctypes.Structure):
@@ -37,9 +38,9 @@ def mouse_batch(point, desktop):
                        Input(0, MouseInput(0, 0, 0, 2, 0, 0)), Input(0, MouseInput(0, 0, 0, 4, 0, 0)))
 
 
-def replay(binary, log):
+def replay(binary, log, timeout=10):
     result = subprocess.run([str(binary.resolve()), 'replay', str(log), '--json'],
-                            capture_output=True, check=True, timeout=10)
+                            capture_output=True, check=True, timeout=timeout)
     return json.loads(result.stdout.splitlines()[-1])
 
 
@@ -82,7 +83,9 @@ def main():
     if not sessions or sessions[-1].name != args.session:
         raise RuntimeError('expected session is no longer current')
     log = sessions[-1] / 'Power.log'
-    stamp = (log.stat().st_size, log.stat().st_mtime_ns)
+    initial_stat = log.stat()
+    file_identity = (initial_stat.st_dev, initial_stat.st_ino)
+    stamp = (initial_stat.st_size, initial_stat.st_mtime_ns)
     before = replay(binary, log)
     option_index = check_baseline(before, args.game, args.turn)
     geometry = probe()
@@ -131,21 +134,33 @@ def main():
     ledger = Path('.data/ui-attempts')
     ledger.mkdir(parents=True, exist_ok=True)
     path = ledger / f'{args.session}-game{args.game}-turn{args.turn}-end-turn.json'
-    report = {'status': 'dispatch_reserved', 'session': args.session, 'game': args.game, 'turn': args.turn,
+    metadata = {'session': args.session, 'game': args.game, 'turn': args.turn,
               'hwnd': window['hwnd'], 'pid': window['pid'], 'option_index': option_index,
               'execution_confirmed': False, 'automatic_retry_allowed': False}
-    with path.open('x', encoding='utf-8') as output:
-        output.write(json.dumps(report) + '\n')
-        output.flush()
-        os.fsync(output.fileno())
-    if (user.GetForegroundWindow() != window['hwnd']
+    def preflight():
+        if (user.GetForegroundWindow() != window['hwnd']
             or (log.stat().st_size, log.stat().st_mtime_ns) != stamp
             or user.GetAsyncKeyState(0x1B) & 0x8000):
-        raise RuntimeError('state or focus changed after reservation; no input sent, attempt remains reserved')
-    # One batch only. Never retry a short or failed return; delivery may be partial.
-    report['input_events_inserted'] = user.SendInput(3, inputs, ctypes.sizeof(Input))
-    report['status'] = 'input_attempted_result_unconfirmed'
-    path.write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+            raise RuntimeError('state or focus changed after reservation')
+    def collect_evidence():
+        def observe(remaining):
+            current_sessions = sorted(p for p in (args.installation / 'Logs').iterdir()
+                                      if p.is_dir() and p.name.startswith('Hearthstone_'))
+            if not current_sessions or current_sessions[-1].name != args.session:
+                return None, None
+            current_stat = log.stat()
+            if ((current_stat.st_dev, current_stat.st_ino) != file_identity
+                    or current_stat.st_size < stamp[0]):
+                raise RuntimeError('log was replaced or truncated')
+            row = replay(binary, log, timeout=min(2, remaining))
+            final_stat = log.stat()
+            if ((final_stat.st_dev, final_stat.st_ino) != file_identity
+                    or final_stat.st_size < current_stat.st_size):
+                raise RuntimeError('log changed identity during observation')
+            return args.session, row
+        return wait_for_evidence(before, option_index, args.session, observe)
+    report = run_attempt(path, metadata, preflight,
+                         lambda: user.SendInput(3, inputs, ctypes.sizeof(Input)), collect_evidence)
     print(json.dumps(report, indent=2))
 
 
