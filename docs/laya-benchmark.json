@@ -1,0 +1,99 @@
+{
+  "model": "convaiinnovations/laya",
+  "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+  "subfolder": "multilingual",
+  "laya_version": "0.4.15",
+  "torch_version": "2.7.1+cu126",
+  "transformers_version": "4.57.6",
+  "actual_device": "cuda:0",
+  "load_seconds_including_any_download": 4.847845800046343,
+  "runs": 20,
+  "first_inference_ms": 449.0112999919802,
+  "first_inference_result": {
+    "model": "laya-rl-agent",
+    "answers": {
+      "action": {
+        "type": "choice",
+        "choice": "c1",
+        "probabilities": {
+          "c0": 0.4494,
+          "c1": 0.5506
+        },
+        "confidence": 0.0074,
+        "answer_confidence": 0.5506,
+        "action": {
+          "act_probability": 1.0
+        },
+        "abstention": "passed",
+        "abstention_threshold": 0.0
+      }
+    },
+    "usage": {
+      "input_tokens": 209,
+      "output_tokens": 0,
+      "state_tokens": 161,
+      "state_tokens_dropped": 0,
+      "truncated": false,
+      "truncated_questions": []
+    }
+  },
+  "latencies_ms": [
+    33.49290002370253,
+    33.487899985630065,
+    23.616000020410866,
+    25.23480000672862,
+    24.566899985074997,
+    23.92929996130988,
+    25.562700000591576,
+    24.933700042311102,
+    23.91309995437041,
+    26.64200001163408,
+    24.96810001321137,
+    27.96390000730753,
+    28.22909998940304,
+    25.522399984765798,
+    26.058799994643778,
+    25.73979995213449,
+    24.856000032741576,
+    23.4801999758929,
+    26.277500030118972,
+    25.871999969240278
+  ],
+  "median_ms": 25.542549992678687,
+  "p95_ms": 33.487899985630065,
+  "latency_scope": "warm direct predict calls; excludes model load and first inference",
+  "percentile_method": "nearest_rank",
+  "offline": true,
+  "peak_allocated_mib": 1500.7021484375,
+  "synthetic_expected_choice": "c0",
+  "correct_runs": 0,
+  "last_result": {
+    "model": "laya-rl-agent",
+    "answers": {
+      "action": {
+        "type": "choice",
+        "choice": "c1",
+        "probabilities": {
+          "c0": 0.4494,
+          "c1": 0.5506
+        },
+        "confidence": 0.0074,
+        "answer_confidence": 0.5506,
+        "action": {
+          "act_probability": 1.0
+        },
+        "abstention": "passed",
+        "abstention_threshold": 0.0
+      }
+    },
+    "usage": {
+      "input_tokens": 209,
+      "output_tokens": 0,
+      "state_tokens": 161,
+      "state_tokens_dropped": 0,
+      "truncated": false,
+      "truncated_questions": []
+    }
+  },
+  "actionable": false
+}

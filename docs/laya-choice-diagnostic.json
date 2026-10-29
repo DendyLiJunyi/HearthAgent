@@ -1,0 +1,40 @@
+{
+  "source": "offline_choice_ranking_diagnostic",
+  "actionable": false,
+  "mode": "diagnostic",
+  "accuracy": null,
+  "samples": 14,
+  "skipped_held_out_windows": 8,
+  "windows_sha256": "a10d8a0fa91c9d69d90f18978b6b753cf7f877800930a74283d1eede2b3cd57f",
+  "manifest_sha256": "e41617c5002029169afa2b9234ead48e9672ba644777c476df9f6079d1000b28",
+  "runs": 2,
+  "model_loaded": true,
+  "scope": "Unlabelled development games, incomplete offered-card subsets, post-hoc confidence only; no gameplay or legality validation.",
+  "model": "convaiinnovations/laya",
+  "revision": "7b928d828b7b0e022f929d9bd2e44165aa270148",
+  "subfolder": "multilingual",
+  "laya_version": "0.4.15",
+  "torch_version": "2.7.1+cu126",
+  "actual_device": "cuda:0",
+  "warmup_calls": 1,
+  "latency_scope": "warm direct predictions, excludes load and warmup",
+  "summary": {
+    "trials": 56,
+    "status_counts": {
+      "valid": 56
+    },
+    "valid_trials": 56,
+    "valid_multi_candidate_trials": 56,
+    "accepted_at_0_8": 0,
+    "fully_valid_multi_candidate_samples": 14,
+    "order_repeat_stable_samples": 9,
+    "accuracy": null,
+    "trials_within_rust_state_byte_limit": 56,
+    "accepted_multi_candidate_trials": 0,
+    "stable_and_all_confident_multi_samples": 0
+  },
+  "latency": {
+    "median_ms": 131.24669998069294,
+    "p95_ms": 349.1053999750875
+  }
+}

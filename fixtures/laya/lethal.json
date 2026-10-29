@@ -1,0 +1,9 @@
+{
+  "fixture": "synthetic immediate lethal; no live game data",
+  "acting_player": 1,
+  "our_hero": {"entity_id": 1, "health": 30},
+  "opponent_hero": {"entity_id": 20, "health": 3, "armor": 0, "immune": false},
+  "our_minions": [{"entity_id": 10, "attack": 3, "health": 4, "can_attack": true}],
+  "opponent_minions": [],
+  "rules": "The attack is legal and deals 3 damage. Reducing the enemy hero to 0 health wins immediately."
+}

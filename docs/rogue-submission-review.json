@@ -1,0 +1,26 @@
+{
+  "source": "offline_option_submission_review",
+  "actionable": false,
+  "complete": false,
+  "games_with_submissions": 5,
+  "totals": {
+    "submission_lines": 142,
+    "parsed_submissions": 142,
+    "targeted_submissions": 55,
+    "suboption_submissions": 41,
+    "nonzero_position_submissions": 10
+  },
+  "option_kinds": {
+    "POWER": 121,
+    "END_TURN": 21
+  },
+  "issues": {
+    "option_error_reported": 21
+  },
+  "observed_errors": {
+    "END_TURN:option_error:INVALID": 21
+  },
+  "scope": "Client sends matched to prior observed option packets. Missing entries do not prove illegal play; matching does not prove execution.",
+  "session": "Hearthstone_2026_10_28_14_28_58",
+  "rows_sha256": "15d2515e8a843e1fccd806a277692d27c5a6b84ad36a9b5aa3fd7481bdd3f721"
+}

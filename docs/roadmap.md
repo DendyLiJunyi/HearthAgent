@@ -1,13 +1,67 @@
 # 接入顺序
 
-1. 确认本地模型身份、输入输出、GPU 与延迟预算。
+Latest consolidated checkpoint: [current project status](current-status.md). The historical notes below record earlier milestones and corpus sizes.
+
+## 当前进展（2026-10-27）
+
+The active target is now the user-specified Wild Rogue deck: 30 cards and 18 distinct cards. See [target deck](target-deck.md). Druid corpus results below are historical and do not validate Rogue coverage.
+
+已添加选择事件诊断（129 个真实包无格式/未知类型错误）、提交列表长度检查和费用资源投影。选择包不声明候选总数，因此仍不认证完整性；CARD_ALTERNATE_COST 缺失时不默认法力支付。
+
+选项解析已保留子选项和独立目标列表、每包错误计数。已新增基于明确有效目标的只读攻击预览，以及按原始前缀生成历史窗口的 `review` 命令；范围限定为目标卡组已审查来源，仍非可执行/完整合法动作。详见 [动作预览](action-preview.md)。
+
+新增 `advise`：对冻结日志末尾的受支持攻击候选请求 Laya 只读排序，使用独立 AdvisoryChoice 类型，不放宽执行路径的完整性要求。合成攻击样例的真实调用在默认阈值下弃权。当前尚无目标卡组真实窗口的支持覆盖证据；旧语料 563 个窗口未产生目标卡组限定攻击候选。
+
+Laya 后续进展：隔离环境、固定版本模型、Rust HTTP 适配器和 CUDA 通路已完成验证。20 次热推理 p50 25.54 ms、p95 33.49 ms；与 Rust 序列化一致的合成斩杀样例正确率为 0/20。下一步应建立多局面离线能力评估和输入顺序鲁棒性检查；不能以接口打通代替决策能力验收。详见 [实测报告](laya-validation.md)。下文原接入计划中安装环境与基础服务适配器已完成，取消、完整候选和真实观测接入仍待实现。
+
+已实现文件回放、实时日志传输、晚到玩家别名归并、忽略记录类型统计、block/sub-spell 边界与 metadata 序列诊断、隐藏区域遮蔽的类型化局面，以及日志选项包和失效标记。
+`replay` 摘要和 `watch` JSON 的 `game.ignored_power_record_types` 使用固定类型名称；未知记录统一计入 `OTHER`，不输出原始文本。
+类型计数之和等于 `ignored_power_records`，每局重新计数；这些记录仍未用于状态更新，不能据此认为局面完整。
+
+回放支持 `--json`，与实时输出共用序列化。离线和实时均限制单行 1 MiB、当前局相关记录 64 MiB。
+
+已增加基于本地 MAIN_ACTION 提交的我方视角识别及我方手牌投影；20 局真实日志中 15 局得到一致视角、5 局保留未知。此方式依赖首次人工动作，尚不能识别自动开局所需视角。下一步补充开局身份来源、选择事件与选项包完整性、block/metadata 规则语义和状态稳定性检查，再推进候选动作生成。字段和真实日志验证见 [类型化局面](board.md)。
+
+## 后续接入
+
+动作协议已支持绑定 choice ID 的多实体选择、独立换牌阶段及卡牌位置；模型/runner/控制器共用动作阶段与结构检查，见 [动作协议](action-protocol.md)。board 已补充保持未知值和隐藏区域遮蔽的战斗标签，仍无完整合法动作生成或卡牌效果模拟。
+
+已实现 `StepRunner` 强制二次采集、候选语义一致性检查、运行级停止和失败阶段轨迹，并提供 `loop-demo`。可选持久账本在输入前写入并同步意图、重启恢复去重，未知执行结果锁住后续提交。独立结果恢复流程和跨重启稳定的真实对局身份仍待实现。详见 [单步主控与账本](control-runner.md)。
+
+已补充控制器提交前的单调截止时间、快照绑定和跨线程窗口取消；成功但超出预算的模型回复也不能进入执行器。详见 [执行时间窗口](execution-window.md)。这不等于中断 HTTP/GPU 或停止已开始的多阶段输入，真实调度预算与执行器内部停止机制仍待实现。
+
+2026-10-28：已增加选择提交与原始选择包的冻结关联，检查所有者、声明选择数量和已观察候选成员关系；后到或复用 choice ID 不修改历史比较。85 项 Rust 测试和 Clippy 通过，现有语料的 20 个局末最近提交匹配。仅作为多阶段选择诊断，不表示候选完整或执行成功。详见 [选择关联](choices.md)。
+
+2026-10-28：已完成首轮四局面、全候选排列和双字段顺序评估，共 90 次离线 GPU 推理。多候选局面正确 27/84，第一候选基线 30/84，均未达到 0.8 置信度；等价输入变体出现不同语义选择。详见 [多局面评估](laya-evaluation.md)。下一步扩大有审查标注的独立样本，当前结果不支持真实决策能力验收。
+
+已新增真实窗口待审查 JSONL 导出、局级分组和内容标识、可见目标卡牌/英雄证据，以及独立的用户会话说明。重新检查 563 个窗口仍为零样本。用户已澄清目前尚未进行德鲁伊对局，将稍后游玩；此前 20:27 会话的目标卡组确认已撤销。等待新对局后采集目标卡组真实样本。详见 [待审查样本导出](action-preview.md)。
+
+同日后续日志增至五个含 Power.log 的会话、18 个有选项窗口的局、688 个历史窗口；仍无目标卡牌可见证据和受支持攻击样本。已刷新语料诊断报告。
+
+1. 已建立 Laya 隔离环境并测量基础延迟；接下来建立多局面能力评估和预算策略。
 2. 采集真实日志/观测样本，定义完整局面字段和会话事件归并。
-3. 实现文件回放 ObservationSource；当前 demo 只是固定快照示例。
+3. 将已有文件回放和类型化局面接入 ObservationSource；当前仍是保守诊断数据，不能作为完整可执行快照。
 4. 实现候选动作规则检查与稳定的实体身份映射。
-5. 添加模型原生运行时的本地服务适配器，以及结构化序列化、超时和取消。
+5. 已有本地模型服务适配器、结构化序列化和 HTTP 超时；补充取消、降级和真实观测接入。
 6. 添加 Windows 单步执行器、独立结果确认与状态重新同步。
 7. 在固定卡组验证完整对局，再扩展搜索和卡牌机制。
 
 需要游戏内托管对象时，再增加 C# 适配项目。现有逆向未恢复游戏实体定位，不能将进程读取接口当作完整游戏 SDK。
 
 真实接入前需补齐：协议版本、采集时间、状态完整度详情、事件序列缺口处理、去重账本恢复、操作截止时间、多阶段出牌事务、停止控制与轨迹记录。
+
+## Rogue validation checkpoint (2026-10-28)
+
+Replayed 831 option windows across six sessions and 23 games with windows. The October 28 14:28:58 session contains five games with local Rogue hero evidence and visible cards overlapping the target deck. These yielded 47 unlabelled review samples and 85 attack candidates. Exact deck identity remains unconfirmed; these counts are not legal-action coverage or model accuracy.
+
+The current report is [attack-corpus-review.json](attack-corpus-review.json); local samples are in `.data/attack-review.jsonl` (schema v2). No labels or model-quality claims are inferred from player actions. Next review these samples and evaluate Laya on independently labelled cases before expanding execution.
+
+Validation: 115 Rust tests, 12 Python tests and Clippy with warnings denied passed. Formatting verification could not run because rustfmt is not installed. No game input was sent.
+
+Review-data integrity validation is now implemented: [review workflow](review-dataset.md). All 47 Rogue samples pass structural validation, but remain unreviewed. A game-grouped manifest is available locally; real-window model accuracy remains unevaluated.
+
+The real Rogue development-window GPU audit and lossless board encoding are complete: [results](laya-real-diagnostic.md). Input truncation was eliminated in 164 compact-input trials, but strong order sensitivity remains. A full [choice-window review](choice-windows.md) now covers 38 packets and 38 submissions across the five user-confirmed Rogue games.
+
+Restricted local choice projection and `advise-choice` are implemented for reviewed Rogue choose-one mechanisms. Real replay exposed 16 local choice windows with 47 offered-card entries. A development-only choice audit completed 56 GPU trials without truncation; none reached 0.8 confidence, so gameplay policy acceptance remains unproven. Both advice commands reject candidate-order disagreement.
+
+Choice previews now reuse the typed-card parser for observed combat stats and cost resources. The enriched 56-trial diagnostic remained untruncated; 11/14 positions were order-stable, 2 trials exceeded 0.8, and no position was confident across every variant. Independent accuracy remains unknown. Final regression checkpoint: 129 Rust tests, 39 Python tests, Clippy passed.

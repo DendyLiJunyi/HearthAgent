@@ -2,19 +2,28 @@
 
 Rust 主控 + 可替换本地模型后端的炉石 Agent 工程起点。
 
-当前版本可运行离线示例：结构化观测 → 基线决策 → 快照与阶段校验 → 记录执行 → 阻止重复操作。
-**尚未连接炉石或本地模型，不会读取游戏进程或发送鼠标输入。**
+当前版本支持本地环境检测、Power.log 离线回放、实时 JSON 观测，以及离线决策与执行保护演示。
+**Read-only game-log observation, offline Laya GPU diagnostics on real Rogue windows, and frozen attack/choice advice are implemented. No game process memory is read and no mouse input is sent. Observations remain incomplete and non-executable.**
 
 ## 运行
 
 ```powershell
 cd D:\HearthAgent
 cargo run --offline -- demo
+cargo run --offline -- deck
+cargo run --offline -- laya-demo
+cargo run --offline -- inspect D:\Hearthstone
+cargo run --offline -- watch D:\Hearthstone
+cargo run --offline -- replay <Power.log路径> --json
+cargo run --offline -- review <Power.log路径>
+cargo run --offline -- advise fixtures/wild-rogue-attacks.log
+cargo run --offline -- advise-choice fixtures/wild-rogue-choice.log
+cargo run --offline -- review-choices <Power.log>
 cargo test --offline
 cargo clippy --offline --all-targets -- -D warnings
 ```
 
-当前无第三方依赖，需要已安装 Rust 工具链。离线示例中的卡牌实体和动作是虚构测试数据。
+需要已安装 Rust 工具链及缓存的 Cargo 依赖（reqwest、serde、serde_json）。`laya-demo` 还需要先启动本地服务，见 [Laya 接入](docs/laya.md)。离线示例中的卡牌实体和动作是虚构测试数据。
 
 ## 目录与接口
 
@@ -22,6 +31,10 @@ cargo clippy --offline --all-targets -- -D warnings
 - `src/policy.rs`：`PolicyBackend` 和选择第一个候选的演示基线。
 - `src/executor.rs`：`ActionExecutor` 和仅记录的执行器。
 - `src/controller.rs`：过期决策、交互阶段和重复尝试检查。
+- `src/board.rs`：公开局面类型化与隐藏区域遮蔽，缺失属性保持未知。
+- `src/structure.rs`：Power block/sub-spell 边界和 metadata 序列诊断。
+- `src/export.rs`：实时/离线共用的 JSON 序列化。
+- `src/options.rs`：日志选项包、目标和失效标记，尚不作为可执行候选。
 - `tests/control_loop.rs`：状态变化、超时重试、阶段约束等测试。
 - `docs/design.md`：完整初步设计。
 - `docs/roadmap.md`：后续接入顺序。
@@ -30,6 +43,12 @@ cargo clippy --offline --all-targets -- -D warnings
 
 接入真实模型时实现 `PolicyBackend`；读取游戏时实现 `ObservationSource`；执行游戏操作时实现 `ActionExecutor`。模型计算后必须重新采集状态，不能把旧输入原样作为“新状态”交给执行器。
 
-当前尝试账本只保存在内存中。进程重启后，未来的真实适配器必须重新同步；一次状态只能提交一次动作，超时需通过重新观察和协调恢复，不能用改决策 ID 的方式重发。
+默认尝试账本保存在内存；可通过 `with_journal` 启用带独占锁和同步写入的持久账本。新增 `loop-demo` 演示强制二次观测、停止和重复提交拒绝，详见 [单步主控与持久账本](docs/control-runner.md)。真实适配器仍需提供稳定对局身份和独立结果恢复；不能用改决策 ID 的方式重发。
 
-尚待确定模型名称、输入形式、推理接口与硬件配置。Rust 核心不依赖 Hearthbuddy/GreyMagic DLL，未复制其反编译实现。
+用户已指定 Laya；安装、运行和实测结果见 [Laya 接入](docs/laya.md)。已验证 CUDA 推理和 Rust HTTP 通路，但当前模型未通过合成斩杀样例，尚不能用于真实对局决策。Rust 核心不依赖 Hearthbuddy/GreyMagic DLL，未复制其反编译实现。
+
+日志接入说明：[实时监听](docs/watch.md)，[第三局验证](docs/third-game-validation.md)。
+
+The sole active target is the [user-specified Wild Rogue deck](docs/target-deck.md). [Read-only attack previews](docs/action-preview.md) do not provide complete legal actions or automatic gameplay.
+
+Latest Rogue work: [real-window Laya audit](docs/laya-real-diagnostic.md), [review and label workflow](docs/review-dataset.md), and [choice transaction history](docs/choice-windows.md).

@@ -1,0 +1,362 @@
+﻿[
+    {
+        "session":  "Hearthstone_2026_10_27_09_44_35",
+        "game_number":  1,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_09_44_35",
+        "game_number":  2,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  false,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_09_44_35",
+        "game_number":  3,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_12_30_44",
+        "game_number":  1,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_12_30_44",
+        "game_number":  2,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "MULLIGAN",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_12_30_44",
+        "game_number":  3,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_12_30_44",
+        "game_number":  4,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_12_30_44",
+        "game_number":  5,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_16_35_11",
+        "game_number":  1,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "MULLIGAN",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_16_35_11",
+        "game_number":  2,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  false,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_16_35_11",
+        "game_number":  3,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_16_35_11",
+        "game_number":  4,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_16_35_11",
+        "game_number":  5,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  1,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  3,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "MULLIGAN",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  4,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "MULLIGAN",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  5,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "MULLIGAN",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  6,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_27_20_27_56",
+        "game_number":  7,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  true,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    },
+    {
+        "session":  "Hearthstone_2026_10_28_09_19_04",
+        "game_number":  1,
+        "list_complete":  true,
+        "correlation":  {
+                            "packet_seen":  true,
+                            "packet_kind":  "GENERAL",
+                            "packet_was_stale":  false,
+                            "packet_malformed_records":  0,
+                            "owner_matches":  true,
+                            "declared_count_within_bounds":  true,
+                            "unobserved_entities":  [
+
+                                                    ],
+                            "candidate_list_complete":  false,
+                            "execution_confirmed":  false
+                        }
+    }
+]

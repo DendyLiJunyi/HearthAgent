@@ -1,0 +1,29 @@
+{
+  "source": "offline_card_play_review",
+  "actionable": false,
+  "execution_confirmed": false,
+  "counts": {
+    "option_windows": 143,
+    "windows_with_card_plays": 53,
+    "candidate_occurrences": 358
+  },
+  "games_with_card_plays": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "candidate_occurrences_by_card": {
+    "REV_939": 84,
+    "JAIL_225": 148,
+    "EX1_144": 126
+  },
+  "blocked_windows": {
+    "not_our_turn": 2
+  },
+  "scope": "Historical candidate occurrences, not unique positions, actual plays or strategic accuracy.",
+  "session": "Hearthstone_2026_10_28_14_28_58",
+  "log_prefix_sha256": "64b6c32b67b53884aee7608d50c8b6897d9dadc76c5a1c67cc4161c7d31b01ef",
+  "export_sha256": "dc98f191190e946d917578db740329654aa5fcc0dc98fc47d5f18c0baf086b24"
+}

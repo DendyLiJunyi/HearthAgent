@@ -1,0 +1,26 @@
+D 0 GameState.DebugPrintPower() - CREATE_GAME
+D 0 GameState.DebugPrintPower() - GameEntity EntityID=1
+D 0 GameState.DebugPrintPower() - tag=STATE value=RUNNING
+D 0 GameState.DebugPrintPower() - tag=STEP value=MAIN_ACTION
+D 0 GameState.DebugPrintPower() - Player EntityID=2 PlayerID=1
+D 0 GameState.DebugPrintPower() - tag=CURRENT_PLAYER value=1
+D 0 GameState.DebugPrintPower() - Player EntityID=3 PlayerID=2
+D 0 GameState.DebugPrintPower() - tag=CURRENT_PLAYER value=0
+D 0 GameState.DebugPrintPower() - FULL_ENTITY - Creating ID=10 CardID=TLC_515
+D 0 GameState.DebugPrintPower() - tag=ZONE value=PLAY
+D 0 GameState.DebugPrintPower() - tag=CONTROLLER value=1
+D 0 GameState.DebugPrintPower() - tag=CARDTYPE value=SPELL
+D 0 GameState.DebugPrintPower() - FULL_ENTITY - Creating ID=20 CardID=CFM_630
+D 0 GameState.DebugPrintPower() - tag=ZONE value=SETASIDE
+D 0 GameState.DebugPrintPower() - tag=CONTROLLER value=1
+D 0 GameState.DebugPrintPower() - tag=CARDTYPE value=SPELL
+D 0 GameState.DebugPrintPower() - tag=COST value=0
+D 0 GameState.DebugPrintPower() - FULL_ENTITY - Creating ID=21 CardID=DED_004
+D 0 GameState.DebugPrintPower() - tag=ZONE value=SETASIDE
+D 0 GameState.DebugPrintPower() - tag=CONTROLLER value=1
+D 0 GameState.DebugPrintPower() - tag=CARDTYPE value=WEAPON
+D 0 GameState.SendOption() - selectedOption=0 selectedSubOption=-1 selectedTarget=0 selectedPosition=0
+D 0 GameState.DebugPrintEntityChoices() - id=7 Player=2 TaskList= ChoiceType=GENERAL CountMin=1 CountMax=1
+D 0 GameState.DebugPrintEntityChoices() - Source=10
+D 0 GameState.DebugPrintEntityChoices() - Entities[0]=20
+D 0 GameState.DebugPrintEntityChoices() - Entities[1]=21
