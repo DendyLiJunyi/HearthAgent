@@ -1,0 +1,23 @@
+{
+  "source": "offline_controller_gpu_smoke",
+  "status": "passed_transport_and_gating",
+  "owned_server_stopped": true,
+  "game_input_sent": false,
+  "rows": [
+    {
+      "command": "advise",
+      "status": "no_advice",
+      "steps": 0
+    },
+    {
+      "command": "advise-choice",
+      "status": "no_advice",
+      "steps": 0
+    },
+    {
+      "command": "offline-sequence",
+      "status": "supplied_sequence_complete",
+      "steps": 1
+    }
+  ]
+}

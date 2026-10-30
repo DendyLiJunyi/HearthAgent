@@ -1,5 +1,31 @@
 # Current project checkpoint — 2026-10-29
 
+## Offline continuation — 2026-10-30
+
+The [integrated offline controller](offline-controller.md) now connects saved
+observations, Rust/Laya advice, refresh checks, recorded gestures and supplied
+result evidence across successive steps. A local GPU smoke completed the
+one-step synthetic sequence and stopped its owned server. This is orchestration
+validation, not a complete match, live-input integration or strategy validation.
+Automatic region detection, complete action coverage and independent model
+quality remain blockers to finishing unattended gameplay.
+
+Ordinary minion placement now connects reviewed geometry to durable recording
+and supplied before/after result evidence through
+`rehearse_spell_result.py --mode minion`. A callback-driven bounded minion wait
+freezes its baseline and stops on session changes or late evidence. Blocked or
+partial card-result baselines fail before attempt reservation. See
+[minion workflow](minion-placement.md).
+
+The shared evidence wait now passes the actual remaining budget without a
+minimum-time extension. End-turn polling also freezes its baseline so observer
+callbacks cannot change the submission comparison. Rust regression tests,
+113 discovered script tests and 21 Laya service tests pass. No game input was
+sent. Live minion candidate acquisition still lacks a trustworthy packet-end
+signal; full gameplay and decision-quality acceptance remain unfinished.
+
+## Previous checkpoint
+
 The targets are the original Wild Rogue deck and the October 29 N'Zoth Rogue
 variant, recorded in [user preferences](user-project-preferences.md).
 The user confirmed that all five
@@ -41,8 +67,8 @@ a matching submission and turn handoff. Automatic gameplay is not implemented.
 | Early local identity | Established at mulligan submission in all five confirmed Rogue games |
 | Client submission audit | 142 sends across five Rogue games; all referenced options/targets observed |
 | End-turn progression audit | Ordered end-step/next-turn/action-phase evidence after all 21 end-turn sends; causation unverified |
-| Rust regression tests | 151 passed |
-| Python regression tests | 123 passed |
+| Rust regression tests | 152 passed |
+| Python regression tests | 150 passed |
 | Clippy | Passed with warnings denied |
 
 The held-out game was not sent to either real-window GPU diagnostic. Neither

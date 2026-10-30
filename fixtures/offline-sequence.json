@@ -1,0 +1,246 @@
+[
+  {
+    "mode": "spell",
+    "inputs": {
+      "observation": {
+        "snapshot": {
+          "session_id": "synthetic-geometry",
+          "game_number": 1,
+          "revision": 7,
+          "phase": "OurTurn",
+          "complete": false
+        },
+        "candidates": [
+          {
+            "id": "play-10-20",
+            "action": {
+              "PlayCard": {
+                "source": 10,
+                "target": 20,
+                "position": null
+              }
+            }
+          }
+        ],
+        "board": {
+          "perspective": 1,
+          "active_player": 1,
+          "players": [
+            {
+              "player_id": 1,
+              "in_play": [],
+              "hand": [
+                {
+                  "entity_id": 10,
+                  "card_id": "REV_939",
+                  "card_type": "SPELL",
+                  "public_zone": false
+                }
+              ]
+            },
+            {
+              "player_id": 2,
+              "in_play": [
+                {
+                  "entity_id": 20,
+                  "card_type": "MINION",
+                  "public_zone": true
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "candidate_id": "play-10-20",
+      "calibration": {
+        "annotation_status": "reviewed",
+        "binding": {
+          "session_id": "synthetic-geometry",
+          "game_number": 1,
+          "revision": 7
+        },
+        "frame_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "window": {
+          "hwnd": 123,
+          "pid": 456,
+          "dpi": 96,
+          "foreground": true,
+          "minimized": false,
+          "client_screen_rect": {
+            "left": -1920,
+            "top": 0,
+            "right": 0,
+            "bottom": 1080
+          }
+        },
+        "entities": [
+          {
+            "entity_id": 10,
+            "box": [
+              0.4,
+              0.85,
+              0.5,
+              0.95
+            ]
+          },
+          {
+            "entity_id": 20,
+            "box": [
+              0.45,
+              0.1,
+              0.55,
+              0.25
+            ]
+          }
+        ]
+      },
+      "current_window": {
+        "hwnd": 123,
+        "pid": 456,
+        "dpi": 96,
+        "foreground": true,
+        "minimized": false,
+        "client_screen_rect": {
+          "left": -1920,
+          "top": 0,
+          "right": 0,
+          "bottom": 1080
+        }
+      },
+      "frame_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "before": {
+      "game_number": 1,
+      "ignored_partial_line": false,
+      "game": {
+        "card_play_preview": {
+          "blocked_by": [],
+          "option_packet_id": 7,
+          "candidates": [
+            {
+              "id": "play-10-20",
+              "option_index": 1,
+              "action": {
+                "PlayCard": {
+                  "source": 10,
+                  "target": 20,
+                  "position": null
+                }
+              }
+            }
+          ]
+        },
+        "unresolved_references": 0,
+        "malformed_records": 0,
+        "power_structure": {
+          "closed": true
+        },
+        "board": {
+          "perspective": 1,
+          "active_player": 1,
+          "players": [
+            {
+              "player_id": 1,
+              "in_play": [],
+              "hand": [
+                {
+                  "entity_id": 10,
+                  "card_id": "REV_939",
+                  "card_type": "SPELL",
+                  "public_zone": false
+                }
+              ]
+            },
+            {
+              "player_id": 2,
+              "in_play": [
+                {
+                  "entity_id": 20,
+                  "card_type": "MINION",
+                  "public_zone": true
+                }
+              ]
+            }
+          ],
+          "invalid_fields": 0
+        },
+        "logged_options": {
+          "submissions_seen": 2
+        }
+      },
+      "session_id": "synthetic-geometry",
+      "revision": 7
+    },
+    "after": {
+      "game_number": 1,
+      "ignored_partial_line": false,
+      "game": {
+        "card_play_preview": {
+          "blocked_by": [],
+          "option_packet_id": 7,
+          "candidates": [
+            {
+              "id": "play",
+              "option_index": 1,
+              "action": {
+                "PlayCard": {
+                  "source": 10,
+                  "target": 20,
+                  "position": null
+                }
+              }
+            }
+          ]
+        },
+        "unresolved_references": 0,
+        "malformed_records": 0,
+        "power_structure": {
+          "closed": true
+        },
+        "board": {
+          "perspective": 1,
+          "invalid_fields": 0,
+          "players": [
+            {
+              "player_id": 1,
+              "hand": [],
+              "in_play": [],
+              "graveyard": [
+                {
+                  "entity_id": 10,
+                  "card_type": "SPELL",
+                  "card_id": "REV_939"
+                }
+              ]
+            }
+          ]
+        },
+        "logged_options": {
+          "submissions_seen": 3,
+          "latest_submission": {
+            "selection": {
+              "option": 1,
+              "sub_option": -1,
+              "target": 20,
+              "position": 0
+            },
+            "correlation": {
+              "packet_id": 7,
+              "packet_was_stale": false,
+              "packet_malformed_records": 0,
+              "packet_unsupported_records": 0,
+              "option_kind": "POWER",
+              "option_seen": true,
+              "source_entity": 10,
+              "option_error": "NONE",
+              "target_seen": true,
+              "target_ambiguous": false,
+              "target_error": "NONE"
+            }
+          }
+        }
+      },
+      "session_id": "synthetic-geometry"
+    }
+  }
+]

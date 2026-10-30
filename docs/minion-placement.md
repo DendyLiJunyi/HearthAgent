@@ -27,7 +27,9 @@ position, then looks for the same source in play at that position after power
 blocks close. Immediate death, transformation or triggered repositioning does
 not fabricate success; these cases need richer effect evidence. No result permits
 automatic retries or claims execution confirmation. The minion result checker
-is a pure function and is not yet connected to a live polling/input adapter.
+is a pure function. `wait_for_minion` adds bounded callback-driven observation
+using a frozen baseline, session checks and the shared evidence deadline.
+It is not connected to a live input adapter.
 
 The synthetic Rust preview test and seven Python geometry/rehearsal/result tests
 cover this initial implementation. Generated minions, N'Zoth placement/effects,
@@ -37,3 +39,30 @@ The retained submission export contains ten nonzero placement submissions, all
 using position 1. It lacks source observations and does not validate the full
 left-to-right placement convention or every insertion slot. Multi-slot geometry
 therefore remains synthetic-test validated, with reviewed calibration required.
+
+## Geometry and result rehearsal
+
+`scripts/rehearse_spell_result.py --mode minion <bundle.json>` now connects the
+reviewed placement geometry, durable recording attempt and minion result checker.
+The bundle has the same `inputs`, `before` and `after` fields as the spell result
+rehearsal. Session, game, revision, supplied board fields and selected placement
+must agree before reservation. Blocked and partial baselines are rejected.
+Partial simulated gestures skip evidence collection; duplicate receipts refuse
+a second attempt. Changed sessions cannot report completion.
+
+The bounded wait deep-copies the baseline, discards late results, and stops on
+session or observation failures. Tests exercise delayed block closure, baseline
+mutation, wrong placement, session changes and partial gestures. All observations
+and gestures in this workflow are supplied or recorded offline; no game input is
+sent and no result authorizes retry.
+
+Minion previews still require a historical packet boundary. The live replay tail
+does not supply that boundary, so the spell observation CLI cannot acquire a live
+minion candidate. This workflow does not remove that unresolved acquisition gate.
+
+`test_minion_parser_integration.py` also runs the actual Rust replay and historical
+window exporter on a synthetic two-slot board. It checks insertion at slot two,
+open blocks, a different final position and immediate death. The test obtains its
+preview from the closed historical window; the same live-tail replay correctly
+has no minion candidates. This verifies parser compatibility without claiming a
+live candidate source or evidence of card effects.

@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import unittest
 from test_ui_baseline import baseline
-from ui_result import assess_end_turn, wait_for_evidence
+from ui_result import assess_end_turn, wait_for_evidence, wait_for_assessment
 
 
 def observations():
@@ -31,6 +31,26 @@ class FakeClock:
 
 
 class UiResultTests(unittest.TestCase):
+    def test_observer_cannot_mutate_end_turn_baseline(self):
+        before, after = observations()
+        clock = FakeClock()
+
+        def observe(remaining):
+            before['game']['logged_options']['latest']['id'] = 999
+            return 'session', after
+
+        result = wait_for_evidence(before, 0, 'session', observe,
+                                   clock=clock.clock, sleep=clock.sleep)
+        self.assertEqual(result['status'], 'submission_and_handoff_observed')
+
+    def test_sub_millisecond_budget_is_not_extended(self):
+        budgets = []
+        result = wait_for_assessment(lambda row: {'status': 'done'}, {'status': 'pending'},
+                                     'session', lambda remaining: (budgets.append(remaining) or 'session', {}),
+                                     timeout=.0005, clock=lambda: 0)
+        self.assertEqual(result['status'], 'done')
+        self.assertEqual(budgets, [.0005])
+
     def test_real_rust_replay_schema_matches_post_input_checker(self):
         root = Path(__file__).resolve().parents[1]
         binary = root / 'target/validation/debug/hearth-agent.exe'

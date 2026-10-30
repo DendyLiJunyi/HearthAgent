@@ -7,12 +7,25 @@ fn invalid_command_arguments_fail_with_usage_status() {
         vec!["deck", "code", "extra"], vec!["advise"], vec!["advise", "unused", "url", "extra"], vec!["loop-demo", "extra"],
         vec!["review-choices"], vec!["review-choices", "unused", "extra"],
         vec!["review-submissions"], vec!["review-submissions", "unused", "extra"],
-        vec!["advise-choice"], vec!["advise-choice", "unused", "url", "extra"]] {
+        vec!["advise-choice"], vec!["advise-choice", "unused", "url", "extra"],
+        vec!["advise-observation"], vec!["advise-observation", "unused", "url", "extra"]] {
         let output = Command::new(env!("CARGO_BIN_EXE_hearth-agent")).args(&args).output().unwrap();
         assert_eq!(output.status.code(), Some(2), "{args:?}");
         assert!(String::from_utf8(output.stderr).unwrap().contains("Usage:"));
         assert!(output.stdout.is_empty());
     }
+}
+
+#[test]
+fn saved_advice_rejects_duplicate_snapshot_identity_before_transport() {
+    let path = std::env::temp_dir().join(format!("hearth-advice-invalid-{}.json", std::process::id()));
+    std::fs::write(&path, r#"{"snapshot":{"session_id":"one","session_id":"two","revision":1,"phase":"OurTurn","complete":false},"candidates":[],"board":{}}"#).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_hearth-agent"))
+        .arg("advise-observation").arg(&path).output().unwrap();
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8(output.stderr).unwrap().contains("duplicate field"));
 }
 
 #[test]

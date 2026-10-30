@@ -5,11 +5,13 @@ import json
 from pathlib import Path
 import tempfile
 from rehearse_attack import rehearse
-from ui_spell_result import assess_spell
+from ui_spell_result import assess_spell, assess_minion
 from validate_review import strict_json
 
 
-def run(inputs, before, after, receipt, inserted_events=4):
+def run(inputs, before, after, receipt, inserted_events=4, mode='spell'):
+    if mode not in ('spell', 'minion'):
+        raise ValueError('unsupported card result rehearsal mode')
     inputs, before, after = copy.deepcopy((inputs, before, after))
     snapshot = inputs['observation']['snapshot']
     for key in ('session_id', 'game_number', 'revision'):
@@ -40,22 +42,27 @@ def run(inputs, before, after, receipt, inserted_events=4):
     planned = [c for c in inputs['observation']['candidates'] if c['id'] == candidate_id]
     if len(candidates) != 1 or len(planned) != 1 or candidates[0]['action'] != planned[0]['action']:
         raise ValueError('evidence candidate differs from planned action')
+    assessor = assess_minion if mode == 'minion' else assess_spell
+    if (before['ignored_partial_line'] or
+            assessor(before, before, candidate_id)['status'] != 'pending'):
+        raise ValueError('unsupported evidence baseline')
 
     def evidence():
         if after.get('session_id') != before['session_id']:
             return {'status': 'session_changed', 'execution_confirmed': False, 'automatic_retry_allowed': False}
-        result = assess_spell(before, after, candidate_id)
+        result = assessor(before, after, candidate_id)
         result['evidence_source'] = 'supplied_offline_observations'
         return result
 
-    return rehearse(inputs, receipt, mode='spell', inserted_events=inserted_events, collect_evidence=evidence)
+    return rehearse(inputs, receipt, mode=mode, inserted_events=inserted_events, collect_evidence=evidence)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('bundle', type=Path, help='JSON containing inputs, before and after')
+    parser.add_argument('--mode', choices=('spell', 'minion'), default='spell')
     args = parser.parse_args()
     bundle = strict_json(args.bundle.read_text(encoding='utf-8'))
     with tempfile.TemporaryDirectory(prefix='spell-result-rehearsal-') as directory:
-        result = run(**bundle, receipt=Path(directory) / 'attempt.json')
+        result = run(**bundle, receipt=Path(directory) / 'attempt.json', mode=args.mode)
     print(json.dumps(result, indent=2))

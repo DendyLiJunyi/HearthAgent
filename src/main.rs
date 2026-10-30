@@ -5,6 +5,17 @@ use hearth_agent::protocol::{Action, Candidate, Observation, Phase, Snapshot};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().map(String::as_str) == Some("advise-observation") {
+        if !(2..=3).contains(&args.len()) {
+            eprintln!("Usage: hearth-agent advise-observation <saved-observation.json> [loopback-url]");
+            std::process::exit(2);
+        }
+        match advise_observation(&args[1], args.get(2).map(String::as_str).unwrap_or("http://127.0.0.1:8791")) {
+            Ok(report) => println!("{report}"),
+            Err(error) => { eprintln!("Observation advice failed: {error}"); std::process::exit(1); }
+        }
+        return;
+    }
     if args.first().map(String::as_str) == Some("review-submissions") {
         if args.len() != 2 {
             eprintln!("Usage: hearth-agent review-submissions <Power.log>");
@@ -181,6 +192,30 @@ fn main() {
     let outcome = controller.execute(&observation, &decision, &window, &mut executor).expect("valid demo");
     println!("Outcome: {outcome:?} (no game input sent)");
     println!("Duplicate: {:?}", controller.execute(&observation, &decision, &window, &mut executor));
+}
+
+fn advise_observation(path: &str, endpoint: &str) -> Result<serde_json::Value, String> {
+    use std::io::Read;
+    let mut data = Vec::new();
+    std::fs::File::open(path).map_err(|e| e.to_string())?.take(1024 * 1024 + 1)
+        .read_to_end(&mut data).map_err(|e| e.to_string())?;
+    if data.len() > 1024 * 1024 { return Err("saved observation exceeds 1 MiB".into()); }
+    let value: serde_json::Value = serde_json::from_slice(&data).map_err(|e| e.to_string())?;
+    let mut observation: Observation = serde_json::from_slice(&data).map_err(|e| e.to_string())?;
+    observation.snapshot.complete = false;
+    let board = value.get("board").ok_or("missing public board")?.clone();
+    let mut policy = hearth_agent::laya::LayaPolicy::new(endpoint, hearth_agent::laya::LayaConfig::default())?;
+    policy.bind_state(&observation.snapshot, serde_json::json!({
+        "observation": board, "choice_preview": value.get("choice_preview"),
+        "candidate_coverage_complete": false}))?;
+    let mut report = serde_json::json!({"source":"saved_observation_advice", "actionable":false,
+        "game_input_sent":false, "session_id":observation.snapshot.session_id,
+        "revision":observation.snapshot.revision});
+    match policy.advise_consistent(&observation) {
+        Ok(advice) => { report["status"] = "advice".into(); report["candidate_id"] = advice.candidate_id.into(); }
+        Err(reason) => { report["status"] = "no_advice".into(); report["reason"] = reason.into(); }
+    }
+    Ok(report)
 }
 
 fn loop_demo() -> std::io::Result<()> {
