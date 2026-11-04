@@ -3,7 +3,7 @@
 Rust 主控 + 可替换本地模型后端的炉石 Agent 工程起点。
 
 当前版本支持本地环境检测、Power.log 离线回放、实时 JSON 观测，以及离线决策与执行保护演示。
-**Read-only game-log observation, offline Laya GPU diagnostics on real Rogue windows, and frozen attack/choice advice are implemented. No game process memory is read and no mouse input is sent. Observations remain incomplete and non-executable.**
+**The [live agent](docs/agent.md) plans full turns from the game's own legal moves, but has only been tested offline. It acts only in practice games. No game process memory is read.** The Rust code below remains read-only observation and advice; its one live input was a single end-turn test on 2026-10-29.
 
 ## 运行
 

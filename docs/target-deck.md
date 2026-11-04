@@ -1,6 +1,7 @@
 # Active target: Wild Rogue
 
-This is the user's sole active deck, replacing the previous Druid target.
+This is the original target deck, replacing the previous Druid target. The
+October 29 N'Zoth variant is also supported; see [user preferences](user-project-preferences.md).
 
 ```text
 AAEBAau2Bwbw5gKh9APj0wTc2gSI2QeF6wcM7QL1uwLn3QP+7gO9gAT3nwS3swT13QTungatpwbBlweD1QcAAA==

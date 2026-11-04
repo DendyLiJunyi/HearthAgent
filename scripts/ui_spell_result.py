@@ -6,12 +6,24 @@ from ui_result import wait_for_assessment
 
 def wait_for_spell(before, candidate_id, session, observe, timeout=8.0,
                    clock=time.monotonic, sleep=time.sleep):
+    return wait_for_card(before, candidate_id, session, observe, timeout, clock, sleep)
+
+
+def wait_for_minion(before, candidate_id, session, observe, timeout=8.0,
+                    clock=time.monotonic, sleep=time.sleep):
+    return wait_for_card(before, candidate_id, session, observe, timeout, clock, sleep,
+                         minion=True)
+
+
+def wait_for_card(before, candidate_id, session, observe, timeout, clock, sleep,
+                  *, minion=False):
     # Observers cannot rewrite the baseline while evidence is being collected.
     baseline = copy.deepcopy(before)
     initial = {'status': 'pending', 'matching_submission_observed': False,
-               'source_in_graveyard_observed': False, 'execution_confirmed': False,
+               ('source_in_play_observed' if minion else 'source_in_graveyard_observed'): False,
+               'execution_confirmed': False,
                'automatic_retry_allowed': False}
-    return wait_for_assessment(lambda after: assess_spell(baseline, after, candidate_id),
+    return wait_for_assessment(lambda after: assess_card(baseline, after, candidate_id, minion=minion),
                                initial, session, observe, timeout, clock, sleep)
 
 

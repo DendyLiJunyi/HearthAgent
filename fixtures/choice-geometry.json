@@ -1,0 +1,127 @@
+{
+  "observation": {
+    "snapshot": {
+      "session_id": "synthetic-geometry",
+      "game_number": 1,
+      "revision": 7,
+      "phase": "Choosing",
+      "complete": false
+    },
+    "candidates": [
+      {
+        "id": "choose-20",
+        "action": {
+          "ChooseOptions": {
+            "choice_id": 7,
+            "entities": [
+              20
+            ]
+          }
+        }
+      }
+    ],
+    "board": {
+      "perspective": 1,
+      "active_player": 1,
+      "players": [
+        {
+          "player_id": 1,
+          "in_play": [
+            {
+              "entity_id": 10,
+              "card_type": "MINION",
+              "public_zone": true
+            }
+          ]
+        },
+        {
+          "player_id": 2,
+          "in_play": [
+            {
+              "entity_id": 20,
+              "card_type": "HERO",
+              "public_zone": true
+            }
+          ]
+        }
+      ]
+    },
+    "choice_preview": {
+      "blocked_by": [],
+      "choice": {
+        "choice_id": 7,
+        "source_card_id": "WW_411",
+        "minimum": 1,
+        "maximum": 1,
+        "offered_cards": [
+          {
+            "entity_id": 10,
+            "card_id": "WW_325"
+          },
+          {
+            "entity_id": 20,
+            "card_id": "WW_377"
+          }
+        ]
+      }
+    }
+  },
+  "candidate_id": "choose-20",
+  "calibration": {
+    "annotation_status": "reviewed",
+    "binding": {
+      "session_id": "synthetic-geometry",
+      "game_number": 1,
+      "revision": 7
+    },
+    "frame_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "window": {
+      "hwnd": 123,
+      "pid": 456,
+      "dpi": 96,
+      "foreground": true,
+      "minimized": false,
+      "client_screen_rect": {
+        "left": -1920,
+        "top": 0,
+        "right": 0,
+        "bottom": 1080
+      }
+    },
+    "entities": [
+      {
+        "entity_id": 10,
+        "box": [
+          0.2,
+          0.3,
+          0.4,
+          0.7
+        ]
+      },
+      {
+        "entity_id": 20,
+        "box": [
+          0.6,
+          0.3,
+          0.8,
+          0.7
+        ]
+      }
+    ],
+    "choice_id": 7
+  },
+  "current_window": {
+    "hwnd": 123,
+    "pid": 456,
+    "dpi": 96,
+    "foreground": true,
+    "minimized": false,
+    "client_screen_rect": {
+      "left": -1920,
+      "top": 0,
+      "right": 0,
+      "bottom": 1080
+    }
+  },
+  "frame_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}

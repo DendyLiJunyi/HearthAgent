@@ -7,6 +7,7 @@ import socket
 import subprocess
 import sys
 import time
+import tempfile
 import urllib.error
 import urllib.request
 
@@ -22,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--device', choices=('cuda', 'cpu'), default='cuda')
     parser.add_argument('--binary', type=Path, default=ROOT / 'target/validation/debug/hearth-agent.exe')
+    parser.add_argument('--sequence', type=Path, help='optional saved offline controller sequence')
     args = parser.parse_args()
     if not args.binary.is_file():
         parser.error('build the Rust validation binary first')
@@ -73,6 +75,21 @@ def main():
                 elif row['status'] != 'advice':
                     raise RuntimeError('unexpected CLI advice status')
                 report['rows'].append({'command': command, 'fixture': fixture, 'result': row})
+            if args.sequence:
+                sys.path.insert(0, str(ROOT / 'scripts'))
+                from offline_controller import OfflineController
+                from offline_laya_policy import LayaAdvicePolicy
+                from validate_review import strict_json
+                frames = strict_json(args.sequence.read_text(encoding='utf-8'))
+                if not isinstance(frames, list): raise ValueError('sequence must be a list')
+                source = iter([frame for frame in frames for _ in range(2)] + [None])
+                with tempfile.TemporaryDirectory(prefix='hearth-model-sequence-') as directory:
+                    sequence_report = OfflineController(directory).run(
+                        lambda: next(source), LayaAdvicePolicy(args.binary, url))
+                if sequence_report['status'] not in ('supplied_sequence_complete', 'policy_abstained'):
+                    raise RuntimeError('offline controller failed its model smoke')
+                report['rows'].append({'command': 'offline-sequence', 'fixture': args.sequence.name,
+                                       'result': sequence_report})
             after = health(url)
             if after['cpu_fallbacks'].get('multilingual', {}).get('count', 0):
                 raise RuntimeError('model used CPU fallback')

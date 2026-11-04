@@ -1,5 +1,5 @@
 /// IDs are meaningful only within their session and state revision.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Snapshot {
     pub session_id: String,
     pub revision: u64,
@@ -7,7 +7,7 @@ pub struct Snapshot {
     pub complete: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Phase {
     Mulligan,
     OurTurn,
@@ -17,7 +17,7 @@ pub enum Phase {
     Finished,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Action {
     /// One-based board placement when required; adapter checks actual legal slots.
     PlayCard { source: u32, target: Option<u32>, position: Option<u32> },
@@ -64,7 +64,7 @@ impl Action {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Candidate {
     pub id: String,
     pub action: Action,
@@ -72,7 +72,7 @@ pub struct Candidate {
 
 /// An observation adapter must check candidate legality against this snapshot.
 /// The controller validates identity and phase, not Hearthstone's full rules.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Observation {
     pub snapshot: Snapshot,
     pub candidates: Vec<Candidate>,

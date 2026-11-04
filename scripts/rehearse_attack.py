@@ -7,17 +7,21 @@ import tempfile
 from attack_geometry import plan_attack
 from spell_geometry import plan_spell
 from minion_geometry import plan_minion
+from choice_geometry import plan_choice
+from end_turn_geometry import plan_end_turn
 from ui_attempt import run_attempt
 from validate_review import strict_json
 
 
-def rehearse(inputs, receipt, observe=None, inserted_events=4, mode='attack', collect_evidence=None):
+def rehearse(inputs, receipt, observe=None, inserted_events=None, mode='attack', collect_evidence=None):
     """observe is injectable for tests; this module has no game input adapter."""
-    if mode not in ('attack', 'spell', 'minion'):
+    if mode not in ('attack', 'spell', 'minion', 'choice', 'end_turn'):
         raise ValueError('unsupported rehearsal mode')
-    planner = {'attack': plan_attack, 'spell': plan_spell, 'minion': plan_minion}[mode]
+    planner = {'attack': plan_attack, 'spell': plan_spell, 'minion': plan_minion,
+               'choice': plan_choice, 'end_turn': plan_end_turn}[mode]
     baseline = copy.deepcopy(inputs)
     planned = planner(**baseline)
+    if inserted_events is None: inserted_events = len(planned['gesture'])
     records = []
     if observe is None:
         observe = lambda: copy.deepcopy(baseline)
@@ -49,7 +53,7 @@ def rehearse(inputs, receipt, observe=None, inserted_events=4, mode='attack', co
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('fixture', type=Path)
-    parser.add_argument('--mode', choices=('attack', 'spell', 'minion'), default='attack')
+    parser.add_argument('--mode', choices=('attack', 'spell', 'minion', 'choice', 'end_turn'), default='attack')
     args = parser.parse_args()
     inputs = strict_json(args.fixture.read_text(encoding='utf-8'))
     with tempfile.TemporaryDirectory(prefix='hearth-attack-rehearsal-') as directory:

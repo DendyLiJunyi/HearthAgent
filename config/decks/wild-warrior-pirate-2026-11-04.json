@@ -1,0 +1,165 @@
+{
+  "name": "User Wild Pirate Warrior",
+  "mode": "wild",
+  "class": "WARRIOR",
+  "deck_code": "AAEBAQcG+w+RvALAuQPr1gey2Aer4AcM6bADpLYDr6AEvuIEuqUG/KgGrcUGpuAHp+AHqOAHqeAH++AHAAA=",
+  "user_label": "海盗战",
+  "user_supplied_date": "2026-11-04",
+  "hero": {
+    "dbfId": 7,
+    "id": "HERO_01",
+    "name": "Garrosh Hellscream"
+  },
+  "source": {
+    "url": "https://api.hearthstonejson.com/v1/latest/enUS/cards.json",
+    "retrieved_date": "2026-10-27",
+    "sha256": "06e61ce4afd2bce9c2ff53de8c2c1cc0080df27aa4743c8eee3d63894d10dc04",
+    "note": "Static metadata snapshot; live costs and transformations must come from observations."
+  },
+  "cards": [
+    {
+      "dbfId": 40465,
+      "id": "CFM_637",
+      "name": "Patches the Pirate",
+      "cost": 1,
+      "type": "MINION",
+      "count": 1
+    },
+    {
+      "dbfId": 56100,
+      "id": "YOD_022",
+      "name": "Risky Skipper",
+      "cost": 1,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 103098,
+      "id": "CS3_008",
+      "name": "Bloodsail Deckhand",
+      "cost": 1,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 103548,
+      "id": "TOY_518",
+      "name": "Treasure Distributor",
+      "cost": 1,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 127099,
+      "id": "CAP_107",
+      "name": "Cannonmaster",
+      "cost": 1,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 2043,
+      "id": "GVG_075",
+      "name": "Ship's Cannon",
+      "cost": 2,
+      "type": "MINION",
+      "count": 1
+    },
+    {
+      "dbfId": 55401,
+      "id": "DRG_056",
+      "name": "Parachute Brigand",
+      "cost": 2,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 56512,
+      "id": "BT_124",
+      "name": "Corsair Cache",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 1
+    },
+    {
+      "dbfId": 78142,
+      "id": "REV_332",
+      "name": "Anima Extractor",
+      "cost": 2,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 127016,
+      "id": "CAP_104",
+      "name": "Blastpowder Engineer",
+      "cost": 2,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 127017,
+      "id": "CAP_105",
+      "name": "Hook n' Heave",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 2
+    },
+    {
+      "dbfId": 69679,
+      "id": "CORE_NEW1_027",
+      "name": "Southsea Captain",
+      "cost": 3,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 107181,
+      "id": "VAC_938",
+      "name": "Hozen Roughhouser",
+      "cost": 3,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 127015,
+      "id": "CAP_103",
+      "name": "Hand Cannon",
+      "cost": 3,
+      "type": "WEAPON",
+      "count": 2
+    },
+    {
+      "dbfId": 125803,
+      "id": "JAIL_421",
+      "name": "Warptooth",
+      "cost": 4,
+      "type": "MINION",
+      "count": 1
+    },
+    {
+      "dbfId": 127014,
+      "id": "CAP_102",
+      "name": "Land Ho!",
+      "cost": 4,
+      "type": "SPELL",
+      "count": 2
+    },
+    {
+      "dbfId": 127019,
+      "id": "CAP_106",
+      "name": "Captain Crowley",
+      "cost": 5,
+      "type": "MINION",
+      "count": 1
+    },
+    {
+      "dbfId": 126002,
+      "id": "JAIL_384",
+      "name": "Chainbreaker Hogger",
+      "cost": 8,
+      "type": "MINION",
+      "count": 1
+    }
+  ]
+}

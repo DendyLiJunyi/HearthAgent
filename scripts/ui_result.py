@@ -1,4 +1,5 @@
 """Read-only post-input evidence checks. These never authorize another input."""
+import copy
 import math
 import time
 
@@ -58,10 +59,11 @@ def assess_end_turn(before, after, option_index):
 
 def wait_for_evidence(before, option_index, session, observe, timeout=8.0,
                       clock=time.monotonic, sleep=time.sleep):
+    baseline = copy.deepcopy(before)
     initial = {'status': 'pending', 'matching_submission_observed': False,
                'turn_handoff_observed': False, 'execution_confirmed': False,
                'automatic_retry_allowed': False}
-    return wait_for_assessment(lambda after: assess_end_turn(before, after, option_index),
+    return wait_for_assessment(lambda after: assess_end_turn(baseline, after, option_index),
                                initial, session, observe, timeout, clock, sleep)
 
 
@@ -74,8 +76,11 @@ def wait_for_assessment(assess, initial, session, observe, timeout=8.0,
     deadline = started + timeout
     result = dict(initial)
     while clock() < deadline:
+        remaining = deadline - clock()
+        if remaining <= 0:
+            break
         try:
-            observed_session, after = observe(max(.01, deadline - clock()))
+            observed_session, after = observe(remaining)
         except Exception:
             return dict(result, status='observation_failed')
         if clock() >= deadline:
