@@ -3,9 +3,12 @@
 Rust 主控 + 可替换本地模型后端的炉石 Agent 工程起点。
 
 当前版本支持本地环境检测、Power.log 离线回放、实时 JSON 观测，以及离线决策与执行保护演示。
-**The [live agent](docs/agent.md) plans full turns from the game's own legal moves, but has only been tested offline. It acts only in practice games. No game process memory is read.** The Rust code below remains read-only observation and advice; its one live input was a single end-turn test on 2026-10-29.
+**The [live agent](docs/agent.md) plans full turns from the game's own legal moves. Its menu loop now defaults to Ranked Wild with the player's Pirate Warrior deck; practice remains available with `--mode practice`. No game process memory is read.** The Rust code below remains read-only observation and advice; its one live input was a single end-turn test on 2026-10-29.
 
 ## 运行
+
+See [current status](docs/current-status.md) for verified capabilities and remaining limits,
+and [reliability improvements](docs/reliability-improvements.md) for the latest offline-tested changes.
 
 ```powershell
 cd D:\HearthAgent
@@ -49,6 +52,7 @@ cargo clippy --offline --all-targets -- -D warnings
 
 日志接入说明：[实时监听](docs/watch.md)，[第三局验证](docs/third-game-validation.md)。
 
-The sole active target is the [user-specified Wild Rogue deck](docs/target-deck.md). [Read-only attack previews](docs/action-preview.md) do not provide complete legal actions or automatic gameplay.
+The Python agent's active target is Pirate Warrior. The older Rust advice path retains the
+[Rogue profiles](docs/target-deck.md); its [attack previews](docs/action-preview.md) remain read-only.
 
 Latest Rogue work: [real-window Laya audit](docs/laya-real-diagnostic.md), [review and label workflow](docs/review-dataset.md), and [choice transaction history](docs/choice-windows.md).

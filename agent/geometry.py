@@ -166,6 +166,14 @@ def _plan_hand(state, candidate):
     return gestures
 
 
+def expected_position(state, candidate):
+    """The placement encoded by our gesture, not a new policy-selected action."""
+    for card in state['you'].get('hand', []):
+        if card['id'] == candidate['source'] and card['type'] in ('MINION', 'LOCATION'):
+            return len(state['you']['minions']) + 1
+    return 0
+
+
 def end_turn_lit(rgb):
     """True when the End Turn button shows the player's turn, so the game is taking input.
 

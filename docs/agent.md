@@ -1,7 +1,57 @@
 # Live agent (`agent/`)
 
-Written 2026-11-04. One practice game has been run live, on the rules policy with 7 restarts.
-No game has been completed unattended, Laya has not played live, and no win rate exists.
+[Current status](current-status.md) is the authoritative capability summary.
+See [reliability improvements](reliability-improvements.md) for the latest offline-tested changes;
+historical experiments below predate those changes.
+
+Match-failure review, corrected-example training and the Patches mulligan fix are described in
+[Learning from failed matches](learning.md).
+
+## Ranked Wild loop (2026-11-04)
+
+The menu loop now defaults to **Ranked Wild**, using the player's 海盗战 deck (ID `9567872927`).
+It opens constructed play, switches Standard/Casual to Wild through the format picker when needed,
+selects the calibrated Warrior tile, queues, plays, dismisses the result and repeats for the requested count.
+Menu recognition requires the Chinese 1920×1080 layout, with 海盗战 in the first slot.
+An unrecognized menu stops the run. Matchmaking may take up to 180 seconds.
+
+```powershell
+.venv/Scripts/python.exe -m agent.cli loop --games 3
+.venv/Scripts/python.exe -m agent.cli loop --games 3 --mode practice
+.venv/Scripts/python.exe -m agent.cli play --execute --mode wild
+```
+
+Switching to another app now pauses gameplay and menu input; returning to Hearthstone resumes it
+after re-reading the log and rechecking the screen. A focus change during a gesture still stops
+the run, because the input's outcome may be uncertain. Hold Esc to stop; Esc requires a new run.
+The loop's default policy remains Laya.
+Wild mode requires both `GT_RANKED` and `FT_WILD` in Power.log before any gameplay input.
+Standard, Casual, missing formats and other game types are refused, even with `--friend-agreed`.
+The deck-ID check, fresh-state checks, move confirmations and bounded retries remain in force.
+`play` still defaults to practice; pass `--mode wild` to resume an online Wild game.
+Runs save their selected mode and outcomes under `.data/live/loop-*/`.
+
+Validation: 117 agent tests pass, and all 60 mutation checks were caught. One live Laya run started
+from Standard, switched to Wild, selected 海盗战, queued a Ranked Wild match, made 17 actions with
+zero model fallbacks, lost, and returned to `TOURNAMENT` without a stop. Evidence is saved at
+`.data/live/loop-20261104-181707/summary.json` and its `001/Power.log`.
+This verifies one complete cycle; it does not establish playing strength or long-run reliability.
+
+A later run stopped on its second game's first turn: the button was lit while start-of-game effects
+and the opening draw were still animating, so all three drags were ignored. Live play now waits at
+least 20 seconds after first seeing opening options, then applies the existing screen and log guards.
+This is a conservative timing buffer, not a general animation detector. Resuming after turn two skips it.
+Evidence: `.data/live/loop-20261104-184013/002/`.
+
+Menu calibration frames are saved locally under `.data/wild-calibration/`. To rebuild the Wild
+references from the saved `wild-ready.png` and `formats.png`, run
+`python scripts/capture_wild_calibration.py --build-refs`. Practice calibration preserves these entries.
+
+The older practice-only descriptions below describe the original implementation.
+
+Historical first-practice checkpoint, superseded by the Ranked Wild cycle above: one rules-policy
+practice game required 7 restarts. No unattended or live Laya game had completed at that checkpoint.
+No reliable win-rate estimate exists.
 
 ## First live test (2026-11-04)
 
@@ -29,7 +79,7 @@ move, the outcome and a copy of the log to `.data/live/<time>/`.
 
 Add `--aggressive` to make any attacker that can reach the enemy hero hit face instead of trading.
 Add `--friend-agreed` to also act in a friendly challenge, only when your opponent knows a bot is
-playing. Ranked, casual and arena are always refused. The friendly game type name comes from the
+playing. Practice mode refuses Ranked, Casual and Arena; `--mode wild` permits Ranked Wild only. The friendly game type name comes from the
 game's known values and has not yet been seen in a log, so an unexpected name is refused too.
 
 Hold **Esc** to stop. Add `--policy rules` to run without the model. To check positions by eye,
@@ -38,8 +88,8 @@ capture a frame with `scripts/capture-game-window.ps1`, then run
 
 ## Which policy has played
 
-As of this note, every live game has been played by the rules policy, including the one that looked
-like Laya's: all 17 real decisions in that game matched rules, and Laya would have differed on 7.
+Before Laya's first live run, all live games used rules, including one that looked like Laya's:
+all 17 decisions in that game matched rules, and Laya would have differed on 7.
 Laya first played live on 2026-11-04 with the Warrior deck and won one game against the Innkeeper, with
 one restart. That is a single game against the built-in AI and says little about strength. Replaying the
 earlier Rogue game offline, it would have aimed Serrated Bone
@@ -155,7 +205,7 @@ use abilities first and pick by simple heuristics, because the model has never s
 - Tradeable as a separate action. No Tradeable option appeared in these logs, so the log format is
   unknown. Those cards are still played normally.
 - New minions always go on the far right.
-- Queueing, restarting and moving on to the next game.
+- Handling unrecognized menu dialogs or a Warrior deck moved away from its calibrated first slot.
 
 **Weak decisions to expect:**
 
@@ -265,6 +315,11 @@ the run then stopped when the game lost focus before a Start click. Across both 
 expert Warrior, 2 won and 1 lost, one of them resumed partway. Retries recovered every failed click in this run. A move
 inside a turn took a median of about 1.6 seconds. Stop messages now name the window that took focus, and the loop waits
 through login screens. Opening the game from closed has still never run.
+
+
+First opening from closed (2026-11-04 16:54, Battle.net log `battle.net-20261104T085429`): Battle.net received `--exec=launch WTCG` and logged in after 6 seconds, then logged no launch in the 90 seconds before it was closed. Clicking Play logs `LaunchBinary: uid=hs_beta`. The loop now reads that log and repeats the request once logged in, every 15 seconds and up to 4 requests in all, stopping as soon as a launch is logged. Tested offline only. The second live opening (17:00) confirmed it: the repeated request was obeyed and the game started about 15 seconds after the first request.
+
+That run then waited at the entrance door, which needs a click (点击开始) and is still scene LOGIN, so the walker never clicked. The door is now a menu screen with two regions taken from that run's frame (`entrance.png` in the recording folder), and scene LOGIN gets no other click. Tested offline against that frame. The click itself, and anything between the door and the main menu, has not been seen live.
 
 ## Mulligan and wasted mana (not yet tested live)
 

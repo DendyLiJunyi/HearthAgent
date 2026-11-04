@@ -61,6 +61,19 @@ class WindowsInput:
             self._aborted = True
         return self._aborted
 
+    def ready(self):
+        """A background window pauses the controller before a gesture; never sends input."""
+        return self.user.GetForegroundWindow() == self.window['hwnd']
+
+    def park(self):
+        """Clear card/minion hover without clicking or changing the game state."""
+        self._guard()
+        # Let the client process button-up at its original target before moving away.
+        # Immediate parking left mulligan Confirm unanswered despite successful card toggles.
+        time.sleep(0.15)
+        self._guard()
+        self._move(geometry.scale(geometry.CANCEL_POINT, self.window))
+
     def _raw(self, flags, dx=0, dy=0):
         event = Input(0, MouseInput(dx, dy, 0, flags, 0, 0))
         if self.user.SendInput(1, ctypes.byref(event), ctypes.sizeof(Input)) != 1:

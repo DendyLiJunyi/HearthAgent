@@ -1,9 +1,9 @@
-"""Walks the menus to a practice game. It clicks only when the logged scene and the screen both match.
+"""Walks the menus to a practice or Ranked Wild game using both scene and screen checks.
 
 Every click needs two independent proofs: the scene in LoadingScreen.log, and small screen regions
 compared against frames recorded while the player walked the same route. Anything else, such as a
-popup, a moved deck or the ranked screen, matches nothing, and the walker stops instead of guessing.
-The practice-only gate in the play loop stays in force after this.
+popup or a moved deck, matches nothing, and the walker stops instead of guessing.
+The selected mode's game-type and format checks stay in force during play.
 """
 import json
 import time
@@ -16,6 +16,8 @@ STEP = 3
 
 # name: (frame in the recording, box). Boxes hold fixed text, away from glows and the mouse.
 REGIONS = {
+    'entrance_prompt': ('entrance.png', (808, 842, 1118, 902)),
+    'entrance_notice': ('entrance.png', (378, 932, 1600, 958)),
     'hub_buttons': ('051.png', (890, 548, 1030, 578)),
     'hub_bar': ('051.png', (600, 990, 1310, 1014)),
     'mode_title': ('004.png', (865, 15, 1045, 42)),
@@ -31,11 +33,13 @@ REGIONS = {
     'opp_warrior': ('058.png', (1240, 255, 1290, 278)),
     'opp_selected': ('058.png', (1225, 286, 1555, 294)),
     'mulligan_confirm': ('013.png', (925, 835, 1005, 870)),
+    'mulligan_title': ('013.png', (870, 138, 1050, 178)),
 }
 
 # Checked in order, most specific first: (scene, screen, regions, click). A region starting with ! must not match.
 # The opponent list slides over the deck screen and leaves the deck tiles showing, so deck rows exclude it.
 SCREENS = [
+    ('LOGIN', 'entrance_ready', ('entrance_prompt', 'entrance_notice'), (960, 872)),
     ('HUB', 'hub', ('hub_buttons', 'hub_bar'), (963, 560)),
     ('GAME_MODE', 'mode_ready', ('mode_title', 'mode_adventure'), (1370, 750)),
     ('GAME_MODE', 'mode_pick', ('mode_title',), (940, 365)),
@@ -46,11 +50,30 @@ SCREENS = [
     ('ADVENTURE', 'adv_ready', ('adv_left', 'adv_right', 'adv_expert'), (1390, 890)),
     ('ADVENTURE', 'adv_pick', ('adv_left', 'adv_right'), (1380, 288)),
 ]
+# Ranked Wild has a separate route so practice recognition cannot start an online game.
+# The format picker is shared by Standard, Wild and Casual; always choose Wild explicitly.
+WILD_REGIONS = {
+    'wild_title': ('wild-ready.png', (653, 24, 780, 52)),
+    'constructed_choose': ('wild-ready.png', (669, 119, 780, 148)),
+    'wild_deck_tile': ('wild-ready.png', (383, 282, 465, 309)),
+    'wild_deck_name': ('wild-ready.png', (1360, 677, 1443, 701)),
+    'wild_start': ('wild-ready.png', (1345, 858, 1463, 920)),
+    'format_wild': ('formats.png', (545, 634, 695, 675)),
+    'format_standard': ('formats.png', (860, 562, 1044, 604)),
+}
+WILD_SCREENS = [
+    SCREENS[0],
+    ('HUB', 'wild_hub', ('hub_buttons', 'hub_bar'), (960, 330)),
+    ('TOURNAMENT', 'wild_format_pick', ('format_wild', 'format_standard'), (620, 420)),
+    ('TOURNAMENT', 'wild_ready', ('wild_title', 'constructed_choose', 'wild_deck_tile', 'wild_deck_name', 'wild_start'), (1400, 890)),
+    ('TOURNAMENT', 'wild_deck_pick', ('wild_title', 'constructed_choose', 'wild_deck_tile', '!wild_deck_name'), (480, 280)),
+    ('TOURNAMENT', 'wild_format_open', ('constructed_choose', '!wild_title', '!format_wild'), (1402, 55)),
+]
 # An empty part of the end-of-game screen, where any click continues.
 CONTINUE = (1221, 883)
 AWAY = (960, 1066)  # Parks the mouse, because hovering a button changes how it looks.
 GAME_SCENE = 'GAMEPLAY'
-# Before the main menu the game shows login and loading screens, which can legitimately take a while.
+# Before the main menu the game shows loading screens, which can legitimately take a while. Only the entrance gets a click.
 STARTING_SCENES = (None, 'STARTUP', 'LOGIN')
 
 
@@ -79,11 +102,19 @@ class Regions:
         self.pixels = None
 
     def refresh(self):
+        if (self.screen.width, self.screen.height) != (1920, 1080):
+            raise Stop('menu references require a 1920x1080 game window')
         self.pixels = self.screen.frame()
 
     def matches(self, name):
         ref = self.refs[name]
-        return difference(signature(self.pixels, self.screen.width, ref['box']), ref['signature']) <= self.TOLERANCE
+        sampled = signature(self.pixels, self.screen.width, ref['box'])
+        return any(difference(sampled, candidate) <= self.TOLERANCE
+                   for candidate in [ref['signature'], *ref.get('variants', [])])
+
+    def mulligan_ready(self):
+        self.refresh()
+        return self.matches('mulligan_title') and self.matches('mulligan_confirm')
 
 
 def latest_scene(lines, current=None):
@@ -93,9 +124,9 @@ def latest_scene(lines, current=None):
     return current
 
 
-def identify(scene, matches):
+def identify(scene, matches, screens=None):
     """Returns the matching row of SCREENS, or None. Only the current scene's screens are considered."""
-    for row in SCREENS:
+    for row in SCREENS if screens is None else screens:
         if row[0] == scene and all(not matches(n[1:]) if n.startswith('!') else matches(n) for n in row[2]):
             return row
     return None
@@ -103,7 +134,10 @@ def identify(scene, matches):
 
 class MenuWalker:
     def __init__(self, scenes, regions, inputs, *, timeout=45.0, startup_timeout=240.0, max_clicks=12, settle=0.5, slide_time=3.0,
-                 clock=time.monotonic, sleep=time.sleep, log=print):
+                 clock=time.monotonic, sleep=time.sleep, log=print, mode='practice'):
+        if mode not in ('practice', 'wild'):
+            raise ValueError(f'unsupported mode: {mode}')
+        self.screens = SCREENS if mode == 'practice' else WILD_SCREENS
         self.scenes, self.regions, self.inputs = scenes, regions, inputs
         self.timeout, self.max_clicks, self.settle, self.slide_time = timeout, max_clicks, settle, slide_time
         self.clock, self.sleep, self.log = clock, sleep, log
@@ -117,25 +151,42 @@ class MenuWalker:
     def _check_abort(self):
         if self.inputs.aborted():
             raise Stop('stopped by the player')
+        started = self.clock()
+        ready = getattr(self.inputs, 'ready', None)
+        paused = False
+        while ready and not ready():
+            if not paused:
+                self.log('menu paused: bring Hearthstone to the foreground to continue')
+                paused = True
+            if self.inputs.aborted():
+                raise Stop('stopped by the player')
+            self.sleep(0.1)
+        if paused:
+            self.log('menu resumed')
+        return self.clock() - started
 
     def to_game(self):
         """Click through to a game. Stops on anything unrecognized, without clicking it."""
         clicks = 0
         last = None
         repeats = 0
+        self._check_abort()
         recognized_at = clicked_at = started = self.clock()
         self.inputs.careful = True
         self.inputs.send([('move', AWAY)])
         while self.read_scene() != GAME_SCENE:
-            self._check_abort()
-            if self.scene in STARTING_SCENES:
+            paused = self._check_abort()
+            recognized_at += paused
+            clicked_at += paused
+            started += paused
+            self.regions.refresh()
+            row = identify(self.scene, self.regions.matches, self.screens)
+            if self.scene in STARTING_SCENES and row is None:
                 if self.clock() - started > self.startup_timeout:
                     raise Stop(f'the game did not reach the main menu; still in {self.scene}')
                 recognized_at = self.clock()
                 self.sleep(0.5)
                 continue
-            self.regions.refresh()
-            row = identify(self.scene, self.regions.matches)
             if row is None:
                 if self.clock() - recognized_at > self.timeout:
                     raise Stop(f'unrecognized screen in scene {self.scene}; leaving it alone')
@@ -162,9 +213,13 @@ class MenuWalker:
             # A start click can take seconds to load the game, so allow the scene to change first.
             deadline = self.clock() + (6.0 if name.endswith('ready') else 1.0)
             while self.clock() < deadline and self.read_scene() != GAME_SCENE:
-                self._check_abort()
+                paused = self._check_abort()
+                deadline += paused
+                recognized_at += paused
+                started += paused
+                clicked_at += paused
                 self.regions.refresh()
-                if identify(self.scene, self.regions.matches) != row:
+                if identify(self.scene, self.regions.matches, self.screens) != row:
                     break
                 self.sleep(0.2)
         self.log('menu: game is loading')
@@ -174,7 +229,7 @@ class MenuWalker:
         clicks = 0
         deadline = self.clock() + self.timeout
         while self.read_scene() == GAME_SCENE:
-            self._check_abort()
+            deadline += self._check_abort()
             if self.clock() > deadline or clicks >= self.max_clicks * 2:
                 raise Stop('could not leave the end-of-game screen')
             self.inputs.careful = True
@@ -201,6 +256,8 @@ def decode_png(path):
     import struct
     import zlib
     data = Path(path).read_bytes()
+    if data[:8] != b'\x89PNG\r\n\x1a\n' or tuple(data[24:29]) != (8, 2, 0, 0, 0):
+        raise ValueError('decode_png requires an unfiltered 8-bit RGB project capture, not an RGBA screenshot')
     width, height = struct.unpack('>II', data[16:24])
     at = 8
     packed = b''
@@ -213,6 +270,8 @@ def decode_png(path):
     stride = width * 3 + 1
     bgra = bytearray(width * height * 4)
     for y in range(height):
+        if raw[y * stride] != 0:
+            raise ValueError('decode_png does not support PNG row filters')
         row = raw[y * stride + 1:(y + 1) * stride]
         start = y * width * 4
         bgra[start:start + width * 4:4] = row[2::3]
@@ -224,10 +283,10 @@ def decode_png(path):
 def calibrate(folder):
     """Writes the references from a recording, then shows how every recorded frame is identified."""
     folder = Path(folder)
-    refs = {}
+    refs = json.loads(REFS.read_text(encoding='utf-8')) if REFS.exists() else {}
     for name, (frame, box) in REGIONS.items():
         pixels, width, _ = decode_png(folder / frame)
-        refs[name] = {'box': list(box), 'signature': signature(pixels, width, box)}
+        refs[name] = {**refs.get(name, {}), 'box': list(box), 'signature': signature(pixels, width, box)}
     REFS.write_text(json.dumps(refs), encoding='utf-8')
     scene = None
     scenes_by_frame = {}

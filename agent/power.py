@@ -178,6 +178,7 @@ class PowerLog:
         self.malformed = 0
         self._entity = None
         self._choice = None
+        self._chosen_pending = None
 
     @property
     def game(self):
@@ -219,6 +220,8 @@ class PowerLog:
         if stripped == 'CREATE_GAME':
             self.games.append(Game(len(self.games) + 1))
             self._entity = None
+            self._choice = None
+            self._chosen_pending = None
             return
         game = self.game
         if game is None:
@@ -338,6 +341,27 @@ class PowerLog:
     def _chosen(self, stripped):
         game = self.game
         match = CHOSEN.match(stripped)
-        if match and game.choice and int(match.group(1)) == game.choice['id']:
-            game.choices_sent.append(game.choice)
-            game.choice = None
+        if match:
+            self._chosen_pending = None
+            number, player, count = match.groups()
+            if (game.choice and int(number) == game.choice['id']
+                    and player == game.choice['player_name']):
+                receipt = dict(game.choice, selected=[], expected_count=int(count), complete=False)
+                game.choices_sent.append(receipt)
+                self._chosen_pending = receipt
+                if int(count) == 0:
+                    receipt['complete'] = True
+                    game.choice = None
+            return
+        receipt = self._chosen_pending
+        entity_line = CHOICE_ENTITY.match(stripped)
+        if receipt is None or receipt['complete'] or not entity_line:
+            return
+        entity = parse_entity(entity_line.group(2))
+        if entity is None or int(entity_line.group(1)) != len(receipt['selected']):
+            return  # Incomplete/malformed evidence can never confirm a choice.
+        receipt['selected'].append(entity['id'])
+        if len(receipt['selected']) == receipt['expected_count']:
+            receipt['complete'] = True
+            if game.choice and game.choice['id'] == receipt['id']:
+                game.choice = None
