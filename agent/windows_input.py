@@ -4,6 +4,7 @@ import time
 from ctypes import wintypes
 
 from . import geometry
+from .loop import FocusLost
 
 VK_ESCAPE = 0x1B
 MOVE_ABSOLUTE = 0x0001 | 0x8000 | 0x4000  # move, absolute, whole virtual desktop
@@ -36,14 +37,18 @@ def path(start, end, steps=12):
 
 class WindowsInput:
     # (pause, hover) per speed. Careful is the timing every earlier live game ran on.
-    FAST = (0.02, 0.15)
+    # Recovery retries a failed fast gesture at careful speed, so fast can be tried safely.
+    FAST = (0.01, 0.08)
     CAREFUL = (0.05, 0.4)
+    FAST_STEPS, CAREFUL_STEPS = 8, 12
+    FAST_PARK, CAREFUL_PARK = 0.03, 0.15
+    FAST_GESTURE_PAUSE = 0.4
+    careful = False
 
     def __init__(self, window, *, gesture_pause=0.6, current_window=None):
         self.user = ctypes.WinDLL('user32', use_last_error=True)
         self.window, self.gesture_pause = window, gesture_pause
         self.current_window = current_window
-        self.careful = False
         self.user.SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(Input), ctypes.c_int]
         self.user.SendInput.restype = wintypes.UINT
         self.user.GetAsyncKeyState.argtypes = [ctypes.c_int]
@@ -61,6 +66,19 @@ class WindowsInput:
             self._aborted = True
         return self._aborted
 
+    def ready(self):
+        """A background window pauses the controller before a gesture; never sends input."""
+        return self.user.GetForegroundWindow() == self.window['hwnd']
+
+    def park(self):
+        """Clear card/minion hover without clicking or changing the game state."""
+        self._guard()
+        # Let the client process button-up at its original target before moving away.
+        # Immediate parking left mulligan Confirm unanswered despite successful card toggles.
+        time.sleep(self.CAREFUL_PARK if self.careful else self.FAST_PARK)
+        self._guard()
+        self._move(geometry.scale(geometry.CANCEL_POINT, self.window))
+
     def _raw(self, flags, dx=0, dy=0):
         event = Input(0, MouseInput(dx, dy, 0, flags, 0, 0))
         if self.user.SendInput(1, ctypes.byref(event), ctypes.sizeof(Input)) != 1:
@@ -77,7 +95,7 @@ class WindowsInput:
         if front != self.window['hwnd']:
             title = ctypes.create_unicode_buffer(200)
             self.user.GetWindowTextW(front, title, 200)
-            raise RuntimeError(f'game is no longer the foreground window; "{title.value}" is in front')
+            raise FocusLost(f'game is no longer the foreground window; "{title.value}" is in front')
 
     def send(self, gestures):
         """If anything fails mid-drag, the button is released so it cannot stay held."""
@@ -90,7 +108,7 @@ class WindowsInput:
             self._gesture(gesture)
             # The game needs time between the steps of one move, but not after the last step.
             if index < len(gestures) - 1:
-                time.sleep(self.gesture_pause)
+                time.sleep(self.gesture_pause if self.careful else min(self.gesture_pause, self.FAST_GESTURE_PAUSE))
 
     def _gesture(self, gesture):
         kind = gesture[0]
@@ -115,7 +133,8 @@ class WindowsInput:
         try:
             time.sleep(pause)
             if kind == 'drag':
-                for point in path(start, geometry.scale(gesture[2], self.window)):
+                steps = self.CAREFUL_STEPS if self.careful else self.FAST_STEPS
+                for point in path(start, geometry.scale(gesture[2], self.window), steps):
                     self._guard()
                     self._move(point)
                     time.sleep(pause / 2)

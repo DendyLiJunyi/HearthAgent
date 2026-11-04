@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 from agent import geometry
-from agent.cli import Tail
+from agent.cli import ClientLog, Tail, request_launch
 from agent.loop import Agent, RecordingInput, Stop
 from agent.power import PowerLog, candidates_from
 from agent.windows_input import path, to_absolute
@@ -203,6 +203,91 @@ class SafetyTests(unittest.TestCase):
         harness = Harness(lines)
         self.assertEqual(harness.settled_step(), 'game_over')
         self.assertEqual(harness.inputs.gestures, [])
+
+
+class LaunchTests(unittest.TestCase):
+    """Timings follow the real cold start in Battle.net's log of 2026-11-04: logged in after 6 seconds, no launch."""
+
+    def on_send(self, count, now, due):
+        pass
+
+    def run_launch(self, events, *, old_log=b'', timeout=120):
+        """events maps a second to the bytes the client logs then. The game is open once the log says WINDOW."""
+        with tempfile.TemporaryDirectory() as folder:
+            old = os.path.join(folder, 'battle.net-20261104T000000.000000.log')
+            if old_log:
+                with open(old, 'wb') as out:
+                    out.write(old_log)
+            client = ClientLog(folder)
+            new = old if old_log else os.path.join(folder, 'battle.net-20261104T085429.000000.log')
+            now, sends, due = [0.0], [], dict(events)
+
+            def advance(seconds):
+                now[0] += seconds
+                for at in sorted(k for k in due if k <= now[0]):
+                    with open(new, 'ab') as out:
+                        out.write(due.pop(at))
+
+            def game_open():
+                if not os.path.exists(new):
+                    return False
+                with open(new, 'rb') as log:
+                    return b'WINDOW' in log.read()
+
+            def send():
+                sends.append(now[0])
+                self.on_send(len(sends), now[0], due)
+
+            try:
+                request_launch(send, game_open, client, timeout=timeout, clock=lambda: now[0], sleep=advance)
+            except Stop as stop:
+                return sends, str(stop)
+            return sends, None
+
+    def test_cold_start_asks_again_after_login_and_that_opens_the_game(self):
+        def on_send(count, now, due):
+            if count == 2:
+                due[now + 2] = ClientLog.LAUNCHED + b' selectedRegion=CN\n'
+                due[now + 5] = b'WINDOW\n'
+        self.on_send = on_send
+        sends, stopped = self.run_launch({6: ClientLog.LOGGED_IN + b'\n'})
+        self.assertIsNone(stopped)
+        self.assertEqual(len(sends), 2)
+        self.assertGreaterEqual(sends[1], 6)
+
+    def test_not_asked_again_before_login(self):
+        sends, stopped = self.run_launch({})
+        self.assertEqual(len(sends), 1)
+        self.assertIn('never logged in', stopped)
+
+    def test_slow_game_is_not_opened_twice(self):
+        sends, stopped = self.run_launch({6: ClientLog.LOGGED_IN + b'\n', 8: ClientLog.LAUNCHED + b'\n'})
+        self.assertEqual(len(sends), 1)
+        self.assertIn('did not appear', stopped)
+
+    def test_requests_are_limited_when_every_one_is_ignored(self):
+        sends, stopped = self.run_launch({6: ClientLog.LOGGED_IN + b'\n'})
+        self.assertEqual(len(sends), 4)
+        self.assertIn('ignored 4 requests', stopped)
+
+    def test_launch_from_before_this_run_does_not_count(self):
+        running = ClientLog.LOGGED_IN + b'\n' + ClientLog.LAUNCHED + b'\n'
+        sends, stopped = self.run_launch({}, old_log=running)
+        self.assertEqual(len(sends), 4)
+        self.assertIn('ignored', stopped)
+
+    def test_new_client_log_is_read_from_its_start(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with open(os.path.join(folder, 'battle.net-20261103T000000.000000.log'), 'wb') as out:
+                out.write(b'x' * 1000)
+            client = ClientLog(folder)
+            with open(os.path.join(folder, 'battle.net-20261104T000000.000000.log'), 'wb') as out:
+                out.write(ClientLog.LOGGED_IN + ClientLog.LAUNCHED)
+            self.assertEqual(client.read(), (True, True))
+
+    def test_markers_match_the_wording_of_the_real_client_log(self):
+        self.assertIn(ClientLog.LOGGED_IN, b'I [BNLogin] {Main} Logged into Battle.net successfully. |bnet=1')
+        self.assertIn(ClientLog.LAUNCHED, b'I [GameLaunchController] {Main} LaunchBinary: uid=hs_beta selectedRegion=CN')
 
 
 class Utf8Tests(unittest.TestCase):
@@ -542,7 +627,9 @@ class MultiGameTests(unittest.TestCase):
         choice = [line('DebugPrintEntityChoices', f'id=1 Player={ME} TaskList=1 ChoiceType=MULLIGAN CountMin=0 CountMax=3')]
         for index, entity_id in enumerate((60, 61, 62)):
             choice.append(line('DebugPrintEntityChoices', f'  Entities[{index}]={bracket(entity_id, "HAND")}'))
-        chosen = [line('DebugPrintEntitiesChosen', f'id=1 Player={ME} EntitiesCount=0')]
+        chosen = [line('DebugPrintEntitiesChosen', f'id=1 Player={ME} EntitiesCount=3')]
+        chosen += [line('DebugPrintEntitiesChosen', f'Entities[{i}]={bracket(e, "HAND")}')
+                   for i, e in enumerate((60, 61, 62))]
 
         class KeepAll(FirstAttack):
             def mulligan(self, entities, cards):
@@ -734,6 +821,45 @@ class MenuTests(unittest.TestCase):
             walker.sleep = sleep
             walker.to_game()
             self.assertEqual(self.clicks(inputs), [])
+
+    def test_entrance_is_clicked_once_and_the_route_carries_on(self):
+        from agent import menu
+        shown = {'entrance_prompt', 'entrance_notice'}
+
+        def on_click(point):
+            shown.clear()
+            walker.lines.append(f'x OnSceneLoaded() - prevMode=LOGIN currMode={menu.GAME_SCENE}\n')
+        walker, inputs = self.walker('LOGIN', shown, on_click)
+        walker.to_game()
+        self.assertEqual(self.clicks(inputs), [(960, 872)])
+
+    def test_slow_door_is_not_clicked_again_while_it_opens(self):
+        from agent import menu
+        walker, inputs = self.walker('LOGIN', {'entrance_prompt', 'entrance_notice'},
+                                     lambda point: walker.sleep(4.0) or walker.lines.append(
+                                         f'x OnSceneLoaded() - prevMode=LOGIN currMode={menu.GAME_SCENE}\n'))
+        walker.to_game()
+        self.assertEqual(len(self.clicks(inputs)), 1)
+
+    def test_entrance_needs_both_regions(self):
+        for shown in ({'entrance_prompt'}, {'entrance_notice'}):
+            walker, inputs = self.walker('LOGIN', shown)
+            with self.assertRaisesRegex(Stop, 'main menu'):
+                walker.to_game()
+            self.assertEqual(self.clicks(inputs), [])
+
+    def test_entrance_look_gets_no_click_outside_login(self):
+        for scene in ('STARTUP', 'HUB', 'TOURNAMENT'):
+            walker, inputs = self.walker(scene, {'entrance_prompt', 'entrance_notice'})
+            with self.assertRaisesRegex(Stop, 'main menu|unrecognized'):
+                walker.to_game()
+            self.assertEqual(self.clicks(inputs), [])
+
+    def test_entrance_that_never_opens_stops(self):
+        walker, inputs = self.walker('LOGIN', {'entrance_prompt', 'entrance_notice'})
+        with self.assertRaisesRegex(Stop, 'three times'):
+            walker.to_game()
+        self.assertEqual(len(self.clicks(inputs)), 3)
 
     def test_a_game_stuck_on_login_stops_in_the_end(self):
         walker, inputs = self.walker('LOGIN', set())
@@ -948,7 +1074,7 @@ class BlunderTests(unittest.TestCase):
         moves = [self.END, self.spell(70, 30)]
         self.assertFalse(self.rules().is_blunder(state, self.END, moves))
 
-    def test_model_cannot_pick_a_blunder_however_much_it_likes_it(self):
+    def test_strong_model_preference_can_override_an_end_turn_heuristic(self):
         from agent.policy import LayaPolicy
 
         def loves_ending(state, questions):
@@ -958,7 +1084,7 @@ class BlunderTests(unittest.TestCase):
         state = self.state()
         moves = [self.END, self.attack(20), self.attack(40)]
         picked = moves[LayaPolicy(self.CARDS, loves_ending).choose(state, moves, {})]
-        self.assertNotEqual(picked['kind'], 'end_turn')
+        self.assertEqual(picked['kind'], 'end_turn')
 
     def test_model_still_chooses_among_safe_moves(self):
         from agent.policy import LayaPolicy

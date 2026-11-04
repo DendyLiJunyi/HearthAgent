@@ -2,6 +2,7 @@
 import ctypes
 import struct
 import zlib
+import time
 from ctypes import wintypes
 
 # The same samples the capture script averages, so the lit-button rule keeps its calibration.
@@ -9,6 +10,63 @@ BUTTON_XS = range(1515, 1601, 5)
 BUTTON_YS = range(480, 516, 5)
 FRAME_SIZE = (1920, 1080)
 PW_CLIENTONLY_FULLCONTENT = 3
+
+
+def battlefield_signature(bgra, width):
+    """Sparse samples of both minion rows, excluding trackers, hands and the mouse parking area."""
+    return bytes(bgra[(y * width + x) * 4 + channel]
+                 for y in (*range(310, 460, 10), *range(510, 670, 10))
+                 for x in range(470, 1430, 10) for channel in range(3))
+
+
+def hand_signature(bgra, width):
+    """Watch the hand separately so a moving card is not diluted by a static board."""
+    return bytes(bgra[(y * width + x) * 4 + channel]
+                 for y in range(920, 1060, 10)
+                 for x in range(470, 1430, 10) for channel in range(3))
+
+
+def choice_signature(bgra, width):
+    return bytes(bgra[(y * width + x) * 4 + channel]
+                 for y in range(300, 720, 15)
+                 for x in range(350, 1570, 15) for channel in range(3))
+
+
+def region_signature(bgra, width, points, radius=40, step=8):
+    """Small patches around the points a gesture touches, in window pixels of a 1920x1080 frame."""
+    height = len(bgra) // (width * 4)
+    samples = bytearray()
+    for px, py in points:
+        for y in range(max(0, py - radius), min(height, py + radius + 1), step):
+            for x in range(max(0, px - radius), min(width, px + radius + 1), step):
+                at = (y * width + x) * 4
+                samples += bgra[at:at + 3]
+    return bytes(samples)
+
+
+class BattlefieldSettler:
+    """Require a quiet interval against a fixed anchor; slow movement cannot accumulate unnoticed."""
+    def __init__(self, seconds=1.5, tolerance=3.0, clock=time.monotonic):
+        self.seconds, self.tolerance, self.clock = seconds, tolerance, clock
+        self.reset()
+
+    def reset(self):
+        self.anchor = None
+        self.since = None
+
+    def ready(self, signature):
+        if not signature:
+            self.reset()
+            return False
+        now = self.clock()
+        if self.anchor is None or len(signature) != len(self.anchor):
+            self.anchor, self.since = signature, now
+            return False
+        delta = sum(abs(a - b) for a, b in zip(signature, self.anchor)) / len(signature)
+        if delta > self.tolerance:
+            self.anchor, self.since = signature, now
+            return False
+        return now - self.since >= self.seconds
 
 
 def average_rgb(bgra, width, xs=BUTTON_XS, ys=BUTTON_YS):
