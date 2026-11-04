@@ -1,5 +1,13 @@
 # User instructions and deck variants
 
+**Update 2026-11-04:** the user moved Laya to a Pirate Warrior deck (海盗战), recorded in
+`config/decks/wild-warrior-pirate-2026-11-04.json`. The Python agent needs no deck setting.
+The Rust `deck` command still knows only the Rogue profiles.
+
+```
+AAEBAQcG+w+RvALAuQPr1gey2Aer4AcM6bADpLYDr6AEvuIEuqUG/KgGrcUGpuAHp+AHqOAHqeAH++AHAAA=
+```
+
 Updated 2026-10-29 from explicit user instructions.
 
 - Continue through successive useful offline tasks without asking the user to

@@ -41,17 +41,20 @@ try {
     $bitmap.Save($destination, [System.Drawing.Imaging.ImageFormat]::Png)
     $yellow = 0
     $samples = 0
+    $sumR = 0; $sumG = 0; $sumB = 0
     if ($width -eq 1920 -and $height -eq 1080) {
         for ($x = 1515; $x -le 1600; $x += 5) {
             for ($y = 480; $y -le 515; $y += 5) {
                 $color = $bitmap.GetPixel($x, $y)
                 $samples++
+                $sumR += $color.R; $sumG += $color.G; $sumB += $color.B
                 if ($color.R -gt 140 -and $color.G -gt 120 -and $color.B -lt 100) { $yellow++ }
             }
         }
     }
     $fraction = if ($samples -gt 0) { $yellow / $samples } else { 0 }
-    @{ source = 'read_only_game_window_capture'; pid = $games[0].Id; hwnd = $gameWindow.ToInt64(); width = $width; height = $height; image = $destination; end_turn_yellow_fraction = $fraction; game_input_sent = $false } | ConvertTo-Json
+    $endTurnRgb = if ($samples -gt 0) { @([int]($sumR / $samples), [int]($sumG / $samples), [int]($sumB / $samples)) } else { $null }
+    @{ end_turn_rgb = $endTurnRgb; source = 'read_only_game_window_capture'; pid = $games[0].Id; hwnd = $gameWindow.ToInt64(); width = $width; height = $height; image = $destination; end_turn_yellow_fraction = $fraction; game_input_sent = $false } | ConvertTo-Json
 } finally {
     if ($dc -ne [IntPtr]::Zero) { $graphics.ReleaseHdc($dc) }
     if ($null -ne $graphics) { $graphics.Dispose() }

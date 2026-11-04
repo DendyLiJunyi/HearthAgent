@@ -63,8 +63,8 @@ hand/minion entity mapping. Capture and calibration files remain under ignored
 `.data`; no player screenshot is published in the repository. The observed
 screen appeared to be a normal player match; the user confirmed it was the
 intended test match. The [one-shot input experiment](one-shot-ui-test.md) was
-implemented, but its first live invocation aborted on a changed turn before
-dispatch. No game input has been sent.
+implemented, and its first live invocation aborted on a changed turn before
+dispatch. A later authorized run on October 29 sent one end-turn click.
 
 The existing `watch --once` command performs one bounded read. A large active
 log can therefore return `backlog=true`; that is not a current snapshot. Any live

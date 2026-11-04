@@ -1,5 +1,13 @@
 # Current project checkpoint — 2026-10-29
 
+## Update — 2026-11-04
+
+See [the live agent](agent.md) for current status. A new Python agent covers full legal
+move lists, mulligan, choices, input and confirmation, and has been tested offline only.
+Earlier statements below that automatic gameplay is not implemented describe the older
+Rust and script path. The real-game click path is still unproven and no win rate exists.
+The October 28 raw logs behind the older evidence have since been deleted by the game.
+
 ## Offline continuation — 2026-10-30
 
 The [integrated offline controller](offline-controller.md) now connects saved
