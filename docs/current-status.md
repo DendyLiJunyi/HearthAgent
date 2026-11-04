@@ -1,5 +1,7 @@
 # Current project status — 2026-11-04
 
+**Latest:** [fast play](fast-play.md) makes a log-based animation check the default, keeps playing after failed moves and adds Pirate Warrior tactics. Tested offline only; no live game has run on it.
+
 ## Update — 2026-11-04
 
 This is the current summary. [Agent documentation](agent.md) contains commands and historical

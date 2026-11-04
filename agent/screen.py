@@ -32,6 +32,18 @@ def choice_signature(bgra, width):
                  for x in range(350, 1570, 15) for channel in range(3))
 
 
+def region_signature(bgra, width, points, radius=40, step=8):
+    """Small patches around the points a gesture touches, in window pixels of a 1920x1080 frame."""
+    height = len(bgra) // (width * 4)
+    samples = bytearray()
+    for px, py in points:
+        for y in range(max(0, py - radius), min(height, py + radius + 1), step):
+            for x in range(max(0, px - radius), min(width, px + radius + 1), step):
+                at = (y * width + x) * 4
+                samples += bgra[at:at + 3]
+    return bytes(samples)
+
+
 class BattlefieldSettler:
     """Require a quiet interval against a fixed anchor; slow movement cannot accumulate unnoticed."""
     def __init__(self, seconds=1.5, tolerance=3.0, clock=time.monotonic):

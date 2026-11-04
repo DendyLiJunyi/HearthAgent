@@ -56,6 +56,7 @@ class ReceiptTests(unittest.TestCase):
         inputs._guard = lambda: events.append('guard')
         inputs._move = lambda point: events.append(('move', point))
         with patch('agent.windows_input.time.sleep', side_effect=lambda delay: events.append(('wait', delay))):
+            inputs.careful = True
             inputs.park()
         self.assertEqual(events, ['guard', ('wait', 0.15), 'guard', ('move', geometry.CANCEL_POINT)])
 

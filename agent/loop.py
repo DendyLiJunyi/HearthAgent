@@ -11,6 +11,11 @@ Rules that keep a wrong click from becoming a runaway:
 - A single-gesture move can be resent only if the log shows nothing was sent and nothing changed.
   In a live test, first-of-turn drags sent nothing and then worked unchanged, so this is bounded,
   not open-ended. Multi-step moves are never resent, and the last timeout hands the game back.
+- With `recover`, a move the game will not take is dropped and the turn continues, because stopping
+  in a game against another player forfeits it on the timer. Game-type refusals, Esc and the action
+  limit still stop, and every recovery is recorded.
+- With `backlog_limit`, the log's own animation queue replaces the 20-second opening wait and the
+  whole-board pixel wait. The End Turn check remains.
 """
 import time
 
@@ -20,6 +25,10 @@ from .power import PowerLog, candidates_from
 ALLOWED_GAME_TYPES = {'GT_VS_AI'}
 FRIENDLY_GAME_TYPE = 'GT_VS_FRIEND'
 CANCEL = ('right_click', geometry.CANCEL_POINT)
+MOVE_KEY = ('option', 'sub', 'target')
+CAUTIOUS_MOVES = 3  # After a failed move, the next few go at the slow, proven speed.
+CAUTIOUS_SETTLE = 0.5
+MAX_WRONG_ACTIONS = 3
 
 
 class Stop(Exception):
@@ -32,6 +41,14 @@ class StateChanged(Stop):
 
 class NoSend(Stop):
     """Input went out but the game logged no move."""
+
+
+class WrongAction(Stop):
+    """The game logged a move other than the planned one, so it has already happened."""
+
+
+class FocusLost(RuntimeError):
+    """Another window took the foreground during a gesture."""
 
 
 class RecordingInput:
@@ -52,7 +69,7 @@ class Agent:
                  max_attempts=3, screen_ready=None, screen_timeout=25.0, friend_agreed=False,
                  lit_required=2, choice_timeout=None, mulligan_ready=None, mulligan_timeout=40.0, idle_limit=None,
                  clock=time.monotonic, sleep=time.sleep, log=print, before_input=None, mode='practice', opening_delay=0.0,
-                 choice_ready=None):
+                 choice_ready=None, backlog_limit=None, drain_timeout=6.0, recover=False, eager_decision=False):
         if mode not in ('practice', 'wild'):
             raise ValueError(f'unsupported mode: {mode}')
         self.mode = mode
@@ -81,6 +98,20 @@ class Agent:
         self.focus_paused = False
         self.choice_ready = choice_ready
         self.choice_screen_wait = None
+        self.backlog_limit, self.drain_timeout = backlog_limit, drain_timeout
+        self.recover, self.eager_decision = recover, eager_decision
+        self.drain_wait = None
+        self.plan_cache = None
+        self.on_plan = None
+        self.failed_moves = {}  # packet id -> moves the game would not take
+        self.abandoned = None
+        self.cautious_moves = 0
+        self.wrong_actions = 0
+        self.needs_cancel = False
+        self.recoveries = []
+        self.packet_seen = None
+        self.option_lines_seen = None
+        self.option_lines_at = clock()
 
     def pump(self):
         """Read any new lines, returning True if there were some."""
@@ -89,10 +120,19 @@ class Agent:
             self.power.feed(line)
         if lines:
             self.last_line_time = self.clock()
+            game = self.power.game
+            if game and game.option_lines != self.option_lines_seen:
+                self.option_lines_seen, self.option_lines_at = game.option_lines, self.clock()
         return bool(lines)
 
     def quiet(self):
-        return self.clock() - self.last_line_time >= self.settle
+        return self.clock() - self.last_line_time >= self.settle + (CAUTIOUS_SETTLE if self.cautious_moves else 0)
+
+    def _recovered(self, kind, detail):
+        """Keep playing, and leave a record of what went wrong."""
+        self.recoveries.append({'kind': kind, 'detail': detail})
+        self.log(f'recovering ({kind}): {detail}')
+        self._note({'kind': 'recovery', 'recovery': kind, 'detail': detail})
 
     def check_allowed(self, game):
         if self.mode == 'wild':
@@ -138,19 +178,47 @@ class Agent:
             return 'game_over'
         if not self._focus_ready():
             return 'paused'
+        if self.needs_cancel:
+            # A gesture was cut short, so an arrow or a held card may still be up.
+            self.needs_cancel = False
+            try:
+                self.inputs.send([CANCEL])
+            except FocusLost:
+                self.needs_cancel = True
+                return 'paused'
         if not game.packet and not game.choice:
             return 'waiting'
+        self._decide_early(game)
         if not self.quiet():
             return 'settling'
         self.check_allowed(game)
         if self.actions >= self.max_actions:
             raise Stop('action limit reached')
         if game.choice and (game.number, game.choice['id']) != self.handled_choice:
-            if game.choice['type'] == 'MULLIGAN' and not self._mulligan_on_screen():
-                return 'animating'
-            if game.choice['type'] != 'MULLIGAN' and not self._choice_on_screen(game):
-                return 'animating'
-            return self._act_on_choice(game)
+            try:
+                if game.choice['type'] == 'MULLIGAN' and not self._mulligan_on_screen():
+                    return 'animating'
+                if game.choice['type'] != 'MULLIGAN' and not self._choice_on_screen(game):
+                    return 'animating'
+                return self._act_on_choice(game)
+            except FocusLost:
+                if not self.recover:
+                    raise
+                self.handled_choice = None
+                self.needs_cancel = True
+                return 'paused'
+            except StateChanged:
+                if not self.recover:
+                    raise
+                self.handled_choice = None  # The log moved on, so look again rather than guess.
+                return 'state_changed'
+            except Stop as stop:
+                if not self.recover or 'stopped by the player' in str(stop) or 'new game' in str(stop):
+                    raise
+                # The game answers an open choice itself when its timer runs out.
+                self.handled_choice = (game.number, game.choice['id']) if game.choice else self.handled_choice
+                self._recovered('choice', str(stop))
+                return 'choice_skipped'
         if game.packet:
             if self.clock() < self.opening_ready_at:
                 return 'opening_animation'
@@ -158,10 +226,87 @@ class Agent:
             # mean this packet is out of date, such as a turn that ended on the timer.
             if game.packet['revision'] != game.revision:
                 return 'stale_packet'
+            if self.abandoned == (game.number, game.packet['id']):
+                return 'waiting'  # Nothing more can be done until the state changes or the timer ends the turn.
+            if not self._log_caught_up(game):
+                return 'animating'
             if not self._screen_caught_up(game):
                 return 'animating'
-            return self._act_on_packet(game)
+            try:
+                return self._act_on_packet(game)
+            except FocusLost:
+                if not self.recover:
+                    raise
+                # The log decides what happened: an accepted move clears the packet.
+                self.needs_cancel = True
+                return 'paused'
         return 'waiting'
+
+    def _decide_early(self, game):
+        """Run the model while animations play, so its time is not added to the wait.
+
+        Options arrive long before the client can take input, so the packet must be complete but
+        the screen need not be ready.
+        """
+        packet = game.packet
+        if (not self.eager_decision or not packet or game.choice or game.over or packet['revision'] != game.revision
+                or self.abandoned == (game.number, packet['id'])
+                or self.clock() - self.option_lines_at < 0.05):
+            return
+        self.check_allowed(game)
+        try:
+            self._plan(game)
+        except Stop:
+            pass  # An unplannable packet is reported when the move is actually attempted.
+
+    def _log_caught_up(self, game):
+        """Wait for the client to work through its animation queue, up to a limit."""
+        if self.backlog_limit is None:
+            return True
+        key = (game.number, game.packet['id'])
+        if not self.drain_wait or self.drain_wait[:2] != key:
+            self.drain_wait = (*key, self.clock() + self.drain_timeout)
+        if self.power.backlog.size <= self.backlog_limit:
+            return True
+        return self.clock() >= self.drain_wait[2]  # A few lines are never repeated, so this cannot wait forever.
+
+    def _plan(self, game):
+        """Choose once for each packet. Returns (candidate, gestures, number of options)."""
+        packet = game.packet
+        failed = self.failed_moves.get(packet['id'], set())
+        key = (game.number, packet['id'], packet['revision'], len(failed))
+        if self.plan_cache and self.plan_cache[0] == key:
+            return self.plan_cache[1]
+        state = packet['state']
+        if not state['you'] or not state['opponent'] or not state['you']['hero'] or not state['opponent']['hero']:
+            raise Stop('state is incomplete')
+        plans = []
+        for candidate in candidates_from(packet):
+            if tuple(candidate[k] for k in MOVE_KEY) in failed:
+                continue
+            try:
+                plan = geometry.plan_action(state, candidate)
+            except geometry.GeometryError:
+                continue  # A move the agent cannot perform is never offered to the policy.
+            plans.append((candidate, plan))
+        if not plans:
+            raise Stop('no plannable candidates')
+        candidate, gestures = plans[self.policy.choose(state, [c for c, _ in plans], packet['cards'])]
+        candidate = dict(candidate, position=geometry.expected_position(state, candidate))
+        result = (candidate, gestures, len(plans), getattr(self.policy, 'last_decision', None))
+        self.plan_cache = (key, result)
+        if self.on_plan:
+            self.on_plan(gestures)
+        return result
+
+    def _abandon_move(self, game, packet, candidate):
+        """Drop a move the game would not take and let the policy pick another."""
+        self.failed_moves.setdefault(packet['id'], set()).add(tuple(candidate[k] for k in MOVE_KEY))
+        self.cautious_moves = CAUTIOUS_MOVES
+        self._recovered('dropped_move', f'turn {packet["state"]["turn"]}: {candidate}')
+        if candidate['kind'] == 'end_turn':
+            self.abandoned = (game.number, packet['id'])
+        return 'recovered'
 
     def _choice_on_screen(self, game):
         if not self.choice_ready:
@@ -248,22 +393,17 @@ class Agent:
     def _act_on_packet(self, game):
         packet = game.packet
         state = packet['state']
-        if not state['you'] or not state['opponent'] or not state['you']['hero'] or not state['opponent']['hero']:
-            raise Stop('state is incomplete')
-        plans = []
-        for candidate in candidates_from(packet):
-            try:
-                plan = geometry.plan_action(state, candidate)
-            except geometry.GeometryError:
-                continue  # A move the agent cannot perform is never offered to the policy.
-            plans.append((candidate, plan))
-        if not plans:
-            raise Stop('no plannable candidates')
-        candidate, gestures = plans[self.policy.choose(state, [c for c, _ in plans], packet['cards'])]
-        candidate = dict(candidate, position=geometry.expected_position(state, candidate))
+        try:
+            candidate, gestures, options, decision = self._plan(game)
+        except Stop:
+            if not self.recover:
+                raise
+            self.abandoned = (game.number, packet['id'])
+            self._recovered('no_move', f'nothing plannable in packet {packet["id"]}; waiting for the timer')
+            return 'recovered'
         self._note({'kind': 'option', 'turn': state['turn'], 'packet': packet['id'], 'candidate': candidate,
-                    'options': len(plans), 'gestures': gestures, 'state': state,
-                    'decision': getattr(self.policy, 'last_decision', None)})
+                    'options': options, 'gestures': gestures, 'state': state,
+                    'decision': decision, 'backlog': self.power.backlog.size})
         if not self._focus_ready():
             return 'paused'
         if not self._still_lit():
@@ -287,19 +427,37 @@ class Agent:
                     self._refresh_guard(game, packet['revision'], packet['id'])
                     self.sleep(0.05)
                 self._refresh_guard(game, packet['revision'], packet['id'])
-            self.inputs.careful = attempt > 1  # A fast drag that failed is retried at the slow, proven speed.
+            # A fast drag that failed is retried at the slow, proven speed.
+            self.inputs.careful = attempt > 1 or self.cautious_moves > 0
             # A release during an animation can leave the targeting arrow up, and then a repeat drag cannot land.
             self.inputs.send(gestures if attempt == 1 else [CANCEL, *gestures])
             if hasattr(self.inputs, 'park'):
                 self.inputs.park()
             try:
                 self._confirm_send(game, before, candidate)
+                self.cautious_moves = max(0, self.cautious_moves - 1)
+                return 'acted'
+            except WrongAction as wrong:
+                self.wrong_actions += 1
+                if not self.recover or self.wrong_actions >= MAX_WRONG_ACTIONS:
+                    raise
+                self.cautious_moves = CAUTIOUS_MOVES
+                self._recovered('wrong_action', str(wrong))
                 return 'acted'
             except NoSend:
-                self._note({'kind': 'no_send', 'attempt': attempt, 'packet': packet['id'], 'candidate': candidate})
+                self._note({'kind': 'no_send', 'attempt': attempt, 'packet': packet['id'], 'candidate': candidate,
+                            'backlog': self.power.backlog.size})
+                self.cautious_moves = CAUTIOUS_MOVES
                 if attempt < attempts:
-                    self._refresh_guard(game, packet['revision'], packet['id'])
+                    try:
+                        self._refresh_guard(game, packet['revision'], packet['id'])
+                    except StateChanged:
+                        if not self.recover:
+                            raise
+                        return 'state_changed'  # A slow receipt or the turn timer, so never repeat the drag.
         self.inputs.send([CANCEL])  # Never hand the game back with an arrow still up.
+        if self.recover:
+            return self._abandon_move(game, packet, candidate)
         raise Stop(f'no SendOption after {attempts} attempt(s); handing the game back')
 
     def _confirm_send(self, game, before, candidate):
@@ -313,7 +471,7 @@ class Agent:
             if len(game.sends) > before:
                 sent = game.sends[before]['sent']
                 if any(sent[k] != candidate[k] for k in ('option', 'sub', 'target', 'position')):
-                    raise Stop(f'the game received a different action: sent {sent}, planned {candidate}')
+                    raise WrongAction(f'the game received a different action: sent {sent}, planned {candidate}')
                 return
             if self.power.game is not game:
                 raise Stop('a new game started while confirming')
@@ -400,14 +558,14 @@ class Agent:
                 self._refresh_guard(game, revision)
         raise Stop(f'choice not answered after {self.max_attempts} attempts; handing the game back')
 
-    def run_game(self, poll=0.05):
+    def run_game(self, poll=0.02):
         """Play until the game ends. Stop propagates, because the caller must see why."""
         reported, reported_at = None, self.clock()
         messages = {
             'paused': 'paused: click inside Hearthstone to resume; another app has focus',
             'waiting': 'waiting for the game to offer a move (usually the opponent turn)',
             'opening_animation': 'waiting for the opening animation buffer',
-            'animating': 'waiting for the hand/board or choice screen to settle',
+            'animating': 'waiting for the animations or choice screen to settle',
             'settling': 'waiting for the game log to settle',
             'stale_packet': 'waiting for a fresh action packet',
             'no_game': 'waiting for a game in the log',

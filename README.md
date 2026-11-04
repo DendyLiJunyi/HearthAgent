@@ -8,7 +8,8 @@ Rust 主控 + 可替换本地模型后端的炉石 Agent 工程起点。
 ## 运行
 
 See [current status](docs/current-status.md) for verified capabilities and remaining limits,
-and [reliability improvements](docs/reliability-improvements.md) for the latest offline-tested changes.
+[fast play](docs/fast-play.md) for the latest offline-tested speed, recovery and tactics changes,
+and [reliability improvements](docs/reliability-improvements.md) for the batch before it.
 
 ```powershell
 cd D:\HearthAgent

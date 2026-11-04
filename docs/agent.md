@@ -1,7 +1,8 @@
 # Live agent (`agent/`)
 
 [Current status](current-status.md) is the authoritative capability summary.
-See [reliability improvements](reliability-improvements.md) for the latest offline-tested changes;
+See [fast play](fast-play.md) for the latest offline-tested pace, recovery and tactics changes, and
+[reliability improvements](reliability-improvements.md) for the batch before it;
 historical experiments below predate those changes.
 
 Match-failure review, corrected-example training and the Patches mulligan fix are described in
@@ -22,8 +23,8 @@ An unrecognized menu stops the run. Matchmaking may take up to 180 seconds.
 ```
 
 Switching to another app now pauses gameplay and menu input; returning to Hearthstone resumes it
-after re-reading the log and rechecking the screen. A focus change during a gesture still stops
-the run, because the input's outcome may be uncertain. Hold Esc to stop; Esc requires a new run.
+after re-reading the log and rechecking the screen. With `--pace careful`, a focus change during a gesture
+still stops the run; the default fast pace pauses and re-reads the log instead. Hold Esc to stop; Esc requires a new run.
 The loop's default policy remains Laya.
 Wild mode requires both `GT_RANKED` and `FT_WILD` in Power.log before any gameplay input.
 Standard, Casual, missing formats and other game types are refused, even with `--friend-agreed`.

@@ -6,6 +6,8 @@ import math
 from collections import Counter
 from pathlib import Path
 
+from . import tactics as deck_tactics
+
 ROOT = Path(__file__).resolve().parents[1]
 HOSTILE = ('damage', 'destroy', 'freeze', 'silence', 'transform')
 
@@ -53,8 +55,9 @@ class RulesPolicy:
     """Lethal first, then spend mana, then sensible trades. No search and no deck plan."""
     name = 'rules'
 
-    def __init__(self, cards, aggressive=False):
+    def __init__(self, cards, aggressive=False, tactics=False):
         self.cards, self.aggressive = cards, aggressive
+        self.tactics = tactics
         self.decision_counts = Counter()
         self.last_decision = None
 
@@ -158,6 +161,9 @@ class RulesPolicy:
         text = self.text(source['card'])
         return any(w in text for w in HOSTILE) and 'friendly' not in text
 
+    def is_useful(self, state, candidate, candidates):
+        return self._free_value(candidate, index_state(state), candidates, state)
+
     def _free_value(self, candidate, found, candidates, state):
         """Worth doing instead of ending the turn: face damage, a clean kill, a real card, or spare mana."""
         if candidate['kind'] == 'end_turn' or self._hits_own_side(candidate, found):
@@ -179,18 +185,31 @@ class RulesPolicy:
     def choose(self, state, candidates, cards=None):
         started = time.perf_counter()
         scores = self.scores(state, candidates)
+        forced = deck_tactics.forced_move(state, candidates, self.cards) if self.tactics and max(scores) < 1000.0 else None
+        if forced:
+            self.decision_counts[forced[1]] += 1
+            self.last_decision = {'source': 'rules', 'reason': forced[1], 'selected': forced[0],
+                                  'elapsed_ms': (time.perf_counter() - started) * 1000, 'checkpoint': None}
+            return forced[0]
         pool = list(range(len(candidates)))
         if self.aggressive:
             pool = self.face_first(state, candidates, pool)
         # Ties break on list position, which keeps replays reproducible.
         pick = max(pool, key=lambda i: (scores[i], -i))
+        reason = 'rules_policy'
+        if self.tactics and max(scores) < 1000.0:
+            buff = deck_tactics.buff_first(state, candidates, pick, self.cards)
+            if buff is not None:
+                pick, reason = buff, 'tactics:buff_first'
         self.decision_counts['rules'] += 1
-        self.last_decision = {'source': 'rules', 'reason': 'rules_policy', 'selected': pick,
+        self.last_decision = {'source': 'rules', 'reason': reason, 'selected': pick,
                               'elapsed_ms': (time.perf_counter() - started) * 1000, 'checkpoint': None}
         return pick
 
     def mulligan(self, entities, cards_by_entity):
         """Return deck-summoned Patches; otherwise keep the existing low-cost opening curve."""
+        if self.tactics:
+            return deck_tactics.mulligan(entities, cards_by_entity, self.cards)
         replace = []
         for entity in entities:
             card_id = cards_by_entity.get(str(entity['id'])) or entity.get('card') or ''
@@ -216,19 +235,20 @@ class LayaPolicy:
     name = 'laya'
     MAX_OPTIONS = 32
 
-    def __init__(self, cards, predict, orders=4, aggressive=False, preference_penalty=0.05):
+    def __init__(self, cards, predict, orders=4, aggressive=False, preference_penalty=0.05, tactics=False):
         if orders < 1 or not math.isfinite(preference_penalty) or not 0 <= preference_penalty <= 1:
             raise ValueError('positive orders and a preference penalty in [0, 1] are required')
         self.cards, self.predict, self.orders = cards, predict, orders
-        self.rules = RulesPolicy(cards, aggressive)
+        self.rules = RulesPolicy(cards, aggressive, tactics=tactics)
         self.aggressive = aggressive
+        self.tactics = tactics
         self.fallbacks = 0
         self.preference_penalty = preference_penalty
         self.decision_counts = Counter()
         self.last_decision = None
 
     @classmethod
-    def load(cls, cards, path=None, device='cuda', aggressive=False):
+    def load(cls, cards, path=None, device='cuda', aggressive=False, tactics=False):
         import os
         import sys
         sys.path.insert(0, str(ROOT / 'services/laya'))
@@ -241,7 +261,7 @@ class LayaPolicy:
 
         def predict(state, questions):
             return agent.predict(state, questions, max_len=2048, head_max_len=1024, min_confidence=0.0)
-        policy = cls(cards, predict, aggressive=aggressive)
+        policy = cls(cards, predict, aggressive=aggressive, tactics=tactics)
         policy.checkpoint = str(checkpoint)
         return policy
 
@@ -302,6 +322,10 @@ class LayaPolicy:
         if max(scores) >= 1000.0 or ability or len(candidates) > self.MAX_OPTIONS:
             self._reason = 'lethal' if max(scores) >= 1000.0 else 'ability' if ability else 'option_limit'
             return self.rules.choose(state, candidates, cards)
+        forced = deck_tactics.forced_move(state, candidates, self.cards) if self.tactics else None
+        if forced:
+            self._reason = forced[1]
+            return forced[0]
         try:
             totals = self.rank(state, candidates, cards)
         except Exception as error:
@@ -312,7 +336,20 @@ class LayaPolicy:
         for i, candidate in enumerate(candidates):
             if self.rules.is_blunder(state, candidate, candidates):
                 totals[i] -= self.preference_penalty * self.orders
-        return max(self.allowed(state, candidates), key=lambda i: (totals[i], -i))
+        pool = self.allowed(state, candidates)
+        pick = max(pool, key=lambda i: (totals[i], -i))
+        if self.tactics and candidates[pick]['kind'] == 'end_turn':
+            # An aggressive deck does not pass with damage or mana left: take the model's best real alternative.
+            useful = [i for i in pool if self.rules.is_useful(state, candidates[i], candidates)]
+            if useful:
+                self._reason = 'tactics:no_early_end_turn'
+                pick = max(useful, key=lambda i: (totals[i], -i))
+        if self.tactics:
+            buff = deck_tactics.buff_first(state, candidates, pick, self.cards)
+            if buff is not None:
+                self._reason = 'tactics:buff_first'
+                return buff
+        return pick
 
     def mulligan(self, entities, cards_by_entity):
         return self.rules.mulligan(entities, cards_by_entity)

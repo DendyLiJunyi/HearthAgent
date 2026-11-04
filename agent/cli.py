@@ -12,7 +12,8 @@ import time
 from pathlib import Path
 
 from . import geometry
-from .screen import GameScreen, BattlefieldSettler, battlefield_signature, hand_signature, choice_signature, average_rgb
+from .screen import (GameScreen, BattlefieldSettler, battlefield_signature, hand_signature, choice_signature,
+                     average_rgb, region_signature)
 from .loop import Agent, RecordingInput, Stop
 from .policy import LayaPolicy, RulesPolicy, load_cards
 from .power import PowerLog, candidates_from
@@ -24,6 +25,15 @@ BATTLE_NET = Path(r'D:\Battle.net\Battle.net.exe')
 BATTLE_NET_LOGS = Path(os.environ.get('LOCALAPPDATA', '')) / 'Battle.net/Logs'
 DECK_ID = '9567872927'  # The player's 海盗战 deck, as Decks.log names it.
 CHECKPOINT = ROOT / '.data/imitation/laya-combo'
+# Fast trusts the log's animation queue, then checks only the pixels the next gesture touches.
+# Careful is exactly the earlier behavior, with whole-board stability and a 20-second opening wait.
+PACES = {
+    'fast': {'agent': dict(settle=0.15, confirm_timeout=1.2, choice_timeout=4.0, lit_required=2, opening_delay=0.0,
+                           screen_timeout=8.0, backlog_limit=12, drain_timeout=6.0, recover=True, eager_decision=True),
+             'strict_screen': False, 'choice_settle': 0.4, 'focus_settle': 0.12, 'focus_cap': 0.5},
+    'careful': {'agent': dict(settle=0.5, confirm_timeout=2.0, choice_timeout=5.0, lit_required=3, opening_delay=20.0),
+                'strict_screen': True, 'choice_settle': 1.5, 'focus_settle': None, 'focus_cap': None},
+}
 
 
 def configure(path):
@@ -157,14 +167,21 @@ def preview(args):
 class SessionRecord:
     """Saves a frame and the plan before each move, so a run can be calibrated from afterwards."""
 
-    def __init__(self, folder, log_path, screen=None, every_frame=False, screen_settle=1.5):
+    def __init__(self, folder, log_path, screen=None, every_frame=False, screen_settle=1.5, pace='careful',
+                 clock=time.monotonic):
         self.folder, self.log_path, self.count = Path(folder), Path(log_path), 0
         self.screen, self.every_frame = screen, every_frame
         self.button = None
         self.settler = BattlefieldSettler(seconds=screen_settle)
         self.hand_settler = BattlefieldSettler(seconds=screen_settle)
-        self.choice_settler = BattlefieldSettler()
+        settings = PACES[pace]
+        self.pace, self.clock = pace, clock
+        self.choice_settler = BattlefieldSettler(seconds=settings['choice_settle'])
         self.choice_key = None
+        self.focus_cap = settings['focus_cap']
+        self.focus_settler = BattlefieldSettler(seconds=settings['focus_settle'] or 0.12, tolerance=6.0, clock=clock)
+        self.focus_points = []
+        self.focus_started = None
         self.screen_checks = 0
         self.screen_blocked = {'button': 0, 'board': 0, 'hand': 0}
         self.screen_check_seconds = 0.0
@@ -184,6 +201,8 @@ class SessionRecord:
         started = time.monotonic()
         pixels = self.screen.frame()
         self.button = average_rgb(pixels, self.screen.width)
+        if self.focus_cap is not None:
+            return self._focused_ready(pixels, started)
         stable = self.settler.ready(battlefield_signature(pixels, self.screen.width))
         hand_stable = self.hand_settler.ready(hand_signature(pixels, self.screen.width))
         lit = geometry.end_turn_lit(self.button)
@@ -193,9 +212,34 @@ class SessionRecord:
             self.screen_blocked[reason] += not ready
         return lit and stable and hand_stable
 
+    def _focused_ready(self, pixels, started):
+        """A lit button is required. Patch stability only delays, because idle glows may never stop."""
+        now = self.clock()
+        if self.focus_started is None:
+            self.focus_started = now
+        lit = geometry.end_turn_lit(self.button)
+        stable = (now - self.focus_started >= self.focus_cap or not self.focus_points or
+                  self.focus_settler.ready(region_signature(pixels, self.screen.width, self.focus_points)))
+        self.screen_checks += 1
+        self.screen_check_seconds += time.monotonic() - started
+        self.screen_blocked['button'] += not lit
+        self.screen_blocked['board'] += not stable
+        return lit and stable
+
+    def focus_on(self, gestures):
+        """Remember where the next move's gestures land."""
+        points = []
+        for gesture in gestures:
+            if gesture[0] in ('click', 'drag'):
+                points += [tuple(p) for p in gesture[1:]]
+        self.focus_points = points
+        self.focus_settler.reset()
+
     def reset_screen(self):
         self.settler.reset()
         self.hand_settler.reset()
+        self.focus_settler.reset()
+        self.focus_started = None
 
     def choice_ready(self, key):
         if key != self.choice_key:
@@ -250,15 +294,27 @@ def wait_for_focus(inputs, window, timeout=60, clock=time.monotonic, sleep=time.
     raise Stop('the game window never got focus')
 
 
-def build_policy(name, aggressive=False):
+def build_policy(name, aggressive=False, tactics=True):
     cards = load_cards()
     if name == 'rules':
-        return RulesPolicy(cards, aggressive)
-    return LayaPolicy.load(cards, path=CHECKPOINT, aggressive=aggressive)
+        return RulesPolicy(cards, aggressive, tactics=tactics)
+    return LayaPolicy.load(cards, path=CHECKPOINT, aggressive=aggressive, tactics=tactics)
+
+
+def build_agent(tail, policy, inputs, record, *, pace, mode, friend_agreed=False, idle_limit=None, mulligan_ready=None):
+    """The same settings for `play` and `loop`, chosen by pace."""
+    agent = Agent(tail, policy, inputs, before_input=record, mode=mode, friend_agreed=friend_agreed, idle_limit=idle_limit,
+                  screen_ready=record.screen_ready if record else None, mulligan_ready=mulligan_ready,
+                  choice_ready=record.choice_ready if record else None, **PACES[pace]['agent'])
+    if record:
+        agent.screen_reset = record.reset_screen
+        agent.strict_screen = PACES[pace]['strict_screen']
+        agent.on_plan = record.focus_on
+    return agent
 
 
 def play(args):
-    policy = build_policy(args.policy, args.aggressive)
+    policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
     log_path = Path(args.log or current_log())
     record = None
     if args.execute:
@@ -267,7 +323,7 @@ def play(args):
         window = game_window()
         inputs = WindowsInput(window, current_window=game_window)
         record = SessionRecord(ROOT / '.data/live' / time.strftime('%Y%m%d-%H%M%S'), log_path,
-                               GameScreen(window), args.frames, args.screen_settle)
+                               GameScreen(window), args.frames, args.screen_settle, args.pace)
         regions = Regions(record.screen)
         style = 'aggressive ' if args.aggressive else ''
         modes = ('Ranked Wild only' if args.mode == 'wild' else
@@ -276,20 +332,15 @@ def play(args):
     else:
         inputs = RecordingInput()
         print('Dry run: nothing is sent to the game.', flush=True)
-    agent = Agent(Tail(log_path, session_check=current_log if args.execute and not args.log else None),
-                  policy, inputs, before_input=record, settle=0.5, confirm_timeout=2.0,
-                  choice_timeout=5.0, lit_required=3,
-                  screen_ready=record.screen_ready if record else None, friend_agreed=args.friend_agreed, mode=args.mode,
-                  mulligan_ready=regions.mulligan_ready if record else None,
-                  choice_ready=record.choice_ready if record else None,
-                  opening_delay=20.0 if args.execute else 0.0)
-    if record:
-        agent.screen_reset = record.reset_screen
-        agent.strict_screen = True
+    agent = build_agent(Tail(log_path, session_check=current_log if args.execute and not args.log else None),
+                        policy, inputs, record, pace=args.pace, mode=args.mode, friend_agreed=args.friend_agreed,
+                        mulligan_ready=regions.mulligan_ready if record else None)
     if not args.execute:
         # Nobody answers the game in a dry run, so print one plan for the open decision.
         agent.settle = 0
         agent.confirm_timeout = 0
+        agent.opening_delay = 0.0
+        agent.backlog_limit = None
     outcome = {}
     try:
         if args.execute:
@@ -301,8 +352,9 @@ def play(args):
         outcome = {'stopped': str(stop)}
     except KeyboardInterrupt:
         outcome = {'stopped': 'stopped from terminal (Ctrl+C)'}
-    outcome.update(mode=args.mode, policy=policy.name, checkpoint=getattr(policy, 'checkpoint', None),
-                   aggressive=args.aggressive, actions=agent.actions, model_fallbacks=getattr(policy, 'fallbacks', 0))
+    outcome.update(mode=args.mode, policy=policy.name, checkpoint=getattr(policy, 'checkpoint', None), pace=args.pace,
+                   aggressive=args.aggressive, actions=agent.actions, model_fallbacks=getattr(policy, 'fallbacks', 0),
+                   recoveries=agent.recoveries)
     print(json.dumps(outcome), flush=True)
     if record:
         record.finish(outcome)
@@ -403,7 +455,7 @@ def run_loop(args):
     """Games from the menus, one after another, until the count, a stop, or Esc."""
     from .menu import GAME_SCENE, MenuWalker, Regions, latest_deck_id
     from .windows_input import WindowsInput
-    policy = build_policy(args.policy, args.aggressive)
+    policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
     window = ensure_game()
     screen = GameScreen(window)
     regions = Regions(screen)
@@ -427,14 +479,10 @@ def run_loop(args):
             deck = latest_deck_id(Tail(log_path.parent / 'Decks.log')())
             if deck != args.deck_id:
                 raise Stop(f'the game started with deck {deck}, not {args.deck_id}; leaving it alone')
-            record = SessionRecord(folder / f'{len(results) + 1:03d}', log_path, screen, args.frames, args.screen_settle)
-            agent = Agent(tail, policy, inputs, before_input=record, settle=0.5, confirm_timeout=2.0, choice_timeout=5.0,
-                          lit_required=3, screen_ready=record.screen_ready, idle_limit=args.idle_limit,
-                          mulligan_ready=regions.mulligan_ready, mode=args.mode,
-                          choice_ready=record.choice_ready,
-                          opening_delay=20.0)
-            agent.screen_reset = record.reset_screen
-            agent.strict_screen = True
+            record = SessionRecord(folder / f'{len(results) + 1:03d}', log_path, screen, args.frames, args.screen_settle,
+                                   args.pace)
+            agent = build_agent(tail, policy, inputs, record, pace=args.pace, mode=args.mode, idle_limit=args.idle_limit,
+                                mulligan_ready=regions.mulligan_ready)
             agent.pump()
             if agent.power.game and agent.power.game.over:
                 walker.leave_game()  # Started on an end screen, so this game does not count.
@@ -443,15 +491,18 @@ def run_loop(args):
                 result = agent.run_game()
             except KeyboardInterrupt:
                 reason = 'stopped from terminal (Ctrl+C)'
-                record.finish({'stopped': reason, 'actions': agent.actions, 'mode': args.mode,
+                record.finish({'stopped': reason, 'actions': agent.actions, 'mode': args.mode, 'pace': args.pace,
+                               'recoveries': agent.recoveries,
                                'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None)})
                 raise Stop(reason) from None
             except (Stop, RuntimeError, geometry.GeometryError) as stop:
-                record.finish({'stopped': str(stop), 'actions': agent.actions, 'mode': args.mode,
+                record.finish({'stopped': str(stop), 'actions': agent.actions, 'mode': args.mode, 'pace': args.pace,
+                               'recoveries': agent.recoveries,
                                'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
                                'model_fallbacks': getattr(policy, 'fallbacks', 0)})
                 raise
-            record.finish({'result': result, 'policy': policy.name, 'actions': agent.actions,
+            record.finish({'result': result, 'policy': policy.name, 'actions': agent.actions, 'pace': args.pace,
+                           'recoveries': agent.recoveries,
                            'checkpoint': getattr(policy, 'checkpoint', None),
                            'model_fallbacks': getattr(policy, 'fallbacks', 0)})
             results.append({**result, 'actions': agent.actions})
@@ -537,8 +588,12 @@ def main():
         command.set_defaults(handler=handler)
         command.add_argument('--log')
         if name in ('play', 'loop'):
+            command.add_argument('--pace', choices=sorted(PACES), default='fast',
+                                 help='fast (default) trusts the log animation queue and keeps playing after a failed '
+                                      'move; careful is the earlier slower behavior that stops instead.')
+            command.add_argument('--no-tactics', action='store_true', help='Turn off the Pirate Warrior tactics.')
             command.add_argument('--screen-settle', type=float, default=1.5,
-                                 help='Stable board/hand interval in seconds (0.5 to 5; default 1.5). Try 0.6 for faster play.')
+                                 help='With --pace careful: stable board/hand interval in seconds (0.5 to 5; default 1.5).')
             command.add_argument('--mode', choices=['practice', 'wild'], default='wild' if name == 'loop' else 'practice',
                                  help='wild requires Ranked Wild; practice allows AI games.')
         if name == 'preview':

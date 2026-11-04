@@ -38,6 +38,30 @@ def parse_entity(text):
             'card': card, 'player': int(player), 'name': name}
 
 
+class AnimationBacklog:
+    """Power lines the client has received but has not reached in its animation queue.
+
+    GameState lines are logged on receipt. PowerTaskList repeats them when the client processes them.
+    Saved runs show input is ignored while this is large: 18 of 104 moves failed at 13 or more pending
+    lines, against 4 of 177 at 12 or fewer. A few trailing lines are normally never repeated, so a
+    repeated line also clears anything older, and callers compare against a limit instead of zero.
+    """
+    def __init__(self):
+        self.pending = collections.deque()
+
+    @property
+    def size(self):
+        return len(self.pending)
+
+    def received(self, body):
+        self.pending.append(body)
+
+    def played(self, body):
+        if body in self.pending:
+            while self.pending.popleft() != body:
+                pass
+
+
 class Game:
     def __init__(self, number):
         self.number = number
@@ -55,6 +79,7 @@ class Game:
         self.choices_sent = []
         self.result = None
         self.revision = 0
+        self.option_lines = 0
 
     @property
     def over(self):
@@ -179,6 +204,7 @@ class PowerLog:
         self._entity = None
         self._choice = None
         self._chosen_pending = None
+        self.backlog = AnimationBacklog()
 
     @property
     def game(self):
@@ -197,11 +223,15 @@ class PowerLog:
 
     def feed(self, line):
         self.lines += 1
+        if 'PowerTaskList.DebugPrintPower()' in line and ' - ' in line:
+            self.backlog.played(line.split(' - ', 1)[1].strip())
+            return
         if 'GameState.' not in line or ' - ' not in line:
             return
         body = line.split(' - ', 1)[1].rstrip('\r\n')
         stripped = body.strip()
         if 'DebugPrintPower()' in line:
+            self.backlog.received(stripped)
             self._power(stripped)
         elif self.game is None:
             return
@@ -218,6 +248,7 @@ class PowerLog:
 
     def _power(self, stripped):
         if stripped == 'CREATE_GAME':
+            self.backlog = AnimationBacklog()
             self.games.append(Game(len(self.games) + 1))
             self._entity = None
             self._choice = None
@@ -284,6 +315,7 @@ class PowerLog:
 
     def _options(self, stripped):
         game = self.game
+        game.option_lines += 1
         if stripped.startswith('id='):
             game.packet = {'id': int(stripped[3:]), 'options': [], 'state': game.snapshot(),
                            'revision': game.revision, 'cards': game.card_map()}
