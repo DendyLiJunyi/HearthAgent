@@ -38,6 +38,9 @@ def parse_entity(text):
             'card': card, 'player': int(player), 'name': name}
 
 
+TURN_CHANGE = re.compile(r'TAG_CHANGE Entity=GameEntity tag=TURN value=(\d+)')
+
+
 class AnimationBacklog:
     """Power lines the client has received but has not reached in its animation queue.
 
@@ -45,21 +48,42 @@ class AnimationBacklog:
     Saved runs show input is ignored while this is large: 18 of 104 moves failed at 13 or more pending
     lines, against 4 of 177 at 12 or fewer. A few trailing lines are normally never repeated, so a
     repeated line also clears anything older, and callers compare against a limit instead of zero.
+
+    Lines like BLOCK_END repeat constantly, so the Nth replay of a line is matched to its Nth receipt.
+    Matching the first copy still waiting let a replay jump far ahead, and a 24-second N'Zoth replay
+    read as empty. New turns are tracked apart from the count, because they decide when the screen
+    is showing the player's turn.
     """
     def __init__(self):
-        self.pending = collections.deque()
+        self.received_at = collections.defaultdict(collections.deque)
+        self.total = 0
+        self.reached = 0
+        self.turn_received = 0
+        self.turn_played = 0
 
     @property
     def size(self):
-        return len(self.pending)
+        return self.total - self.reached
+
+    @property
+    def turn_behind(self):
+        """The client has been told of a new turn but has not reached it in its animation queue."""
+        return self.turn_played < self.turn_received
 
     def received(self, body):
-        self.pending.append(body)
+        self.received_at[body].append(self.total)
+        self.total += 1
+        turn = TURN_CHANGE.fullmatch(body)
+        if turn:
+            self.turn_received = int(turn[1])
 
     def played(self, body):
-        if body in self.pending:
-            while self.pending.popleft() != body:
-                pass
+        copies = self.received_at.get(body)
+        if copies:
+            self.reached = max(self.reached, copies.popleft() + 1)
+        turn = TURN_CHANGE.fullmatch(body)
+        if turn:
+            self.turn_played = int(turn[1])
 
 
 class Game:
@@ -69,6 +93,7 @@ class Game:
         self.cards = {}
         self.player_entity = {}
         self.names = {}
+        self.named_players = 0
         self.game_entity = None
         self.game_type = None
         self.format_type = None
@@ -217,9 +242,20 @@ class PowerLog:
         if self.local_name and self.local_name in game.names:
             game.local = game.names[self.local_name]
             return
+        if game.named_players < 2:
+            return  # One BattleTag so far could be either player, because the names arrive one line at a time.
         tagged = [(name, player) for name, player in game.names.items() if '#' in name and name != UNKNOWN_NAME]
         if len(tagged) == 1:
             self.local_name, game.local = tagged[0]
+        elif tagged:
+            # Both names are visible, so go by whose hand this client can read. The Coin is shown to everyone.
+            holders = {tags.get('CONTROLLER') for entity, tags in game.entities.items()
+                       if tags.get('ZONE') == 'HAND' and game.cards.get(entity) not in (None, '', 'GAME_005')}
+            if len(holders) == 1:
+                holder = holders.pop()
+                if holder and holder.isdigit():
+                    game.local = int(holder)
+                    self.local_name = next((n for n, p in tagged if p == game.local), None)
 
     def feed(self, line):
         self.lines += 1
@@ -309,14 +345,17 @@ class PowerLog:
         elif stripped.startswith('FormatType='):
             game.format_type = stripped.split('=', 1)[1]
         match = GAME_PLAYER.match(stripped)
-        if match and match.group(2) != UNKNOWN_NAME:
-            game.names[match.group(2)] = int(match.group(1))
+        if match:
+            game.named_players += 1
+            if match.group(2) != UNKNOWN_NAME:
+                game.names[match.group(2)] = int(match.group(1))
             self._set_local(game)
 
     def _options(self, stripped):
         game = self.game
         game.option_lines += 1
         if stripped.startswith('id='):
+            self._set_local(game)
             game.packet = {'id': int(stripped[3:]), 'options': [], 'state': game.snapshot(),
                            'revision': game.revision, 'cards': game.card_map()}
             return
@@ -358,6 +397,7 @@ class PowerLog:
             self._choice = {'id': int(number), 'player_name': player, 'type': kind, 'min': int(low),
                             'max': int(high), 'entities': [], 'source': None}
             # Only the local player's name appears in its own packets.
+            self._set_local(game)
             if player == self.local_name or (game.local is not None and game.names.get(player) == game.local):
                 game.choice = self._choice
             return

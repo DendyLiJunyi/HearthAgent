@@ -43,8 +43,16 @@ them when the client reaches them. Pending lines measure how far behind it is.
 So failures ran 17% at 13 or more and 2.3% at 12 or fewer. All three failed drags in the game that
 led to the 20-second opening wait had 42–176 pending lines. These are association counts from saved
 runs, timed from the recording, not a controlled test. The wait gives up after 6 s because a few lines
-are never repeated. The End Turn button still has to be lit, for up to 8 s, and then the move is tried
-anyway because the send check catches failure.
+are never repeated. The End Turn button still has to be lit, for up to 60 s, and then the move is tried
+anyway because the send check catches failure. A failed screen read gets 8 s instead.
+
+The table above came from an earlier count that matched a repeated line to its first waiting copy. Lines
+like `BLOCK_END` repeat constantly, so a replay could jump far ahead: in `loop-20261104-234935` the count
+read 0 with the screen 24 s behind, and End Turn was clicked while grey. Each replay now matches its own
+copy. Over 47 saved logs, readings of 12 or fewer while a new turn was still replaying fell from 12,162 to
+160 out of 176,090, and accepted moves above the limit rose only from 833 to 870 of 4,585. The limit of
+12 was not re-measured on the new count. Moves also wait for the replay to reach a new turn, for up to
+60 s. Replays reached a new turn in a median of 1.5 s, 9.0 s at the 90th percentile and 24.6 s at most.
 
 **Estimated saving**, from `python -m agent.pace_report <run folder>`:
 
@@ -69,12 +77,13 @@ A stop in a game against another player forfeits on the turn timer, and stops en
 | --- | --- | --- |
 | Single drag ignored three times | Stop | Cancel, drop that move, ask the policy again |
 | Multi-step move ignored | Stop | Cancel, drop that move, ask the policy again |
-| End Turn ignored | Stop | No more input; wait for the timer |
+| End Turn ignored | Stop | No more input until the button is lit, then up to 2 fresh tries with dropped moves restored; otherwise the timer |
 | Different move logged | Stop | Continue, up to 3 per game |
 | Focus lost during a gesture | Stop | Pause, cancel on return, re-read the log |
 | Mulligan not recognized or unanswered | Stop | No more input; the game's timer finishes it |
 | Unsupported or failed choice | Stop | No more input; the game's timer finishes it |
-| Screen never ready | Stop | Try anyway; the send check still applies |
+| Screen read fails | Stop | Try after 8 s; the send check still applies |
+| Button stays grey | Stop | Wait up to 60 s, then try; the send check still applies |
 
 Still stops: Esc, a wrong game type or format, the action limit, a new game during confirmation, a
 log change and a moved window. A move is never resent after the log has changed. Each recovery goes

@@ -522,6 +522,60 @@ class GameModeTests(unittest.TestCase):
     def test_friendly_game_runs_when_agreed(self):
         self.assertEqual(self.run_in('GT_VS_FRIEND', True).settled_step(), 'acted')
 
+    def friend_mode(self, game_type, agreed=True):
+        harness = self.run_in(game_type, agreed)
+        harness.agent.mode = 'friend'
+        return harness
+
+    def test_friend_mode_plays_an_agreed_friendly_game(self):
+        self.assertEqual(self.friend_mode('GT_VS_FRIEND').settled_step(), 'acted')
+
+    def test_friend_mode_needs_agreement(self):
+        harness = self.friend_mode('GT_VS_FRIEND', agreed=False)
+        with self.assertRaisesRegex(Stop, 'friendly'):
+            harness.settled_step()
+        self.assertEqual(harness.inputs.gestures, [])
+
+    def test_friend_mode_refuses_every_other_game_type(self):
+        for game_type in ('GT_VS_AI', 'GT_RANKED', 'GT_CASUAL', 'GT_ARENA', 'GT_TAVERNBRAWL', 'GT_UNKNOWN', None):
+            with self.subTest(game_type=game_type):
+                harness = self.friend_mode(game_type)
+                with self.assertRaisesRegex(Stop, 'friendly'):
+                    harness.settled_step()
+                self.assertEqual(harness.inputs.gestures, [])
+
+    def both_names(self, *hand):
+        """A game whose log names both players, as a friendly game may."""
+        rows = game_lines('GT_VS_FRIEND', opponent='Friend#5678')
+        for entity_id, card, controller in hand:
+            rows += entity(entity_id, card, controller, 'HAND', 'MINION', 1)
+        harness = Harness(rows + option_lines(), after_input=[send_line()])
+        harness.agent.friend_agreed, harness.agent.mode = True, 'friend'
+        return harness
+
+    def test_with_both_names_the_local_player_holds_the_readable_hand(self):
+        harness = self.both_names((50, 'CS2_182', 2))
+        harness.agent.pump()
+        self.assertEqual(harness.agent.power.game.local, 2)
+        self.assertEqual(harness.agent.power.local_name, 'Friend#5678')
+
+    def test_the_coin_does_not_identify_the_local_player(self):
+        harness = self.both_names((50, 'CS2_182', 1), (51, 'GAME_005', 2), (52, '', 2))
+        harness.agent.pump()
+        self.assertEqual(harness.agent.power.game.local, 1)
+
+    def test_two_readable_hands_are_refused(self):
+        harness = self.both_names((50, 'CS2_182', 1), (51, 'CS2_182', 2))
+        with self.assertRaisesRegex(Stop, 'local'):
+            harness.settled_step()
+        self.assertEqual(harness.inputs.gestures, [])
+
+    def test_no_readable_hand_is_refused(self):
+        harness = self.both_names((50, '', 1))  # The fixture's own hand card, hidden here.
+        with self.assertRaisesRegex(Stop, 'local'):
+            harness.settled_step()
+        self.assertEqual(harness.inputs.gestures, [])
+
     def test_agreement_never_unlocks_other_modes(self):
         for game_type in ('GT_RANKED', 'GT_CASUAL', 'GT_ARENA', 'GT_TAVERNBRAWL', 'GT_UNKNOWN'):
             harness = self.run_in(game_type, True)

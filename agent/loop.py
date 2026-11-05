@@ -2,10 +2,12 @@
 
 Rules that keep a wrong click from becoming a runaway:
 - Practice mode allows AI games and agreed friendly challenges. Wild mode requires Ranked Wild.
+  Friend mode allows agreed friendly challenges and nothing else.
   Casual, arena and anything unrecognized are refused.
 - Nothing is sent until the log has been quiet for `settle` seconds.
 - If a screen check is supplied, moves also wait for the End Turn button to light up, because
   the log runs ahead of the screen. An unreadable button only delays play by `screen_timeout`.
+  A readable button that is not lit can hold moves for the longer `button_timeout`.
 - Before input, the packet and revision are re-read. Any change cancels the action.
 - After input, the logged SendOption must match the plan. Otherwise the agent stops.
 - A single-gesture move can be resent only if the log shows nothing was sent and nothing changed.
@@ -15,7 +17,8 @@ Rules that keep a wrong click from becoming a runaway:
   in a game against another player forfeits it on the timer. Game-type refusals, Esc and the action
   limit still stop, and every recovery is recorded.
 - With `backlog_limit`, the log's own animation queue replaces the 20-second opening wait and the
-  whole-board pixel wait. The End Turn check remains.
+  whole-board pixel wait. The End Turn check remains, and moves also wait for the queue to reach a
+  new turn, up to `button_timeout`.
 """
 import time
 
@@ -29,6 +32,7 @@ MOVE_KEY = ('option', 'sub', 'target')
 CAUTIOUS_MOVES = 3  # After a failed move, the next few go at the slow, proven speed.
 CAUTIOUS_SETTLE = 0.5
 MAX_WRONG_ACTIONS = 3
+MAX_RELIT_RETRIES = 2  # Fresh tries per packet after a dropped End Turn, if the button is lit.
 
 
 class Stop(Exception):
@@ -69,8 +73,9 @@ class Agent:
                  max_attempts=3, screen_ready=None, screen_timeout=25.0, friend_agreed=False,
                  lit_required=2, choice_timeout=None, mulligan_ready=None, mulligan_timeout=40.0, idle_limit=None,
                  clock=time.monotonic, sleep=time.sleep, log=print, before_input=None, mode='practice', opening_delay=0.0,
-                 choice_ready=None, backlog_limit=None, drain_timeout=6.0, recover=False, eager_decision=False):
-        if mode not in ('practice', 'wild'):
+                 choice_ready=None, backlog_limit=None, drain_timeout=6.0, recover=False, eager_decision=False,
+                 button_timeout=None):
+        if mode not in ('practice', 'wild', 'friend'):
             raise ValueError(f'unsupported mode: {mode}')
         self.mode = mode
         self.opening_delay = opening_delay
@@ -83,6 +88,8 @@ class Agent:
         self.max_attempts = max_attempts
         self.friend_agreed = friend_agreed
         self.screen_ready, self.screen_timeout = screen_ready, screen_timeout
+        self.button_timeout = screen_timeout if button_timeout is None else button_timeout
+        self.screen_started = None
         self.screen_reset = None
         self.strict_screen = False
         self.screen_wait = None  # (game number, packet id, deadline)
@@ -105,6 +112,8 @@ class Agent:
         self.on_plan = None
         self.failed_moves = {}  # packet id -> moves the game would not take
         self.abandoned = None
+        self.end_turn_dropped = None
+        self.relit_retries = {}
         self.cautious_moves = 0
         self.wrong_actions = 0
         self.needs_cancel = False
@@ -138,6 +147,12 @@ class Agent:
         if self.mode == 'wild':
             if game.game_type != 'GT_RANKED' or game.format_type != 'FT_WILD':
                 raise Stop(f'refusing to act in {game.game_type}/{game.format_type}: Ranked Wild required')
+            if game.local is None:
+                raise Stop('cannot tell which player is local')
+            return
+        if self.mode == 'friend':
+            if not self.friend_agreed or game.game_type != FRIENDLY_GAME_TYPE:
+                raise Stop(f'refusing to act in {game.game_type}: only an agreed friendly challenge is allowed')
             if game.local is None:
                 raise Stop('cannot tell which player is local')
             return
@@ -227,6 +242,8 @@ class Agent:
             if game.packet['revision'] != game.revision:
                 return 'stale_packet'
             if self.abandoned == (game.number, game.packet['id']):
+                if self._end_turn_relit(game):
+                    return 'recovered'
                 return 'waiting'  # Nothing more can be done until the state changes or the timer ends the turn.
             if not self._log_caught_up(game):
                 return 'animating'
@@ -265,7 +282,11 @@ class Agent:
             return True
         key = (game.number, game.packet['id'])
         if not self.drain_wait or self.drain_wait[:2] != key:
-            self.drain_wait = (*key, self.clock() + self.drain_timeout)
+            self.drain_wait = (*key, self.clock() + self.drain_timeout, self.clock() + self.button_timeout)
+        if self.power.backlog.turn_behind and self.clock() < self.drain_wait[3]:
+            # The screen is still showing the last turn. The shorter limit starts once it gets here.
+            self.drain_wait = (*key, self.clock() + self.drain_timeout, self.drain_wait[3])
+            return False
         if self.power.backlog.size <= self.backlog_limit:
             return True
         return self.clock() >= self.drain_wait[2]  # A few lines are never repeated, so this cannot wait forever.
@@ -306,7 +327,26 @@ class Agent:
         self._recovered('dropped_move', f'turn {packet["state"]["turn"]}: {candidate}')
         if candidate['kind'] == 'end_turn':
             self.abandoned = (game.number, packet['id'])
+            self.end_turn_dropped = self.abandoned
+            self.lit_reads = 0
         return 'recovered'
+
+    def _end_turn_relit(self, game):
+        """Clicks on a grey button are ignored, so a button that lights afterwards reopens the turn."""
+        key = (game.number, game.packet['id'])
+        if not self.screen_ready or self.end_turn_dropped != key or self.relit_retries.get(key, 0) >= MAX_RELIT_RETRIES:
+            return False
+        try:
+            self.lit_reads = self.lit_reads + 1 if self.screen_ready() else 0
+        except Exception:
+            self.lit_reads = 0  # This repeats every step while waiting, so it is not logged.
+        if self.lit_reads < self.lit_required:
+            return False
+        self.relit_retries[key] = self.relit_retries.get(key, 0) + 1
+        self.abandoned = self.end_turn_dropped = self.screen_wait = None
+        self.failed_moves.pop(game.packet['id'], None)  # Moves dropped for the same reason get another chance too.
+        self._recovered('end_turn_relit', f'packet {game.packet["id"]}: End Turn is lit, so the turn is open again')
+        return True
 
     def _choice_on_screen(self, game):
         if not self.choice_ready:
@@ -343,7 +383,8 @@ class Agent:
             return True
         key = (game.number, game.packet['id'])
         if not self.screen_wait or self.screen_wait[:2] != key:
-            self.screen_wait = (*key, self.clock() + self.screen_timeout)
+            self.screen_started = self.clock()
+            self.screen_wait = (*key, self.screen_started + self.button_timeout)
             self.lit_reads = 0
             if self.screen_reset:
                 self.screen_reset()
@@ -355,6 +396,8 @@ class Agent:
         except Exception as error:
             self.lit_reads = 0
             self.log(f'screen check failed: {error}')
+            # A failed read says nothing about the button, so only the short limit applies.
+            self.screen_wait = (*key, min(self.screen_wait[2], self.screen_started + self.screen_timeout))
         if self.clock() < self.screen_wait[2]:
             return False
         if self.strict_screen:

@@ -29,7 +29,8 @@ CHECKPOINT = ROOT / '.data/imitation/laya-combo'
 # Careful is exactly the earlier behavior, with whole-board stability and a 20-second opening wait.
 PACES = {
     'fast': {'agent': dict(settle=0.15, confirm_timeout=1.2, choice_timeout=4.0, lit_required=2, opening_delay=0.0,
-                           screen_timeout=8.0, backlog_limit=12, drain_timeout=6.0, recover=True, eager_decision=True),
+                           screen_timeout=8.0, backlog_limit=12, drain_timeout=6.0, recover=True, eager_decision=True,
+                           button_timeout=60.0),  # Saved replays reach 24.6 s, and input must leave time to act.
              'strict_screen': False, 'choice_settle': 0.4, 'focus_settle': 0.12, 'focus_cap': 0.5},
     'careful': {'agent': dict(settle=0.5, confirm_timeout=2.0, choice_timeout=5.0, lit_required=3, opening_delay=20.0),
                 'strict_screen': True, 'choice_settle': 1.5, 'focus_settle': None, 'focus_cap': None},
@@ -487,32 +488,84 @@ def run_loop(args):
             if agent.power.game and agent.power.game.over:
                 walker.leave_game()  # Started on an end screen, so this game does not count.
                 continue
-            try:
-                result = agent.run_game()
-            except KeyboardInterrupt:
-                reason = 'stopped from terminal (Ctrl+C)'
-                record.finish({'stopped': reason, 'actions': agent.actions, 'mode': args.mode, 'pace': args.pace,
-                               'recoveries': agent.recoveries,
-                               'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None)})
-                raise Stop(reason) from None
-            except (Stop, RuntimeError, geometry.GeometryError) as stop:
-                record.finish({'stopped': str(stop), 'actions': agent.actions, 'mode': args.mode, 'pace': args.pace,
-                               'recoveries': agent.recoveries,
-                               'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
-                               'model_fallbacks': getattr(policy, 'fallbacks', 0)})
-                raise
-            record.finish({'result': result, 'policy': policy.name, 'actions': agent.actions, 'pace': args.pace,
-                           'recoveries': agent.recoveries,
-                           'checkpoint': getattr(policy, 'checkpoint', None),
-                           'model_fallbacks': getattr(policy, 'fallbacks', 0)})
-            results.append({**result, 'actions': agent.actions})
-            label = 'won' if result.get('won') is True else 'lost' if result.get('won') is False else 'drawn'
-            print(f'Game {len(results)}: {label} ({agent.actions} actions)', flush=True)
+            results.append(recorded_game(agent, record, policy, args.mode, args.pace, len(results) + 1))
             walker.leave_game()
     except (Stop, RuntimeError, geometry.GeometryError, OSError) as stop:
         stopped = str(stop)
     except KeyboardInterrupt:
         stopped = 'stopped from terminal (Ctrl+C)'
+    save_run(folder, screen, summary(), stopped)
+    if stopped:
+        sys.exit(2)
+
+
+def run_friend(args):
+    """Agreed friendly games. The player sends or accepts each challenge and the agent plays what follows."""
+    from .menu import GAME_SCENE, MenuWalker, Regions
+    from .windows_input import WindowsInput
+    policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
+    window = game_window()
+    screen = GameScreen(window)
+    regions = Regions(screen)
+    inputs = WindowsInput(window, current_window=game_window)
+    count = 'until you hold Esc' if args.games is None else f'for {args.games} game(s)'
+    print(f'LIVE INPUT ENABLED: agreed friendly challenges only, {count}, with the {policy.name} policy.', flush=True)
+    print('Send or accept the challenge and pick your deck in Hearthstone. The agent takes over in the game.', flush=True)
+    folder = ROOT / '.data/live' / ('friend-' + time.strftime('%Y%m%d-%H%M%S'))
+    results, stopped = [], None
+    summary = lambda: {**outcome_counts(results), 'results': results, 'stopped': stopped, 'mode': 'friend',
+                       'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
+                       'model_fallbacks': getattr(policy, 'fallbacks', 0)}
+    try:
+        log_path = current_log()
+        walker = MenuWalker(Tail(log_path.parent / 'LoadingScreen.log'), regions, inputs)
+        while args.games is None or len(results) < args.games:
+            tail = Tail(log_path, session_check=current_log)
+            if walker.read_scene() != GAME_SCENE:
+                tail.position = end_of(log_path)  # Earlier games in this log are not the next challenge.
+            record = SessionRecord(folder / f'{len(results) + 1:03d}', log_path, screen, args.frames, args.screen_settle,
+                                   args.pace)
+            # No idle limit: waiting for a friend to accept is normal, and Esc ends the session.
+            agent = build_agent(tail, policy, inputs, record, pace=args.pace, mode='friend', friend_agreed=True,
+                                mulligan_ready=regions.mulligan_ready)
+            agent.pump()
+            if agent.power.game and agent.power.game.over:
+                walker.leave_game()  # Started on an end screen, so this game does not count.
+                continue
+            results.append(recorded_game(agent, record, policy, 'friend', args.pace, len(results) + 1))
+            walker.leave_game()
+    except (Stop, RuntimeError, geometry.GeometryError, OSError) as stop:
+        stopped = str(stop)
+    except KeyboardInterrupt:
+        stopped = 'stopped from terminal (Ctrl+C)'
+    save_run(folder, screen, summary(), stopped)
+    if stopped and stopped not in ('stopped by the player', 'stopped from terminal (Ctrl+C)'):
+        sys.exit(2)
+
+
+def recorded_game(agent, record, policy, mode, pace, number):
+    """Play one game and save its outcome, however it ends. Returns the entry for the run's summary."""
+    shared = {'policy': policy.name, 'actions': agent.actions, 'pace': pace, 'mode': mode,
+              'checkpoint': getattr(policy, 'checkpoint', None)}
+    def finish(**outcome):
+        record.finish({**outcome, **shared, 'actions': agent.actions, 'recoveries': agent.recoveries,
+                       'model_fallbacks': getattr(policy, 'fallbacks', 0)})
+    try:
+        result = agent.run_game()
+    except KeyboardInterrupt:
+        reason = 'stopped from terminal (Ctrl+C)'
+        finish(stopped=reason)
+        raise Stop(reason) from None
+    except (Stop, RuntimeError, geometry.GeometryError) as stop:
+        finish(stopped=str(stop))
+        raise
+    finish(result=result)
+    label = 'won' if result.get('won') is True else 'lost' if result.get('won') is False else 'drawn'
+    print(f'Game {number}: {label} ({agent.actions} actions)', flush=True)
+    return {**result, 'actions': agent.actions}
+
+
+def save_run(folder, screen, summary, stopped):
     folder.mkdir(parents=True, exist_ok=True)
     if stopped:
         try:
@@ -520,11 +573,9 @@ def run_loop(args):
         except OSError as error:
             print('Stopped frame unavailable:', error, flush=True)
     with open(folder / 'summary.json', 'w', encoding='utf-8') as out:
-        json.dump(summary(), out, ensure_ascii=False, indent=1)
-    print(json.dumps(summary(), ensure_ascii=False), flush=True)
+        json.dump(summary, out, ensure_ascii=False, indent=1)
+    print(json.dumps(summary, ensure_ascii=False), flush=True)
     print('Saved to', folder, flush=True)
-    if stopped:
-        sys.exit(2)
 
 
 def watch(args):
@@ -583,17 +634,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, help='Local JSON profile; paths are relative to this file.')
     commands = parser.add_subparsers(dest='command', required=True)
-    for name, handler in (('status', status), ('preview', preview), ('play', play), ('watch', watch), ('loop', run_loop)):
+    for name, handler in (('status', status), ('preview', preview), ('play', play), ('watch', watch), ('loop', run_loop),
+                          ('friend', run_friend)):
         command = commands.add_parser(name)
         command.set_defaults(handler=handler)
         command.add_argument('--log')
-        if name in ('play', 'loop'):
+        if name in ('play', 'loop', 'friend'):
             command.add_argument('--pace', choices=sorted(PACES), default='fast',
                                  help='fast (default) trusts the log animation queue and keeps playing after a failed '
                                       'move; careful is the earlier slower behavior that stops instead.')
             command.add_argument('--no-tactics', action='store_true', help='Turn off the Pirate Warrior tactics.')
             command.add_argument('--screen-settle', type=float, default=1.5,
                                  help='With --pace careful: stable board/hand interval in seconds (0.5 to 5; default 1.5).')
+        if name in ('play', 'loop'):
             command.add_argument('--mode', choices=['practice', 'wild'], default='wild' if name == 'loop' else 'practice',
                                  help='wild requires Ranked Wild; practice allows AI games.')
         if name == 'preview':
@@ -608,6 +661,13 @@ def main():
             command.add_argument('--frames', action='store_true')
             command.add_argument('--deck-id', default=None)
             command.add_argument('--idle-limit', type=float, default=180.0)
+        if name == 'friend':
+            command.add_argument('--friend-agreed', action='store_true', required=True,
+                                 help='Required. Confirms your opponent knows a bot is playing.')
+            command.add_argument('--games', type=int, default=None, help='Stop after this many games. Default: until Esc.')
+            command.add_argument('--policy', choices=['laya', 'rules'], default='laya')
+            command.add_argument('--aggressive', action='store_true', help='Hit face whenever an attacker can.')
+            command.add_argument('--frames', action='store_true', help='Save a frame before every move. Slower.')
         if name == 'play':
             command.add_argument('--frames', action='store_true', help='Save a frame before every move. Slower.')
             command.add_argument('--execute', action='store_true', help='Send real mouse input.')
@@ -616,7 +676,7 @@ def main():
             command.add_argument('--friend-agreed', action='store_true',
                                  help='Also act in a friendly challenge. Use only if your opponent knows a bot is playing.')
     args = parser.parse_args()
-    if args.command in ('play', 'loop') and not 0.5 <= args.screen_settle <= 5:
+    if args.command in ('play', 'loop', 'friend') and not 0.5 <= args.screen_settle <= 5:
         parser.error('--screen-settle must be between 0.5 and 5 seconds')
     if args.config:
         try:
@@ -625,6 +685,8 @@ def main():
             parser.error(str(error))
     if args.command == 'loop':
         args.deck_id = args.deck_id or DECK_ID
+    if args.command == 'friend' and args.games is not None and args.games <= 0:
+        parser.error('--games must be positive')
     if args.command == 'loop' and args.games <= 0:
         parser.error('--games must be positive')
     args.handler(args)

@@ -79,8 +79,20 @@ After launching, click the game window within 60 seconds. Each live run saves a 
 move, the outcome and a copy of the log to `.data/live/<time>/`.
 
 Add `--aggressive` to make any attacker that can reach the enemy hero hit face instead of trading.
-Add `--friend-agreed` to also act in a friendly challenge, only when your opponent knows a bot is
-playing. Practice mode refuses Ranked, Casual and Arena; `--mode wild` permits Ranked Wild only. The friendly game type name comes from the
+To play a friend who knows a bot is playing:
+
+```powershell
+.venv/Scripts/python.exe -m agent.cli friend --friend-agreed
+.venv/Scripts/python.exe -m agent.cli friend --friend-agreed --games 3
+```
+
+Open Hearthstone, then send or accept the challenge and pick your deck yourself. The agent plays each
+game and clicks past the end screen, then waits for the next challenge until Esc or `--games`. It acts
+only in a friendly game and refuses anything else. If both players' names are in the log, it identifies
+you by whose hand the client can read. This command has not yet run live.
+
+`play --friend-agreed` also acts in a friendly challenge, but it plays one game and also allows AI games.
+Practice mode refuses Ranked, Casual and Arena; `--mode wild` permits Ranked Wild only. The friendly game type name comes from the
 game's known values and has not yet been seen in a log, so an unexpected name is refused too.
 
 Hold **Esc** to stop. Add `--policy rules` to run without the model. To check positions by eye,

@@ -2,19 +2,25 @@
 import unittest
 
 from agent.cli import PACES, SessionRecord, build_agent
-from agent.loop import CAUTIOUS_MOVES, FocusLost, Stop
+from agent.loop import CAUTIOUS_MOVES, MAX_RELIT_RETRIES, FocusLost, Stop
 from agent.pace_report import report_log, run_lines
 from agent.policy import LayaPolicy, RulesPolicy
-from agent.power import PowerLog
+from agent.power import AnimationBacklog, PowerLog
 from agent.screen import region_signature
 from agent.tactics import buff_first, coin_tempo, forced_move, mulligan
-from agent.test_agent import ME, Harness, game_lines, line, option_lines, send_line
+from agent.test_agent import ME, Harness, game_lines, line, option_lines, power, send_line
+
+TURN_4 = 'TAG_CHANGE Entity=GameEntity tag=TURN value=4'
 
 
 def replayed(rows):
     """The same power lines, as the client logs them when it reaches them in its animation queue."""
     return [row.replace('GameState.DebugPrintPower()', 'PowerTaskList.DebugPrintPower()')
             for row in rows if 'GameState.DebugPrintPower()' in row]
+
+
+def replay_line(body):
+    return f'D 10:00:00.0 PowerTaskList.DebugPrintPower() - {body}\n'
 
 
 def prefer_minion_then_face(state, candidates, cards=None):
@@ -118,6 +124,164 @@ class GateTests(unittest.TestCase):
         with self.assertRaises(Stop):
             harness.agent.step()
         self.assertEqual(harness.inputs.gestures, [])
+
+
+class LongReplayTests(unittest.TestCase):
+    """From a live game: a 24-second N'Zoth replay read as caught up and End Turn was clicked while grey."""
+
+    def test_a_common_line_does_not_jump_ahead_to_a_later_copy(self):
+        backlog = AnimationBacklog()
+        for body in ('first', 'BLOCK_END', *(f'middle {i}' for i in range(30)), 'BLOCK_END'):
+            backlog.received(body)
+        backlog.played('BLOCK_END')
+        self.assertEqual(backlog.size, 31)
+        backlog.played('BLOCK_END')
+        self.assertEqual(backlog.size, 0)
+
+    def test_replaying_every_line_in_order_empties_it_despite_repeats(self):
+        backlog = AnimationBacklog()
+        rows = ['BLOCK_END', 'a', 'BLOCK_END', 'b', 'BLOCK_END']
+        for body in rows:
+            backlog.received(body)
+        for body in rows:
+            backlog.played(body)
+        self.assertEqual(backlog.size, 0)
+
+    def test_a_line_never_replayed_does_not_hold_the_count_up(self):
+        backlog = AnimationBacklog()
+        for body in ('skipped', 'a', 'b'):
+            backlog.received(body)
+        backlog.played('b')
+        self.assertEqual(backlog.size, 0)
+
+    def test_turn_behind_only_follows_turn_changes(self):
+        backlog = AnimationBacklog()
+        backlog.received('tag=TURN value=3')  # How a reconnect reports the turn, with no replay to wait for.
+        self.assertFalse(backlog.turn_behind)
+        backlog.received(TURN_4)
+        self.assertTrue(backlog.turn_behind)
+        backlog.played(TURN_4)
+        self.assertFalse(backlog.turn_behind)
+
+    def turn_start(self, lit=lambda: False):
+        """The log has reached the player's turn, and the screen is still replaying the last one."""
+        rows = game_lines() + [power(TURN_4)] + option_lines()
+        harness = fast_harness(rows)
+        harness.pending += [row for row in replayed(rows) if TURN_4 not in row]
+        agent = harness.agent
+        agent.screen_ready, agent.screen_timeout, agent.button_timeout = lit, 8.0, 60.0
+        agent.policy.choose = lambda state, candidates, cards=None: next(
+            i for i, c in enumerate(candidates) if c['kind'] == 'end_turn')
+        agent.step()
+        harness.clock.now += 2
+        return harness
+
+    def run_for(self, harness, seconds):
+        statuses = []
+        for _ in range(int(seconds / 0.5)):
+            statuses.append(harness.agent.step())
+            harness.clock.now += 0.5
+        return statuses
+
+    def test_no_input_until_the_replay_reaches_the_new_turn(self):
+        harness = self.turn_start(lit=lambda: True)
+        self.run_for(harness, 30)
+        self.assertEqual(harness.inputs.gestures, [])
+        harness.pending.append(replay_line(TURN_4))
+        harness.after_input = [send_line(0, 0)]
+        self.assertIn('acted', self.run_for(harness, 3))
+        self.assertEqual(harness.agent.power.game.sends[-1]['sent']['option'], 0)
+
+    def test_the_wait_for_a_new_turn_has_a_limit(self):
+        harness = self.turn_start(lit=lambda: True)
+        self.assertTrue(harness.agent.power.backlog.turn_behind)
+        self.run_for(harness, 70)
+        self.assertNotEqual(harness.inputs.gestures, [])
+
+    def test_a_grey_button_waits_past_the_short_limit(self):
+        harness = self.turn_start()
+        harness.pending.append(replay_line(TURN_4))
+        self.run_for(harness, 30)
+        self.assertEqual(harness.inputs.gestures, [])
+
+    def test_a_grey_button_is_tried_at_the_long_limit(self):
+        harness = self.turn_start()
+        harness.pending.append(replay_line(TURN_4))
+        self.run_for(harness, 70)
+        self.assertNotEqual(harness.inputs.gestures, [])
+
+    def test_a_failed_screen_read_gives_up_at_the_short_limit(self):
+        def broken():
+            raise OSError('no frame')
+        harness = self.turn_start(lit=broken)
+        harness.pending.append(replay_line(TURN_4))
+        self.run_for(harness, 15)
+        self.assertNotEqual(harness.inputs.gestures, [])
+
+    def dropped_end_turn(self, lit):
+        """End Turn was clicked and ignored, and every attempt has run out."""
+        harness = self.turn_start(lit=lambda: lit[0])
+        harness.pending.append(replay_line(TURN_4))
+        self.run_for(harness, 80)
+        self.assertEqual(harness.agent.abandoned, (harness.agent.power.game.number, 1))
+        return harness
+
+    def test_a_dropped_end_turn_is_tried_again_once_the_button_lights(self):
+        lit = [False]
+        harness = self.dropped_end_turn(lit)
+        sent = len(harness.inputs.gestures)
+        self.run_for(harness, 5)
+        self.assertEqual(len(harness.inputs.gestures), sent)  # Still grey, so no more input.
+        lit[0] = True
+        harness.after_input = [send_line(0, 0)]
+        self.assertIn('acted', self.run_for(harness, 3))
+        self.assertEqual(len(harness.agent.power.game.sends), 1)
+        self.assertEqual([r['kind'] for r in harness.agent.recoveries], ['dropped_move', 'end_turn_relit'])
+
+    def test_one_lit_read_is_not_enough_to_try_again(self):
+        lit = [False]
+        harness = self.dropped_end_turn(lit)
+        sent = len(harness.inputs.gestures)
+        reads = iter([True, False, True, False])
+        harness.agent.screen_ready = lambda: next(reads, False)
+        self.run_for(harness, 2)
+        self.assertEqual(len(harness.inputs.gestures), sent)
+
+    def test_trying_again_is_limited_when_a_lit_button_still_ignores_clicks(self):
+        lit = [False]
+        harness = self.dropped_end_turn(lit)
+        lit[0] = True
+        self.run_for(harness, 60)
+        relit = [r for r in harness.agent.recoveries if r['kind'] == 'end_turn_relit']
+        self.assertEqual(len(relit), MAX_RELIT_RETRIES)
+        sent = len(harness.inputs.gestures)
+        self.assertEqual(self.run_for(harness, 5)[-1], 'waiting')
+        self.assertEqual(len(harness.inputs.gestures), sent)
+
+    def test_moves_dropped_on_a_grey_button_come_back_when_it_lights(self):
+        lit = [False]
+        harness = self.turn_start(lit=lambda: lit[0])
+        harness.pending.append(replay_line(TURN_4))
+        harness.agent.policy.choose = lambda state, candidates, cards=None: 0  # Works through every move in turn.
+        self.run_for(harness, 90)
+        self.assertEqual(harness.agent.abandoned, (harness.agent.power.game.number, 1))
+        self.assertTrue(harness.agent.failed_moves.get(1))
+        lit[0] = True
+        self.run_for(harness, 1)
+        self.assertEqual(harness.agent.failed_moves.get(1), None)
+
+    def test_a_timer_ending_the_turn_clears_the_wait_without_input(self):
+        lit = [False]
+        harness = self.dropped_end_turn(lit)
+        sent = len(harness.inputs.gestures)
+        lit[0] = True
+        harness.pending.append(power('TAG_CHANGE Entity=GameEntity tag=TURN value=5'))
+        self.run_for(harness, 5)
+        self.assertEqual(len(harness.inputs.gestures), sent)
+
+    def test_fast_pace_uses_the_long_button_limit(self):
+        self.assertEqual(PACES['fast']['agent']['button_timeout'], 60.0)
+        self.assertNotIn('button_timeout', PACES['careful']['agent'])
 
 
 class RecoveryTests(unittest.TestCase):
