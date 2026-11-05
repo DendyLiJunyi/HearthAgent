@@ -1,5 +1,8 @@
 # Learning from failed matches
 
+The November 5 Standard 火炮战 recording review and candidate comparisons are
+documented in [Standard adaptation](standard-learning-20261105.md).
+
 The latest evaluator reports raw-model, rules-only and deployed-policy agreement separately for
 every suite. See [evaluation and independent data](reliability-improvements.md) for optional final-test
 input and overlap checks. Broad blunder flags are now soft policy preferences, not exclusions.
