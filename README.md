@@ -45,6 +45,16 @@ so start with `--games 1`.
 .venv/Scripts/python.exe -m agent.cli loop --games 3                     # Ranked Wild
 ```
 
+For a long run, add `--restart-every` to close and reopen the game between games:
+
+```powershell
+.venv/Scripts/python.exe -m agent.cli loop --games 40 --mode practice --restart-every 5,6,7
+```
+
+With several numbers, it picks one at random each time, so this restarts after 5, 6 or 7 games. A single number,
+such as `--restart-every 6`, keeps it fixed. It only closes the game between games, and asks it to close before
+forcing it. Keep Battle.net logged in. It has run live: 4 restarts across 28 practice games.
+
 If Hearthstone is closed, the agent opens it through Battle.net. Click the game window within 60 seconds of
 the prompt. It stops if a menu looks unfamiliar, or if the game starts with a different deck from the one set up.
 
@@ -72,6 +82,7 @@ the prompt. It stops if a menu looks unfamiliar, or if the game starts with a di
 | `--pace careful` | all | Play slower, and stop on a failure instead of recovering |
 | `--frames` | all | Save a screenshot before every move (slower) |
 | `--deck-id <id>` | `loop` | Expect a different deck |
+| `--restart-every <n,...>` | `loop` | Close and reopen the game between games |
 
 ### After a game
 
@@ -218,6 +229,7 @@ Then try a practice game with `play --execute` before anything else.
 | A menu is `unrecognized`, or the loop stops at a menu | Layout differs from the recordings | Start the game yourself and use `play` or `friend` |
 | CUDA or model error at launch | No NVIDIA GPU or driver, or step 3 is incomplete | Update the driver, check the copied files, or use `--policy rules` |
 | Moves pause with nothing happening | Another app is in front | Click Hearthstone |
+| After a restart, the game opens but nothing clicks | Windows kept another app in front | Click Hearthstone once |
 
 ## More detail
 

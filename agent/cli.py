@@ -17,6 +17,7 @@ from .screen import (GameScreen, BattlefieldSettler, battlefield_signature, hand
 from .loop import Agent, RecordingInput, Stop
 from .policy import LayaPolicy, RulesPolicy, load_cards
 from .power import PowerLog, candidates_from
+from .restart import RestartPlan, bring_to_front, close_game, parse_restart_every
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -442,6 +443,36 @@ def ensure_game(timeout=240):
     return game_window()
 
 
+def settled_window(get=None, *, reads=3, timeout=90.0, clock=time.monotonic, sleep=time.sleep):
+    """A window just opened can still change size, and later input would then be refused as a moved window."""
+    get = get or game_window
+    deadline = clock() + timeout
+    last, same = None, 0
+    while clock() < deadline:
+        try:
+            window = get()
+        except SystemExit:
+            window = None
+        if window and (window['width'], window['height']) == (1920, 1080):
+            same = same + 1 if window == last else 1
+            last = window
+            if same >= reads:
+                return window
+        else:
+            last, same = None, 0
+        sleep(1)
+    raise Stop('the reopened game window did not settle at 1920x1080')
+
+
+def reopen_game():
+    """Open the game again after a restart, as a Stop so that the run still saves what it has."""
+    try:
+        ensure_game()
+        return settled_window()
+    except SystemExit as error:
+        raise Stop(str(error)) from None
+
+
 def end_of(path):
     return Path(path).stat().st_size if Path(path).exists() else 0
 
@@ -464,14 +495,18 @@ def run_loop(args):
     print(f'LIVE INPUT ENABLED: {args.games} {args.mode} games with the {policy.name} policy. Hold Esc to stop.', flush=True)
     folder = ROOT / '.data/live' / ('loop-' + time.strftime('%Y%m%d-%H%M%S'))
     results, stopped = [], None
-    summary = lambda: {**outcome_counts(results), 'results': results, 'stopped': stopped,
+    plan = RestartPlan(args.restart_every)
+    restarts = 0
+    summary = lambda: {**outcome_counts(results), 'results': results, 'stopped': stopped, 'restarts': restarts,
                        'mode': args.mode, 'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
                        'model_fallbacks': getattr(policy, 'fallbacks', 0)}
     try:
         wait_for_focus(inputs, window)
         log_path = current_log()
-        walker = MenuWalker(Tail(log_path.parent / 'LoadingScreen.log'), regions, inputs, mode=args.mode,
-                            timeout=180.0 if args.mode == 'wild' else 45.0)
+        def new_walker():
+            return MenuWalker(Tail(log_path.parent / 'LoadingScreen.log'), regions, inputs, mode=args.mode,
+                              timeout=180.0 if args.mode == 'wild' else 45.0)
+        walker = new_walker()
         while len(results) < args.games:
             tail = Tail(log_path, session_check=current_log)
             if walker.read_scene() != GAME_SCENE:
@@ -490,6 +525,22 @@ def run_loop(args):
                 continue
             results.append(recorded_game(agent, record, policy, args.mode, args.pace, len(results) + 1))
             walker.leave_game()
+            if plan.game_played() and len(results) < args.games:
+                if inputs.aborted():
+                    raise Stop('stopped by the player')
+                if walker.read_scene() == GAME_SCENE:
+                    raise Stop('still in the game scene, so the game was not closed')
+                print(f'Restarting Hearthstone after {plan.played} games ({len(results)} of {args.games} played).', flush=True)
+                close_game(window, inputs.aborted)
+                restarts += 1
+                plan.restarted()
+                window = reopen_game()
+                screen = GameScreen(window)
+                regions = Regions(screen)
+                inputs = WindowsInput(window, current_window=game_window)
+                bring_to_front(window['hwnd'])  # Otherwise the menu walker waits for someone to click the game.
+                log_path = current_log()
+                walker = new_walker()
     except (Stop, RuntimeError, geometry.GeometryError, OSError) as stop:
         stopped = str(stop)
     except KeyboardInterrupt:
@@ -661,6 +712,8 @@ def main():
             command.add_argument('--frames', action='store_true')
             command.add_argument('--deck-id', default=None)
             command.add_argument('--idle-limit', type=float, default=180.0)
+            command.add_argument('--restart-every', default=None, metavar='N[,N...]',
+                                 help='Close and reopen the game between games. 5,6,7 picks one at random each time.')
         if name == 'friend':
             command.add_argument('--friend-agreed', action='store_true', required=True,
                                  help='Required. Confirms your opponent knows a bot is playing.')
@@ -685,6 +738,11 @@ def main():
             parser.error(str(error))
     if args.command == 'loop':
         args.deck_id = args.deck_id or DECK_ID
+        if args.restart_every is not None:
+            try:
+                args.restart_every = parse_restart_every(args.restart_every)
+            except ValueError as error:
+                parser.error(f'--restart-every: {error}')
     if args.command == 'friend' and args.games is not None and args.games <= 0:
         parser.error('--games must be positive')
     if args.command == 'loop' and args.games <= 0:

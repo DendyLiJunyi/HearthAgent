@@ -307,6 +307,16 @@ every time, so timing does not enter the choice. That is one fast game, so it do
   29 of 61, older 80 to 76 of 213), so it was removed and not tuned on those games. In training games the player used it
   on only 5 of 59 decisions where it was available, with no clear pattern, which is too little to write a rule from.
 
+## Restarting during a long run
+
+`loop --restart-every 5,6,7` closes and reopens Hearthstone between games, picking 5, 6 or 7 games at random for each
+stretch. It closes only after the end screens have gone, and never in the game scene. It posts `WM_CLOSE`, waits up to
+30 s for the process to exit, and only then forces it. The game reopens through the same Battle.net path as a cold start,
+and the window, screen, input and logs are rebuilt for the new client. A failed restart stops the run and saves its summary.
+
+Seen live: 4 restarts across 28 practice games (`loop-20261105-094404` and `loop-20261105-100034`), and both runs ended only
+when stopped from the terminal. If Windows refuses to bring the new window forward, menu input waits until the game is clicked.
+
 ## Automatic practice loop (not yet tested live)
 
 `python -m agent.cli loop --games N` sends real input from the menus onward. It opens Hearthstone through Battle.net if
