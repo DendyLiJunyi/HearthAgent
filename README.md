@@ -40,6 +40,10 @@ so start with `--games 1`.
 
 ### Practice or Ranked Wild
 
+Standard Ranked with the supplied 火炮战 deck is also supported. See
+[ranked modes and deck calibration](docs/ranked-modes.md) for import, setup and
+restart commands. Standard loops require the imported deck ID and a calibrated menu profile.
+
 ```powershell
 .venv/Scripts/python.exe -m agent.cli loop --games 3 --mode practice
 .venv/Scripts/python.exe -m agent.cli loop --games 3                     # Ranked Wild
@@ -98,6 +102,7 @@ Each run is saved in `.data/live/<run>/`. There's a `summary.json` for `loop` an
 ```powershell
 .venv/Scripts/python.exe -m agent.cli status                             # what the current log shows
 .venv/Scripts/python.exe -m agent.pace_report .data/live/<run>/001       # how fast the moves were
+.venv/Scripts/python.exe -m agent.play_report .data/live/<loop folder>   # record and play mistakes across a run
 ```
 
 To teach the agent from its mistakes, see [Learning from failed matches](docs/learning.md).
@@ -138,7 +143,7 @@ Copy these from the old computer to the same paths in the new project folder:
 
 | Path | Size | Contents |
 | --- | --- | --- |
-| `.data/imitation/laya-combo/` | 650 MB | The trained model, which can't be downloaded |
+| `.data/imitation/laya-wild-reviewed-20261105/` | ~650 MB | Current trained model; keep `laya-combo` for rollback |
 | `.data/cards-enUS.json` | 10 MB | Card data, needed even with `--policy rules` |
 
 ### 4. Turn on Hearthstone's logs
@@ -180,7 +185,7 @@ different deck, copy `config/agent.example.json` to `config/agent.json` and edit
   "install": "C:/Program Files (x86)/Hearthstone",
   "battle_net": "C:/Program Files (x86)/Battle.net/Battle.net.exe",
   "deck_id": "9567872927",
-  "checkpoint": "../.data/imitation/laya-combo"
+  "checkpoint": "../.data/imitation/laya-wild-reviewed-20261105"
 }
 ```
 

@@ -7,8 +7,11 @@ from collections import Counter
 from pathlib import Path
 
 from . import tactics as deck_tactics
+from . import cannon
+from . import rewind
 
 ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_CHECKPOINT = ROOT / '.data/imitation/laya-wild-reviewed-20261105'
 HOSTILE = ('damage', 'destroy', 'freeze', 'silence', 'transform')
 
 
@@ -185,19 +188,29 @@ class RulesPolicy:
     def choose(self, state, candidates, cards=None):
         started = time.perf_counter()
         scores = self.scores(state, candidates)
-        forced = deck_tactics.forced_move(state, candidates, self.cards) if self.tactics and max(scores) < 1000.0 else None
+        forced = None
+        if self.tactics and max(scores) < 1000.0:
+            forced = cannon.forced_move(state, candidates, self.cards) if cannon.enabled(self) else None
+            forced = forced or deck_tactics.forced_move(state, candidates, self.cards)
         if forced:
             self.decision_counts[forced[1]] += 1
             self.last_decision = {'source': 'rules', 'reason': forced[1], 'selected': forced[0],
                                   'elapsed_ms': (time.perf_counter() - started) * 1000, 'checkpoint': None}
             return forced[0]
         pool = list(range(len(candidates)))
+        if self.tactics and cannon.enabled(self) and max(scores) < 1000.0:
+            pool = cannon.allowed(state, candidates, self.cards)
         if self.aggressive:
             pool = self.face_first(state, candidates, pool)
+        if self.tactics and max(scores) < 1000.0:
+            pool = deck_tactics.without_wasted_attacks(state, candidates, pool, self.cards)
         # Ties break on list position, which keeps replays reproducible.
         pick = max(pool, key=lambda i: (scores[i], -i))
         reason = 'rules_policy'
         if self.tactics and max(scores) < 1000.0:
+            coin = deck_tactics.coin_before_passing(state, candidates, self.cards) if candidates[pick]['kind'] == 'end_turn' else None
+            if coin is not None:
+                pick, reason = coin, 'tactics:coin_before_passing'
             buff = deck_tactics.buff_first(state, candidates, pick, self.cards)
             if buff is not None:
                 pick, reason = buff, 'tactics:buff_first'
@@ -209,6 +222,8 @@ class RulesPolicy:
     def mulligan(self, entities, cards_by_entity):
         """Return deck-summoned Patches; otherwise keep the existing low-cost opening curve."""
         if self.tactics:
+            if cannon.enabled(self):
+                return cannon.mulligan(entities, cards_by_entity, self.cards)
             return deck_tactics.mulligan(entities, cards_by_entity, self.cards)
         replace = []
         for entity in entities:
@@ -220,9 +235,16 @@ class RulesPolicy:
 
     def pick_choice(self, choice, cards_by_entity):
         """Highest-cost offer, a rough proxy for card power on Discover-style choices."""
+        timeline = rewind.choose(choice, cards_by_entity)
+        if timeline:
+            index, reason = timeline
+            self.last_choice_decision = {'reason': reason, 'selected': index}
+            return index
         def value(entity):
             return self.cards.get(cards_by_entity.get(str(entity['id'])) or entity.get('card'), {}).get('cost', 0)
-        return max(range(len(choice['entities'])), key=lambda i: (value(choice['entities'][i]), -i))
+        index = max(range(len(choice['entities'])), key=lambda i: (value(choice['entities'][i]), -i))
+        self.last_choice_decision = {'reason': 'discover:highest_cost', 'selected': index}
+        return index
 
 
 class LayaPolicy:
@@ -256,7 +278,7 @@ class LayaPolicy:
         configure_environment()
         os.environ['HF_HUB_OFFLINE'] = '1'
         import laya
-        checkpoint = Path(path or ROOT / '.data/imitation/laya-combo').resolve()
+        checkpoint = Path(path or DEFAULT_CHECKPOINT).resolve()
         agent = laya.load(str(checkpoint), device=device)
 
         def predict(state, questions):
@@ -322,7 +344,8 @@ class LayaPolicy:
         if max(scores) >= 1000.0 or ability or len(candidates) > self.MAX_OPTIONS:
             self._reason = 'lethal' if max(scores) >= 1000.0 else 'ability' if ability else 'option_limit'
             return self.rules.choose(state, candidates, cards)
-        forced = deck_tactics.forced_move(state, candidates, self.cards) if self.tactics else None
+        forced = cannon.forced_move(state, candidates, self.cards) if self.tactics and cannon.enabled(self.rules) else None
+        forced = forced or (deck_tactics.forced_move(state, candidates, self.cards) if self.tactics else None)
         if forced:
             self._reason = forced[1]
             return forced[0]
@@ -337,13 +360,27 @@ class LayaPolicy:
             if self.rules.is_blunder(state, candidate, candidates):
                 totals[i] -= self.preference_penalty * self.orders
         pool = self.allowed(state, candidates)
+        if self.tactics and cannon.enabled(self.rules):
+            preferred = cannon.allowed(state, candidates, self.cards)
+            pool = [i for i in pool if i in preferred] or pool
         pick = max(pool, key=lambda i: (totals[i], -i))
+        if self.tactics:
+            kept = deck_tactics.without_wasted_attacks(state, candidates, pool, self.cards)
+            if pick not in kept:
+                self._reason = 'tactics:no_wasted_attack'
+            pool = kept
+            pick = max(pool, key=lambda i: (totals[i], -i))
         if self.tactics and candidates[pick]['kind'] == 'end_turn':
             # An aggressive deck does not pass with damage or mana left: take the model's best real alternative.
             useful = [i for i in pool if self.rules.is_useful(state, candidates[i], candidates)]
             if useful:
                 self._reason = 'tactics:no_early_end_turn'
                 pick = max(useful, key=lambda i: (totals[i], -i))
+            else:
+                coin = deck_tactics.coin_before_passing(state, candidates, self.cards)
+                if coin is not None:
+                    self._reason = 'tactics:coin_before_passing'
+                    return coin
         if self.tactics:
             buff = deck_tactics.buff_first(state, candidates, pick, self.cards)
             if buff is not None:
@@ -355,4 +392,6 @@ class LayaPolicy:
         return self.rules.mulligan(entities, cards_by_entity)
 
     def pick_choice(self, choice, cards_by_entity):
-        return self.rules.pick_choice(choice, cards_by_entity)
+        index = self.rules.pick_choice(choice, cards_by_entity)
+        self.last_choice_decision = self.rules.last_choice_decision
+        return index

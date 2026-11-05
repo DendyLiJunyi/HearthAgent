@@ -1,7 +1,7 @@
 """The play loop. Input is injected, so offline tests and live play run the same logic.
 
 Rules that keep a wrong click from becoming a runaway:
-- Practice mode allows AI games and agreed friendly challenges. Wild mode requires Ranked Wild.
+- Practice mode allows AI games and agreed friendly challenges. Ranked modes require their exact format.
   Friend mode allows agreed friendly challenges and nothing else.
   Casual, arena and anything unrecognized are refused.
 - Nothing is sent until the log has been quiet for `settle` seconds.
@@ -75,7 +75,7 @@ class Agent:
                  clock=time.monotonic, sleep=time.sleep, log=print, before_input=None, mode='practice', opening_delay=0.0,
                  choice_ready=None, backlog_limit=None, drain_timeout=6.0, recover=False, eager_decision=False,
                  button_timeout=None):
-        if mode not in ('practice', 'wild', 'friend'):
+        if mode not in ('practice', 'wild', 'standard', 'friend'):
             raise ValueError(f'unsupported mode: {mode}')
         self.mode = mode
         self.opening_delay = opening_delay
@@ -144,6 +144,12 @@ class Agent:
         self._note({'kind': 'recovery', 'recovery': kind, 'detail': detail})
 
     def check_allowed(self, game):
+        if self.mode == 'standard':
+            if game.game_type != 'GT_RANKED' or game.format_type != 'FT_STANDARD':
+                raise Stop(f'refusing to act in {game.game_type}/{game.format_type}: Ranked Standard required')
+            if game.local is None:
+                raise Stop('cannot tell which player is local')
+            return
         if self.mode == 'wild':
             if game.game_type != 'GT_RANKED' or game.format_type != 'FT_WILD':
                 raise Stop(f'refusing to act in {game.game_type}/{game.format_type}: Ranked Wild required')
@@ -546,17 +552,19 @@ class Agent:
         else:
             if choice['type'] != 'GENERAL' or choice['max'] != 1:
                 raise Stop(f'unsupported {choice["type"]} choice with up to {choice["max"]} picks')
-            index = self.policy.pick_choice(choice, cards)
+            index = self.policy.pick_choice(dict(choice, state=game.snapshot()), cards)
             expected = {entities[index]['id']}
             try:
-                gestures = [('click', geometry.choice_point(index, len(entities)))]
+                gestures = [('click', geometry.entity_choice_point(index, entities, cards))]
             except geometry.GeometryError as error:
                 raise Stop(f'cannot plan choice: {error}') from error
         self._note({'kind': 'choice', 'type': choice['type'], 'choice': choice['id'], 'gestures': gestures,
                     'replace': sorted(replace) if choice['type'] == 'MULLIGAN' else None,
                     'entities': [e['id'] for e in entities],
                     'cards': [cards.get(str(e['id'])) for e in entities],
+                    'state': game.snapshot(), 'choice_source': choice.get('source'),
                     'decision': {'source': 'rules', 'reason': choice['type'].lower(),
+                                 **(getattr(self.policy, 'last_choice_decision', {}) if choice['type'] != 'MULLIGAN' else {}),
                                  'elapsed_ms': (self.clock() - started) * 1000,
                                  'checkpoint': getattr(self.policy, 'checkpoint', None)}})
         if not self._focus_ready():

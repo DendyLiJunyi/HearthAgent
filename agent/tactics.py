@@ -22,6 +22,7 @@ LETHAL_PIRATE_BONUS = {SOUTHSEA_CAPTAIN: 1, BLASTPOWDER_ENGINEER: 1}  # Hozen pa
 MULLIGAN_ALWAYS = {'YOD_022', BLOODSAIL_DECKHAND, 'TOY_518', 'CAP_107', 'GVG_075', 'DRG_056', 'CAP_104', 'CAP_105'}
 MULLIGAN_CURVE_TOPPERS = {SOUTHSEA_CAPTAIN, HOZEN_ROUGHHOUSER}
 KEEP_MAX_COST = 2
+HERO_HIT_LIMIT = 4  # A hero attack that kills nothing is not worth this much health.
 TOO_SLOW_TO_KEEP = {'CAP_102', 'CAP_106', 'JAIL_421', 'JAIL_384'}  # Land Ho!, Crowley, Warptooth, Hogger
 
 
@@ -165,6 +166,85 @@ def coin_tempo(state, candidates, cards):
              if cards.get(card['card'], {}).get('name') != COIN_NAME and card['cost'] <= mana + 1]
     usable_now = _best_spend(plays.values(), mana)
     return coin if usable_now < mana and _best_spend(costs, mana + 1) > usable_now + 1 else None
+
+
+def coin_before_passing(state, candidates, cards):
+    """About to end the turn, spend The Coin if it pays for a minion or weapon that would otherwise wait.
+
+    Spells are left out because a card one mana out of reach has no option yet, so its targets are unknown.
+    Risky Skipper is left out because it can hurt our own board.
+    """
+    found = _index(state)
+    coin = next((i for i, move in enumerate(candidates) if found.get(move['source'], (None, None))[0] == 'hand'
+                 and cards.get(found[move['source']][1]['card'], {}).get('name') == COIN_NAME), None)
+    if coin is None or _skipper_risk(state):
+        return None
+    you = state['you']
+    for card in you.get('hand', []):
+        fits = card['type'] == 'WEAPON' or (card['type'] == 'MINION' and len(you['minions']) < 7)
+        if fits and card['cost'] == you['mana'] + 1 and base_id(card['card']) != RISKY_SKIPPER:
+            return coin
+    return None
+
+
+def _attacker_stats(state, kind, attacker, cards):
+    """Attack and remaining health as the attack lands. Hozen buffs another Pirate as it attacks."""
+    if kind == 'your_hero':
+        weapon = state['you'].get('weapon')
+        return max(attacker['atk'], weapon['atk'] if weapon else 0), _hp(attacker) + attacker['armor']
+    buffed = is_pirate(cards.get(attacker['card'], {})) and any(
+        base_id(m['card']) == HOZEN_ROUGHHOUSER and m['id'] != attacker['id'] for m in state['you']['minions'])
+    return attacker['atk'] + buffed, _hp(attacker) + buffed
+
+
+def _finished_by_others(state, candidate, candidates, found, cards, power):
+    """The other legal attacks on this target can kill it this turn."""
+    target = found[candidate['target']][1]
+    shielded = 'DIVINE_SHIELD' in target['keywords']
+    total = 0 if shielded else power  # Our hit only removes a Divine Shield.
+    for move in candidates:
+        kind, other = found.get(move['source'], (None, None))
+        if move['source'] == candidate['source'] or move['target'] != candidate['target']:
+            continue
+        if kind == 'your_minion' and 'POISONOUS' in other['keywords'] and not shielded:
+            return True
+        if kind in ('your_minion', 'your_hero'):
+            total += _attacker_stats(state, kind, other, cards)[0]
+    return total >= _hp(target)
+
+
+def wasted_attack(state, candidate, candidates, cards):
+    """True for an attack on a minion that gives up too much and kills nothing.
+
+    A minion may die without a kill only for a Taunt or when other attacks can finish the target. The hero
+    takes no large hit without a kill even then, because the minions can attack first, and never attacks
+    into its own death.
+    """
+    found = _index(state)
+    kind, attacker = found.get(candidate['source'], (None, None))
+    target_kind, target = found.get(candidate['target'], (None, None))
+    if kind not in ('your_minion', 'your_hero') or target_kind != 'enemy_minion':
+        return False
+    power, life = _attacker_stats(state, kind, attacker, cards)
+    words = attacker['keywords']
+    if 'IMMUNE' in words:
+        return False
+    if kind == 'your_hero' and target['atk'] >= life:
+        return True
+    shielded = 'DIVINE_SHIELD' in target['keywords']
+    if not shielded and 'IMMUNE' not in target['keywords'] and (power >= _hp(target) or 'POISONOUS' in words):
+        return False
+    if 'TAUNT' in target['keywords']:
+        return False
+    if kind == 'your_hero':
+        return target['atk'] >= HERO_HIT_LIMIT
+    if 'DIVINE_SHIELD' in words or 'DEATHRATTLE' in words or target['atk'] < life:
+        return False
+    return not _finished_by_others(state, candidate, candidates, found, cards, power)
+
+
+def without_wasted_attacks(state, candidates, pool, cards):
+    return [i for i in pool if not wasted_attack(state, candidates[i], candidates, cards)] or pool
 
 
 def forced_move(state, candidates, cards):

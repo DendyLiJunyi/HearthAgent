@@ -1,5 +1,11 @@
 # User instructions and deck variants
 
+**Update 2026-11-05:** add Standard Ranked 火炮战 alongside Wild, using
+`config/decks/standard-warrior-cannon.json`. Standard defaults to that deck's
+tactics; the saved game deck ID and calibrated menu profile are explicit for
+loops. See [ranked setup](ranked-modes.md). The user chose offline-first validation
+and will import the deck. Do not start live ranked validation as part of this work.
+
 **Update 2026-11-04:** the user moved Laya to a Pirate Warrior deck (海盗战), recorded in
 `config/decks/wild-warrior-pirate-2026-11-04.json`. The Python agent needs no deck setting.
 The Rust `deck` command still knows only the Rogue profiles.

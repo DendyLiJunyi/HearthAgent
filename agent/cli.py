@@ -15,7 +15,7 @@ from . import geometry
 from .screen import (GameScreen, BattlefieldSettler, battlefield_signature, hand_signature, choice_signature,
                      average_rgb, region_signature)
 from .loop import Agent, RecordingInput, Stop
-from .policy import LayaPolicy, RulesPolicy, load_cards
+from .policy import DEFAULT_CHECKPOINT, LayaPolicy, RulesPolicy, load_cards
 from .power import PowerLog, candidates_from
 from .restart import RestartPlan, bring_to_front, close_game, parse_restart_every
 
@@ -25,7 +25,7 @@ INSTALL = Path(r'D:\Hearthstone')
 BATTLE_NET = Path(r'D:\Battle.net\Battle.net.exe')
 BATTLE_NET_LOGS = Path(os.environ.get('LOCALAPPDATA', '')) / 'Battle.net/Logs'
 DECK_ID = '9567872927'  # The player's 海盗战 deck, as Decks.log names it.
-CHECKPOINT = ROOT / '.data/imitation/laya-combo'
+CHECKPOINT = DEFAULT_CHECKPOINT
 # Fast trusts the log's animation queue, then checks only the pixels the next gesture touches.
 # Careful is exactly the earlier behavior, with whole-board stability and a 20-second opening wait.
 PACES = {
@@ -260,8 +260,8 @@ class SessionRecord:
             out.write(json.dumps(dict(event, frame=name, button=self.button, at=time.time(),
                                       screen_checks=self.screen_checks, screen_blocked=dict(self.screen_blocked),
                                       screen_check_seconds=self.screen_check_seconds), ensure_ascii=False) + '\n')
-        # Saving a frame costs real time, so a normal move skips it. A failed click is worth the cost.
-        if self.every_frame or event['kind'] == 'no_send':
+        # Saving a frame costs real time, so a normal move skips it. A failed click or a wrong card is worth the cost.
+        if self.every_frame or event['kind'] == 'no_send' or event.get('recovery') == 'wrong_action':
             self.screen.save(self.folder / name)
 
     def finish(self, outcome):
@@ -303,6 +303,19 @@ def build_policy(name, aggressive=False, tactics=True):
     return LayaPolicy.load(cards, path=CHECKPOINT, aggressive=aggressive, tactics=tactics)
 
 
+def configure_deck(policy, args):
+    from .deck_profile import STANDARD_WARRIOR, load_profile
+    path = getattr(args, 'deck_profile', None)
+    if path is None and args.mode == 'standard':
+        path = STANDARD_WARRIOR
+    if path:
+        profile = load_profile(path, args.mode)
+        policy.deck_profile = profile
+        if hasattr(policy, 'rules'):
+            policy.rules.deck_profile = profile
+    return policy
+
+
 def build_agent(tail, policy, inputs, record, *, pace, mode, friend_agreed=False, idle_limit=None, mulligan_ready=None):
     """The same settings for `play` and `loop`, chosen by pace."""
     agent = Agent(tail, policy, inputs, before_input=record, mode=mode, friend_agreed=friend_agreed, idle_limit=idle_limit,
@@ -317,6 +330,7 @@ def build_agent(tail, policy, inputs, record, *, pace, mode, friend_agreed=False
 
 def play(args):
     policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
+    configure_deck(policy, args)
     log_path = Path(args.log or current_log())
     record = None
     if args.execute:
@@ -328,7 +342,7 @@ def play(args):
                                GameScreen(window), args.frames, args.screen_settle, args.pace)
         regions = Regions(record.screen)
         style = 'aggressive ' if args.aggressive else ''
-        modes = ('Ranked Wild only' if args.mode == 'wild' else
+        modes = ('Ranked Standard only' if args.mode == 'standard' else 'Ranked Wild only' if args.mode == 'wild' else
                  'Practice and agreed friendly games only' if args.friend_agreed else 'Practice games only')
         print(f'LIVE INPUT ENABLED with the {style}{policy.name} policy. Hold Esc to stop. {modes}.', flush=True)
     else:
@@ -477,6 +491,24 @@ def end_of(path):
     return Path(path).stat().st_size if Path(path).exists() else 0
 
 
+def reopened_log(previous, aborted, *, timeout=60.0, clock=time.monotonic, sleep=time.sleep):
+    """Wait for the reopened process's log session instead of reusing the old one."""
+    deadline = clock() + timeout
+    while clock() < deadline:
+        if aborted():
+            raise Stop('stopped by the player')
+        try:
+            path = current_log()
+            # Power.log may not exist until the first match; the session directory
+            # is created during startup and LoadingScreen.log drives the menus.
+            if path.parent != Path(previous).parent:
+                return path
+        except Stop:
+            pass
+        sleep(0.2)
+    raise Stop('the reopened game did not create a new log session')
+
+
 def outcome_counts(results):
     return {'games': len(results), 'won': sum(r.get('won') is True for r in results),
             'lost': sum(r.get('won') is False for r in results),
@@ -487,10 +519,17 @@ def run_loop(args):
     """Games from the menus, one after another, until the count, a stop, or Esc."""
     from .menu import GAME_SCENE, MenuWalker, Regions, latest_deck_id
     from .windows_input import WindowsInput
+    menu_profile = None
+    if getattr(args, 'menu_profile', None):
+        from .menu_profile import load
+        menu_profile = load(args.menu_profile, args.mode, args.deck_id)
+    elif args.mode == 'standard':
+        raise Stop('Standard loops require --menu-profile calibrated for --deck-id; see docs/ranked-modes.md')
     policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
+    configure_deck(policy, args)
     window = ensure_game()
     screen = GameScreen(window)
-    regions = Regions(screen)
+    regions = Regions(screen, refs=menu_profile['regions']) if menu_profile else Regions(screen)
     inputs = WindowsInput(window, current_window=game_window)
     print(f'LIVE INPUT ENABLED: {args.games} {args.mode} games with the {policy.name} policy. Hold Esc to stop.', flush=True)
     folder = ROOT / '.data/live' / ('loop-' + time.strftime('%Y%m%d-%H%M%S'))
@@ -498,14 +537,17 @@ def run_loop(args):
     plan = RestartPlan(args.restart_every)
     restarts = 0
     summary = lambda: {**outcome_counts(results), 'results': results, 'stopped': stopped, 'restarts': restarts,
-                       'mode': args.mode, 'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
+                       'mode': args.mode, 'deck_id': args.deck_id,
+                       'deck_profile': getattr(policy, 'deck_profile', {}).get('name'),
+                       'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
                        'model_fallbacks': getattr(policy, 'fallbacks', 0)}
     try:
         wait_for_focus(inputs, window)
         log_path = current_log()
         def new_walker():
             return MenuWalker(Tail(log_path.parent / 'LoadingScreen.log'), regions, inputs, mode=args.mode,
-                              timeout=180.0 if args.mode == 'wild' else 45.0)
+                              **({'deck_click': menu_profile['deck_click']} if menu_profile else {}),
+                              timeout=180.0 if args.mode in ('wild', 'standard') else 45.0)
         walker = new_walker()
         while len(results) < args.games:
             tail = Tail(log_path, session_check=current_log)
@@ -536,10 +578,10 @@ def run_loop(args):
                 plan.restarted()
                 window = reopen_game()
                 screen = GameScreen(window)
-                regions = Regions(screen)
+                regions = Regions(screen, refs=menu_profile['regions']) if menu_profile else Regions(screen)
                 inputs = WindowsInput(window, current_window=game_window)
                 bring_to_front(window['hwnd'])  # Otherwise the menu walker waits for someone to click the game.
-                log_path = current_log()
+                log_path = reopened_log(log_path, inputs.aborted)
                 walker = new_walker()
     except (Stop, RuntimeError, geometry.GeometryError, OSError) as stop:
         stopped = str(stop)
@@ -698,8 +740,9 @@ def main():
             command.add_argument('--screen-settle', type=float, default=1.5,
                                  help='With --pace careful: stable board/hand interval in seconds (0.5 to 5; default 1.5).')
         if name in ('play', 'loop'):
-            command.add_argument('--mode', choices=['practice', 'wild'], default='wild' if name == 'loop' else 'practice',
-                                 help='wild requires Ranked Wild; practice allows AI games.')
+            command.add_argument('--deck-profile', help='Deck metadata JSON; Standard defaults to the supplied cannon Warrior.')
+            command.add_argument('--mode', choices=['practice', 'wild', 'standard'], default='wild' if name == 'loop' else 'practice',
+                                 help='wild/standard require the corresponding ranked format; practice allows AI games.')
         if name == 'preview':
             command.add_argument('frame')
             command.add_argument('output')
@@ -711,6 +754,7 @@ def main():
             command.add_argument('--aggressive', action='store_true')
             command.add_argument('--frames', action='store_true')
             command.add_argument('--deck-id', default=None)
+            command.add_argument('--menu-profile', help='Calibrated ranked menu JSON bound to this deck ID.')
             command.add_argument('--idle-limit', type=float, default=180.0)
             command.add_argument('--restart-every', default=None, metavar='N[,N...]',
                                  help='Close and reopen the game between games. 5,6,7 picks one at random each time.')
@@ -737,7 +781,17 @@ def main():
         except (ValueError, OSError) as error:
             parser.error(str(error))
     if args.command == 'loop':
+        if args.mode == 'standard' and not args.deck_id:
+            parser.error('Standard loops require an explicit --deck-id for the imported Warrior deck')
         args.deck_id = args.deck_id or DECK_ID
+        if args.mode == 'standard' and not args.menu_profile:
+            parser.error('Standard loops require --menu-profile; see docs/ranked-modes.md')
+        if args.menu_profile:
+            from .menu_profile import load
+            try:
+                load(args.menu_profile, args.mode, args.deck_id)
+            except (ValueError, KeyError, TypeError, OSError) as error:
+                parser.error(f'--menu-profile: {error}')
         if args.restart_every is not None:
             try:
                 args.restart_every = parse_restart_every(args.restart_every)

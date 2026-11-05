@@ -29,7 +29,8 @@ def hand_signature(bgra, width):
 def choice_signature(bgra, width):
     return bytes(bgra[(y * width + x) * 4 + channel]
                  for y in range(300, 720, 15)
-                 for x in range(350, 1570, 15) for channel in range(3))
+                 for x in range(350, 1570, 15) for channel in range(3)) + region_signature(
+                     bgra, width, [(350, 805), (580, 805)], radius=90, step=15)
 
 
 def region_signature(bgra, width, points, radius=40, step=8):

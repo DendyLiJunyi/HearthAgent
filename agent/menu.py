@@ -1,4 +1,4 @@
-"""Walks the menus to a practice or Ranked Wild game using both scene and screen checks.
+"""Walks the menus to practice or ranked games using both scene and screen checks.
 
 Every click needs two independent proofs: the scene in LoadingScreen.log, and small screen regions
 compared against frames recorded while the player walked the same route. Anything else, such as a
@@ -69,6 +69,14 @@ WILD_SCREENS = [
     ('TOURNAMENT', 'wild_deck_pick', ('wild_title', 'constructed_choose', 'wild_deck_tile', '!wild_deck_name'), (480, 280)),
     ('TOURNAMENT', 'wild_format_open', ('constructed_choose', '!wild_title', '!format_wild'), (1402, 55)),
 ]
+STANDARD_SCREENS = [
+    SCREENS[0],
+    ('HUB', 'standard_hub', ('hub_buttons', 'hub_bar'), (960, 330)),
+    ('TOURNAMENT', 'standard_format_pick', ('format_wild', 'format_standard'), (950, 420)),
+    ('TOURNAMENT', 'standard_ready', ('standard_title', 'constructed_choose', 'standard_deck_tile', 'standard_deck_name', 'standard_start'), (1400, 890)),
+    ('TOURNAMENT', 'standard_deck_pick', ('standard_title', 'constructed_choose', 'standard_deck_tile', '!standard_deck_name'), (480, 280)),
+    ('TOURNAMENT', 'standard_format_open', ('constructed_choose', '!standard_title', '!format_standard'), (1402, 55)),
+]
 # An empty part of the end-of-game screen, where any click continues.
 CONTINUE = (1221, 883)
 AWAY = (960, 1066)  # Parks the mouse, because hovering a button changes how it looks.
@@ -107,6 +115,8 @@ class Regions:
         self.pixels = self.screen.frame()
 
     def matches(self, name):
+        if name not in self.refs:
+            raise Stop(f'missing calibrated menu reference: {name}')
         ref = self.refs[name]
         sampled = signature(self.pixels, self.screen.width, ref['box'])
         return any(difference(sampled, candidate) <= self.TOLERANCE
@@ -134,10 +144,13 @@ def identify(scene, matches, screens=None):
 
 class MenuWalker:
     def __init__(self, scenes, regions, inputs, *, timeout=45.0, startup_timeout=240.0, max_clicks=12, settle=0.5, slide_time=3.0,
-                 clock=time.monotonic, sleep=time.sleep, log=print, mode='practice'):
-        if mode not in ('practice', 'wild'):
+                 clock=time.monotonic, sleep=time.sleep, log=print, mode='practice', deck_click=None):
+        if mode not in ('practice', 'wild', 'standard'):
             raise ValueError(f'unsupported mode: {mode}')
-        self.screens = SCREENS if mode == 'practice' else WILD_SCREENS
+        self.screens = {'practice': SCREENS, 'wild': WILD_SCREENS, 'standard': STANDARD_SCREENS}[mode]
+        if deck_click is not None:
+            self.screens = [(scene, name, refs, tuple(deck_click) if name.endswith('deck_pick') else point)
+                            for scene, name, refs, point in self.screens]
         self.scenes, self.regions, self.inputs = scenes, regions, inputs
         self.timeout, self.max_clicks, self.settle, self.slide_time = timeout, max_clicks, settle, slide_time
         self.clock, self.sleep, self.log = clock, sleep, log

@@ -150,7 +150,12 @@ class FakeWalker:
     def to_game(self):
         self.run.events.append('to_game')
         self.run.scene = 'GAMEPLAY'
-        self.run.write(*practice_game())
+        rows = practice_game()
+        if self.run.args.mode in ('wild', 'standard'):
+            from agent.test_agent import line
+            rows = [r.replace('GT_VS_AI', 'GT_RANKED') for r in rows]
+            rows.append(line('DebugPrintGame', 'FormatType=FT_' + self.run.args.mode.upper()))
+        self.run.write(*rows)
 
     def leave_game(self):
         self.run.events.append('leave')
@@ -195,6 +200,7 @@ class LoopRun:
         self.stuck_in_game_after = None
         self.games_left_count = 0
         self.close_error = None
+        self.deck = 'DECK'
         self.new_session()
         self.args = SimpleNamespace(policy='laya', aggressive=False, no_tactics=False, games=games, frames=False,
                                     screen_settle=1.5, pace='fast', mode='practice', idle_limit=None,
@@ -238,7 +244,7 @@ class LoopRun:
                 mock.patch.object(cli, 'close_game', side_effect=self.close), \
                 mock.patch.object(cli, 'bring_to_front', side_effect=lambda hwnd: self.events.append(('front', hwnd))), \
                 mock.patch('agent.menu.Regions'), \
-                mock.patch('agent.menu.latest_deck_id', return_value='DECK'), \
+                mock.patch('agent.menu.latest_deck_id', side_effect=lambda *_: self.deck), \
                 mock.patch('agent.menu.MenuWalker', side_effect=lambda scenes, *_, **__: FakeWalker(self, scenes)), \
                 mock.patch('agent.windows_input.WindowsInput', side_effect=lambda window, **_: FakeInputs(self, window)), \
                 mock.patch('builtins.print'):

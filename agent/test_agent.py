@@ -1232,6 +1232,12 @@ class GeometryTests(unittest.TestCase):
             self.assertTrue(left < x < right, f'card {index} at {x}')
             self.assertEqual(y, geometry.LARGE_HAND_Y)
 
+    def test_only_a_leftmost_card_in_a_wider_hand_is_nudged_left(self):
+        self.assertEqual(geometry.hand_point(0, 6)[0], geometry.row_x(0, 6, 100, geometry.HAND_CENTER_X) - 15)
+        self.assertEqual(geometry.hand_point(1, 6)[0], geometry.row_x(1, 6, 100, geometry.HAND_CENTER_X))
+        self.assertEqual(geometry.hand_point(0, 4)[0], geometry.row_x(0, 4, 140, geometry.HAND_CENTER_X))
+        self.assertEqual(geometry.hand_point(0, 9)[0], geometry.row_x(0, 9, 60, 884) - 15)
+
     def test_unknown_entity_is_refused_not_guessed(self):
         with self.assertRaises(geometry.GeometryError):
             geometry.plan_action(self.state(), {'kind': 'power', 'source': 999, 'target': 0, 'sub': -1})

@@ -1,0 +1,154 @@
+{
+  "name": "???",
+  "mode": "standard",
+  "hero_dbf_id": 7,
+  "deck_code": "AAECAQcGt60H69YHstgHq+AH8OAHkvcHDOPmBqWFB8eHB+iHB5XCB5vCB5zCB6bgB6fgB6jgB6ngB/vgBwAA",
+  "tactics": "standard-cannon",
+  "metadata_sha256": "06e61ce4afd2bce9c2ff53de8c2c1cc0080df27aa4743c8eee3d63894d10dc04",
+  "cards": [
+    {
+      "dbfId": 120503,
+      "id": "TIME_034",
+      "name": "Stadium Announcer",
+      "cost": 4,
+      "type": "MINION",
+      "count": 1
+    },
+    {
+      "dbfId": 125803,
+      "id": "JAIL_421",
+      "name": "Warptooth",
+      "cost": 4,
+      "type": "MINION",
+      "count": 1
+    },
+    {
+      "dbfId": 126002,
+      "id": "JAIL_384",
+      "name": "Chainbreaker Hogger",
+      "cost": 8,
+      "type": "MINION",
+      "count": 1
+    },
+    {
+      "dbfId": 127019,
+      "id": "CAP_106",
+      "name": "Captain Crowley",
+      "cost": 5,
+      "type": "MINION",
+      "count": 1
+    },
+    {
+      "dbfId": 127088,
+      "id": "CORE_DRG_024",
+      "name": "Sky Raider",
+      "cost": 1,
+      "type": "MINION",
+      "count": 1
+    },
+    {
+      "dbfId": 129938,
+      "id": "BE_558",
+      "name": "Stone Gauntlet",
+      "cost": 1,
+      "type": "WEAPON",
+      "count": 1
+    },
+    {
+      "dbfId": 111459,
+      "id": "CORE_REV_990",
+      "name": "Sanguine Depths",
+      "cost": 1,
+      "type": "LOCATION",
+      "count": 2
+    },
+    {
+      "dbfId": 115365,
+      "id": "EDR_492",
+      "name": "Mother Duck",
+      "cost": 4,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 115655,
+      "id": "FIR_929",
+      "name": "Living Flame",
+      "cost": 2,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 115688,
+      "id": "FIR_939",
+      "name": "Shadowflame Suffusion",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 2
+    },
+    {
+      "dbfId": 123157,
+      "id": "CATA_582",
+      "name": "Searing Fissure",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 2
+    },
+    {
+      "dbfId": 123163,
+      "id": "CATA_584",
+      "name": "Erupting Volcano",
+      "cost": 3,
+      "type": "LOCATION",
+      "count": 2
+    },
+    {
+      "dbfId": 123164,
+      "id": "CATA_585",
+      "name": "Torch",
+      "cost": 1,
+      "type": "SPELL",
+      "count": 2
+    },
+    {
+      "dbfId": 127014,
+      "id": "CAP_102",
+      "name": "Land Ho!",
+      "cost": 4,
+      "type": "SPELL",
+      "count": 2
+    },
+    {
+      "dbfId": 127015,
+      "id": "CAP_103",
+      "name": "Hand Cannon",
+      "cost": 3,
+      "type": "WEAPON",
+      "count": 2
+    },
+    {
+      "dbfId": 127016,
+      "id": "CAP_104",
+      "name": "Blastpowder Engineer",
+      "cost": 2,
+      "type": "MINION",
+      "count": 2
+    },
+    {
+      "dbfId": 127017,
+      "id": "CAP_105",
+      "name": "Hook n' Heave",
+      "cost": 2,
+      "type": "SPELL",
+      "count": 2
+    },
+    {
+      "dbfId": 127099,
+      "id": "CAP_107",
+      "name": "Cannonmaster",
+      "cost": 1,
+      "type": "MINION",
+      "count": 2
+    }
+  ]
+}

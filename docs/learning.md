@@ -64,8 +64,9 @@ the package's in-sample calibration accuracy for this held-out comparison.
 Because these fixed games are used to select checkpoints, treat them as a validation set rather
 than an untouched final test of a selected model's strength.
 
-The default active checkpoint remains `.data/imitation/laya-combo`. Training does not silently switch
-it. Match outcomes now record the exact checkpoint path used.
+The default active checkpoint is `.data/imitation/laya-wild-reviewed-20261105` following
+the reviewed promotion below. Training alone does not switch it. Match outcomes record
+the exact checkpoint path used. Explicit `--config` checkpoint settings take precedence.
 
 ## First loss-learning run (2026-11-04)
 
@@ -87,3 +88,37 @@ deployed**. It remains at `.data/imitation/laya-loss-targeted-20261104`, with it
 comparison at `.data/learning/targeted-evaluation.json`. The active model remains `laya-combo`;
 the Patches rule is active independently of model weights. The implementation has 125 passing
 agent tests; all 62 mutation checks were caught.
+
+## Wild recording review and promotion (2026-11-05)
+
+Two Wild runs with saved deck ID `9569814789` contain 41 completed games:
+`loop-20261105-122834` completed 5 (4 wins), then stopped on a log-session change;
+`loop-20261105-125141` completed 36 (8 wins), then stopped on Battle.net login.
+An additional interrupted game is excluded from training cases. This is not a
+single completed 40-game run. The 36-game batch recorded 122 unconfirmed-input
+events and 5 wrong-card recoveries; strategy learning does not fix these gestures.
+
+Collection yielded 667 unique confirmed decisions from 29 completed losses.
+Six assistant board-review judgments were saved with exact case IDs and reasons,
+including survival Taunt, immediate Engineer value and preserving a 1-health Skipper
+with Captain. These are reviewed preferences, not human demonstrations or optimality
+proofs; heuristic hints and game outcomes were not exported as automatic labels.
+
+The candidate used one encoder-training epoch, 939 earlier replay rows and eight
+copies of each correction (987 input rows). The trainer split out 98 calibration
+items. Its exact training file, labels, logs and comparison remain under
+`.data/imitation/laya-wild-reviewed-20261105.train.jsonl` and
+`.data/learning/wild-20261105/`.
+
+| Offline check | Previous `laya-combo` | Reviewed candidate |
+| --- | --- | --- |
+| Warrior validation agreement | 31/61 | 32/61 |
+| Older validation agreement | 82/213 | 89/213 |
+| Reviewed correction fit | 0/6 | 5/6 |
+| Raw correction fit | 0/6 | 5/6 |
+| Model fallbacks / raw failures | 0 / 0 | 0 / 0 |
+
+The candidate passed the existing promotion gate and is the new default for new
+CLI/policy loads. `laya-combo` remains intact for rollback through an explicit config.
+The comparison uses fixed validation data, and correction fit is in-sample; neither
+establishes improved ranked win rate. Existing agents retain their loaded weights.

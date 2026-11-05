@@ -307,6 +307,22 @@ every time, so timing does not enter the choice. That is one fast game, so it do
   29 of 61, older 80 to 76 of 213), so it was removed and not tuned on those games. In training games the player used it
   on only 5 of 59 decisions where it was available, with no clear pattern, which is too little to write a rule from.
 
+## Play fixes from the 25-game baseline (not yet tested live)
+
+`loop-20261105-100034` went 22-3 against the practice AI, always Warrior: 13-0 going first, 9-3 going second, and 4-3 in games
+past turn 15. That is too close to the ceiling to compare versions by win rate, so `python -m agent.play_report <loop folder>`
+counts events instead. Baseline: 11 wrong cards (10 of 105 plays from the leftmost card, 1 of 198 from the others), 85 drags the
+game did not take, 17 wasted attacks, and 13 turns ended holding a Coin that could pay for a card.
+
+- **Wrong card:** the leftmost card of five or more is now aimed 15 px further left. The cause was not found. Resting frames
+  show the old point inside the card, and the cursor's starting position made no difference, so this is a guess to test live.
+  A wrong card now saves a frame, taken after the move has gone through.
+- **Wasted attacks:** the model's pick skips a minion attack that loses the minion and kills nothing, unless the target has Taunt
+  or other legal attacks can finish it. The hero skips a hit of 4 or more that kills nothing, except on a Taunt, and never
+  attacks into its own death. The model then takes its next best move, logged as `tactics:no_wasted_attack`.
+- **The Coin:** about to end the turn, it spends The Coin if that pays for a minion or weapon, logged as
+  `tactics:coin_before_passing`. Risky Skipper and spells do not count.
+
 ## Restarting during a long run
 
 `loop --restart-every 5,6,7` closes and reopens Hearthstone between games, picking 5, 6 or 7 games at random for each
