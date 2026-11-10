@@ -17,4 +17,4 @@ $env:UV_PROJECT_ENVIRONMENT = Join-Path $projectRoot '.venv'
 if ($LASTEXITCODE -ne 0) { throw 'Python installation failed' }
 & $uvPath sync --project services/laya --locked
 if ($LASTEXITCODE -ne 0) { throw 'Laya dependency installation failed' }
-Write-Output 'Runtime ready. Download and test the pinned model with: .venv/Scripts/python.exe services/laya/probe.py'
+Write-Output 'Runtime ready.'

@@ -1,6 +1,6 @@
 # Laya 接入调查（2026-10-27）
 
-> 后续实施已完成：本机安装了隔离运行时和固定 revision 模型，已验证 CUDA 与 Rust HTTP 调用。以下调查段落保留当时记录；最新运行方式与结果见 [接入验收](laya-validation.md)。模型未通过与 Rust 输入一致的合成斩杀样例，不能视为具备对局能力。
+> 后续实施已完成：本机安装了隔离运行时和固定 revision 模型，已验证 CUDA 推理。以下调查段落保留当时记录；当前的加载与微调方式见 [Live agent](agent.md) 和 [Learning](learning.md)。
 
 用户已指定模型家族为 Laya。核验的官方模型为 [convaiinnovations/laya](https://huggingface.co/convaiinnovations/laya)，源码为 [NandhaKishorM/laya](https://github.com/NandhaKishorM/laya)。本次仅调查接口和本机硬件，没有安装运行时、下载权重或执行推理。
 
@@ -16,20 +16,8 @@
 
 本机 `nvidia-smi`：NVIDIA GeForce RTX 4060 Laptop GPU，8188 MiB 显存，驱动 566.36。尚未验证 PyTorch/CUDA 兼容性、运行峰值显存和延迟。当前 PATH 未发现 Python；其他项目之前记录的 Python 路径也不存在。
 
-## 项目接入决定
+## 当前接入方式
 
-保留 Rust 主控，通过本地 Python Laya 服务调用 `POST /v1/systemone`。请求使用 `state` 和 `questions`；选择题的 criteria 映射候选 ID 到简短动作描述。对应 [官方服务源码](https://github.com/NandhaKishorM/laya/blob/main/laya/serve.py)。
+不再通过 HTTP 服务调用。`agent/policy.py` 的 `LayaPolicy.load()` 在 Agent 进程内用 `laya.load()` 直接加载微调后的 checkpoint（默认 `.data/imitation/laya-wild-reviewed-20261105`），在 CUDA 上推理。基座为固定 revision 的 `multilingual` 子目录，见 `services/laya/runtime.py`；运行环境由 `scripts/setup-laya.ps1` 按 `services/laya/pyproject.toml` 与 `uv.lock` 安装。
 
-初次评估建议显式选择 `multilingual`，以容纳中文描述和较长局面；这只是集成起点，不代表它已证明最适合炉石。先只加载一个 checkpoint，并明确设置 token 预算。官方 [router 实现](https://github.com/NandhaKishorM/laya/blob/main/laya/router.py) 默认将该名称映射到根仓库的 `multilingual` 子目录。
-
-拟用服务配置：`LAYA_HOST=127.0.0.1`、`LAYA_DEVICE=cuda`、`LAYA_MODELS=multilingual`、`LAYA_MAX_LOADED=1`、`USE_TF=0`。客户端仍需在请求中指定模型；预加载列表不是路由白名单。实际安装版本、启动方式及设备支持在搭建环境时再验证。
-
-## 实施和验收
-
-1. 在本项目建立隔离 Python 环境，固定 Laya/PyTorch 和模型 revision；先用合成请求验证响应。
-2. 测量冷启动、热推理 p50/p95、峰值显存、输入截断与候选描述截断。候选数量不能静默截取前 N 项。
-3. 模型只接收明确视角的精简局面和经过规则检查的候选。当前 board 未确认我方、logged_options 未证明完整，不能直接转成可执行候选。
-4. Rust 校验返回候选 ID、会话、局面版本、超时和弃权；执行前重新观测。分布置信度不等于出牌合法性或胜率。
-5. 用离线炉石样本与确定性基线比较，按对局划分评估集；需要时训练策略头并重新校准。
-
-目前模型身份已明确；尚缺本机推理环境、合法候选与视角确认、炉石能力评估。现有 49 项 Rust 测试不包含任何 Laya 推理测试。
+局面和候选动作由 `experiments/imitation/features.py` 渲染为文字。模型只在游戏给出的候选中打分，并在多种候选顺序下取平均；斩杀、换牌和选择交给规则。微调与评估流程见 [learning](learning.md)。

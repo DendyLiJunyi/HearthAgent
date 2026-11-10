@@ -225,12 +225,6 @@ use abilities first and pick by simple heuristics, because the model has never s
 - Rules pick the highest-cost Discover offer and mulligan anything costing over 3.
 - There is no deck plan, including for Preparation, Shadowstep, Combo or N'Zoth.
 
-## Relation to the older code
-
-The agent is separate Python, so it duplicates some of the Rust parser. The Rust and script safeguards
-were not reused because they are built around partial candidate lists and one action at a time.
-Merging or retiring them is an open decision.
-
 ## Retraining on Warrior games (2026-11-04)
 
 A retrained checkpoint in `.data/imitation/laya-warrior` used the player's moves, with 114 Warrior decisions counted three times. It failed the switch rule set beforehand, so `.data/imitation/laya-finetuned` stays in use.

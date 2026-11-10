@@ -138,7 +138,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-laya.ps1
 ```
 
 This downloads `uv`, Python 3.12.16 and the pinned packages, including PyTorch with CUDA, into the project
-folder (`.tools/` and `.venv/`). Nothing is installed system-wide. Ignore the message about `probe.py`: the agent doesn't need it.
+folder (`.tools/` and `.venv/`). Nothing is installed system-wide.
 
 ### 3. Copy the model and card data
 
@@ -246,17 +246,4 @@ Then try a practice game with `play --execute` before anything else.
 - [Fast play](docs/fast-play.md): pacing, recovery and tactics
 - [Reliability improvements](docs/reliability-improvements.md)
 - [Learning from failed matches](docs/learning.md)
-- [Design](docs/design.md) and [roadmap](docs/roadmap.md) for the older Rust code
 - [Laya](docs/laya.md): model setup and results
-
-## Older Rust tools
-
-`src/` holds an earlier read-only observer and adviser. The agent above doesn't use it, and it's only needed
-for log inspection or Rust development. It needs a Rust toolchain; run `cargo fetch` once before using `--offline`.
-
-```powershell
-cargo run --offline -- inspect D:\Hearthstone
-cargo run --offline -- watch D:\Hearthstone
-cargo run --offline -- replay <Power.log> --json
-cargo test --offline
-```

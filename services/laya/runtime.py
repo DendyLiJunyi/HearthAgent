@@ -1,6 +1,5 @@
 """Project-local caches and a reproducible checkpoint selection."""
 import os
-import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -18,6 +17,3 @@ def configure_environment():
     os.environ["TOKENIZERS_PARALLELISM"] = "false"
     os.environ["LAYA_REVISION"] = MODEL_REVISION
 
-
-def synthetic_state():
-    return json.loads((ROOT / "fixtures" / "laya" / "lethal.json").read_text(encoding="utf-8"))

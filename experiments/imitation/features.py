@@ -119,7 +119,7 @@ def render_candidate(row, candidate, cards):
 
 
 def render_id_only(row, candidate):
-    """Same form as Action::description in src/protocol.rs: entity numbers and no meaning."""
+    """Entity numbers only, with no card meaning."""
     if candidate['kind'] == 'end_turn':
         return 'End the current turn'
     found = index(row)
