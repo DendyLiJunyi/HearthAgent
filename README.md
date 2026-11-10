@@ -61,6 +61,9 @@ forcing it. Keep Battle.net logged in. It has run live: 4 restarts across 28 pra
 
 If Hearthstone is closed, the agent opens it through Battle.net. Click the game window within 60 seconds of
 the prompt. It stops if a menu looks unfamiliar, or if the game starts with a different deck from the one set up.
+The recorded Chinese “error starting game” and “opponent could not connect” dialogs are dismissed automatically before other menu clicks.
+The loop waits two minutes before trying again, with at most three recoveries per game search.
+Other dialogs remain unrecognized. Escape still stops the loop during the wait.
 
 ### One game
 

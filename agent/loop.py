@@ -382,7 +382,15 @@ class Agent:
             self.log(f'screen check failed: {error}')
         if self.clock() < self.mulligan_wait:
             return False
-        raise Stop('mulligan screen was not recognized before the timeout')
+        if not self.recover:
+            raise Stop('mulligan screen was not recognized before the timeout')
+        owner = getattr(self.mulligan_ready, '__self__', None)
+        scores = getattr(owner, 'last_mulligan_scores', None)
+        detail = f'mulligan screen not recognized; continuing to check; scores={scores}'
+        self._note({'kind': 'mulligan_wait', 'detail': detail, 'scores': scores})
+        self.log(detail)
+        self.mulligan_wait = self.clock() + self.mulligan_timeout
+        return False
 
     def _screen_caught_up(self, game):
         if not self.screen_ready:

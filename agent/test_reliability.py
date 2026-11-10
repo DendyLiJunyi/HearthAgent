@@ -205,7 +205,10 @@ class ReadinessTests(unittest.TestCase):
         regions = Regions(Screen(), refs={})
         for shown, expected in (({'mulligan_confirm'}, False), ({'mulligan_title'}, False),
                                 ({'mulligan_title', 'mulligan_confirm'}, True), (set(), False)):
-            regions.matches = lambda name: name in shown
+            regions._mulligan_hits = 0
+            regions.mulligan_scores = lambda: {name: 0 if name in shown else 100
+                                               for name in ('mulligan_title', 'mulligan_confirm')}
+            self.assertFalse(regions.mulligan_ready())
             self.assertEqual(regions.mulligan_ready(), expected)
 
     def test_verified_region_variants_match_without_relaxing_tolerance(self):

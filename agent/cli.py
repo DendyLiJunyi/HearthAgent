@@ -261,7 +261,7 @@ class SessionRecord:
                                       screen_checks=self.screen_checks, screen_blocked=dict(self.screen_blocked),
                                       screen_check_seconds=self.screen_check_seconds), ensure_ascii=False) + '\n')
         # Saving a frame costs real time, so a normal move skips it. A failed click or a wrong card is worth the cost.
-        if self.every_frame or event['kind'] == 'no_send' or event.get('recovery') == 'wrong_action':
+        if self.every_frame or event['kind'] in ('no_send', 'mulligan_wait') or event.get('recovery') == 'wrong_action':
             self.screen.save(self.folder / name)
 
     def finish(self, outcome):
@@ -544,10 +544,14 @@ def run_loop(args):
     try:
         wait_for_focus(inputs, window)
         log_path = current_log()
+        def menu_diagnostic(label):
+            folder.mkdir(parents=True, exist_ok=True)
+            screen.save(folder / f'{label}-{time.time_ns()}.png')
         def new_walker():
             return MenuWalker(Tail(log_path.parent / 'LoadingScreen.log'), regions, inputs, mode=args.mode,
                               **({'deck_click': menu_profile['deck_click']} if menu_profile else {}),
-                              timeout=180.0 if args.mode in ('wild', 'standard') else 45.0)
+                              timeout=180.0 if args.mode in ('wild', 'standard') else 45.0,
+                              diagnostic=menu_diagnostic)
         walker = new_walker()
         while len(results) < args.games:
             tail = Tail(log_path, session_check=current_log)
