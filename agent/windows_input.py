@@ -1,32 +1,20 @@
-"""Real mouse input through SendInput. Only `cli play --execute` ever constructs this class."""
+"""Windows cursor feedback and live mouse gestures through MAKCU."""
 import ctypes
 import time
 from ctypes import wintypes
 
 from . import geometry
 from .loop import FocusLost
+from .makcu import Makcu, MakcuError
 
 VK_ESCAPE = 0x1B
-MOVE_ABSOLUTE = 0x0001 | 0x8000 | 0x4000  # move, absolute, whole virtual desktop
-LEFT_DOWN, LEFT_UP = 0x0002, 0x0004
-RIGHT_DOWN, RIGHT_UP = 0x0008, 0x0010
 
 
-class MouseInput(ctypes.Structure):
-    _fields_ = [('dx', wintypes.LONG), ('dy', wintypes.LONG), ('mouseData', wintypes.DWORD),
-                ('dwFlags', wintypes.DWORD), ('time', wintypes.DWORD), ('extra', ctypes.c_size_t)]
-
-
-class Input(ctypes.Structure):
-    _fields_ = [('type', wintypes.DWORD), ('mouse', MouseInput)]
-
-
-def to_absolute(point, desktop):
-    """Convert a screen pixel to SendInput's 0-65535 virtual desktop range."""
+def check_desktop_point(point, desktop):
+    """Reject targets outside the virtual desktop, including negative-origin layouts."""
     left, top, width, height = desktop
     if width <= 1 or height <= 1 or not (left <= point[0] < left + width and top <= point[1] < top + height):
         raise geometry.GeometryError('point is outside the virtual desktop')
-    return (round((point[0] - left) * 65535 / (width - 1)), round((point[1] - top) * 65535 / (height - 1)))
 
 
 def path(start, end, steps=12):
@@ -43,14 +31,20 @@ class WindowsInput:
     FAST_STEPS, CAREFUL_STEPS = 8, 12
     FAST_PARK, CAREFUL_PARK = 0.03, 0.15
     FAST_GESTURE_PAUSE = 0.4
+    MOVE_TOLERANCE = 2
+    MOVE_SETTLE = 0.055
+    MOVE_POLL = 0.008
+    MOVE_TIMEOUT = 2.0
+    MAX_DELTA = 512
+    FAST_DIRECT_LIMIT = 64
     careful = False
 
-    def __init__(self, window, *, gesture_pause=0.6, current_window=None):
+    def __init__(self, window, *, gesture_pause=0.6, current_window=None, port=None, baud=None):
         self.user = ctypes.WinDLL('user32', use_last_error=True)
         self.window, self.gesture_pause = window, gesture_pause
         self.current_window = current_window
-        self.user.SendInput.argtypes = [wintypes.UINT, ctypes.POINTER(Input), ctypes.c_int]
-        self.user.SendInput.restype = wintypes.UINT
+        self.user.GetCursorPos.argtypes = [ctypes.POINTER(wintypes.POINT)]
+        self.user.GetCursorPos.restype = wintypes.BOOL
         self.user.GetAsyncKeyState.argtypes = [ctypes.c_int]
         self.user.GetAsyncKeyState.restype = ctypes.c_short
         self.user.GetForegroundWindow.restype = wintypes.HWND
@@ -60,6 +54,11 @@ class WindowsInput:
         self.user.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
         self.desktop = [self.user.GetSystemMetrics(i) for i in (76, 77, 78, 79)]
         self._aborted = False
+        self._direct_motion = True
+        self.device = Makcu.connect(port, baud)
+
+    def close(self):
+        self.device.close()
 
     def aborted(self):
         if self.user.GetAsyncKeyState(VK_ESCAPE) & 0x8000:
@@ -79,14 +78,70 @@ class WindowsInput:
         self._guard()
         self._move(geometry.scale(geometry.CANCEL_POINT, self.window))
 
-    def _raw(self, flags, dx=0, dy=0):
-        event = Input(0, MouseInput(dx, dy, 0, flags, 0, 0))
-        if self.user.SendInput(1, ctypes.byref(event), ctypes.sizeof(Input)) != 1:
-            raise RuntimeError('SendInput did not insert the event')
+    def _cursor(self):
+        cursor = wintypes.POINT()
+        if not self.user.GetCursorPos(ctypes.byref(cursor)):
+            raise MakcuError('Could not read the Windows cursor position')
+        return cursor.x, cursor.y
+
+    def _move_step(self, error, damping):
+        if abs(error) <= self.MOVE_TOLERANCE:
+            return 0
+        step = min(self.MAX_DELTA, max(1, round(abs(error) / damping)))
+        return step if error > 0 else -step
+
+    def _after_move(self, before, delta):
+        """Wait for the HID report to move the pointer, then check that the movement settled."""
+        if self.careful or max(map(abs, delta)) > self.FAST_DIRECT_LIMIT:
+            time.sleep(self.MOVE_SETTLE)
+            self._guard()
+            return self._cursor()
+        deadline = time.monotonic() + self.MOVE_SETTLE
+        last = before
+        while True:
+            time.sleep(self.MOVE_POLL)
+            self._guard()
+            current = self._cursor()
+            if (current == last and current != before) or time.monotonic() >= deadline:
+                return current
+            last = current
 
     def _move(self, point):
-        x, y = to_absolute(point, self.desktop)
-        self._raw(MOVE_ABSOLUTE, x, y)
+        check_desktop_point(point, self.desktop)
+        deadline = time.monotonic() + self.MOVE_TIMEOUT
+        previous_error = (0, 0)
+        damping = [2, 2]
+        fast = not self.careful and self._direct_motion
+        direct = False
+        self._guard()
+        x, y = self._cursor()
+        while True:
+            error = point[0] - x, point[1] - y
+            if max(map(abs, error)) <= self.MOVE_TOLERANCE:
+                return
+            if time.monotonic() >= deadline:
+                raise MakcuError(f'MAKCU cursor did not reach {point}; last position was {(x, y)}')
+            # Windows pointer acceleration can turn a full correction into repeated overshoot.
+            for axis, remaining in enumerate(error):
+                previous = previous_error[axis]
+                if abs(remaining) > self.MOVE_TOLERANCE and remaining * previous < 0:
+                    if direct:
+                        # This device/Windows setting amplifies short moves. Keep subsequent
+                        # waypoints on the proven correction path for the rest of this session.
+                        self._direct_motion = False
+                    fast = False
+                    damping[axis] = min(8, damping[axis] * 2)
+                elif remaining * previous > 0 and abs(remaining) < abs(previous):
+                    damping[axis] = max(2, damping[axis] - 1)
+            # Most drag waypoints are close enough for a single small HID move.
+            # Keep polling the actual cursor and fall back to damped corrections on overshoot.
+            direct = fast and max(map(abs, error)) <= self.FAST_DIRECT_LIMIT
+            dx, dy = (self._move_step(remaining, 1 if direct else factor)
+                      for remaining, factor in zip(error, damping))
+            self._guard()
+            self.device.command(f'km.move({dx},{dy})')
+            previous_error = error
+            x, y = self._after_move((x, y), (dx, dy))
 
     def _guard(self):
         if self.aborted():
@@ -97,14 +152,17 @@ class WindowsInput:
             self.user.GetWindowTextW(front, title, 200)
             raise FocusLost(f'game is no longer the foreground window; "{title.value}" is in front')
 
-    def send(self, gestures):
-        """If anything fails mid-drag, the button is released so it cannot stay held."""
+    def _check_window(self):
         if self.current_window:
             now = self.current_window()
             if any(now[k] != self.window[k] for k in ('hwnd', 'left', 'top', 'width', 'height')):
                 raise RuntimeError('game window moved or resized')
+
+    def send(self, gestures):
+        """Send gestures to the current foreground game window."""
         for index, gesture in enumerate(gestures):
             self._guard()
+            self._check_window()
             self._gesture(gesture)
             # The game needs time between the steps of one move, but not after the last step.
             if index < len(gestures) - 1:
@@ -118,26 +176,30 @@ class WindowsInput:
         if kind == 'move':
             self._move(geometry.scale(gesture[1], self.window))
             return
-        if kind == 'right_click':
-            self._move(geometry.scale(gesture[1], self.window))
-            time.sleep(self.FAST[1])
-            self._raw(RIGHT_DOWN)
-            time.sleep(self.FAST[0])
-            self._raw(RIGHT_UP)
-            return
-        pause, hover = self.CAREFUL if self.careful else self.FAST
+        button = 'right' if kind == 'right_click' else 'left'
+        pause, hover = self.CAREFUL if self.careful and button == 'left' else self.FAST
         start = geometry.scale(gesture[1], self.window)
+        end = geometry.scale(gesture[2], self.window) if kind == 'drag' else None
+        if end is not None:
+            check_desktop_point(end, self.desktop)
         self._move(start)
         time.sleep(hover)
-        self._raw(LEFT_DOWN)
+        self._check_window()
+        self._move(start)
         try:
+            self.device.command(f'km.{button}(1)')
             time.sleep(pause)
-            if kind == 'drag':
+            if end is not None:
                 steps = self.CAREFUL_STEPS if self.careful else self.FAST_STEPS
-                for point in path(start, geometry.scale(gesture[2], self.window), steps):
-                    self._guard()
+                for point in path(start, end, steps):
+                    self._check_window()
                     self._move(point)
                     time.sleep(pause / 2)
                 time.sleep(pause)
+                self._check_window()
+                self._move(end)
         finally:
-            self._raw(LEFT_UP)
+            try:
+                self.device.release(button)
+            except MakcuError as error:
+                raise MakcuError(f'Could not confirm MAKCU {button} button release: {error}') from error

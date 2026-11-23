@@ -2,7 +2,7 @@
 
 This batch changes the Python agent. Validation: **165 agent tests and 134 script tests pass;
 all 65 mutation checks are caught**. A saved four-game log parsed all six local choice receipts
-completely. No input was sent to Hearthstone, and no checkpoint was trained or promoted.
+completely. No input was sent to Hearthstone.
 
 ## Execution and screen checks
 
@@ -46,10 +46,10 @@ integrity check. These limitations remain.
 
 ### Faster screen readiness
 
-The `loop-20261104-220207` recording showed model decisions taking 0.30–0.76 seconds,
+The `loop-20261104-220207` recording showed decisions taking 0.30–0.76 seconds,
 while successive same-turn plans were 3.7–8.5 seconds apart. The run eventually stopped on
 screen stability timeout. These gaps include gestures, animations, log waits and capture checks;
-they are not all model latency or all avoidable delay.
+some of that time is spent waiting for the client.
 
 Input now parks the pointer on empty board space after a gesture, before confirmation, to clear
 card/minion hover. Optional `--screen-settle 0.6` on `play` or `loop` shortens the board/hand quiet
@@ -67,16 +67,11 @@ probability instead of removing legal options. This is an initial Python API par
 still filters optional trades. Lethal estimates, unsupported abilities and oversized option lists
 still route to rules.
 
-Recorded option plans include decision source, reason, selected and raw model indices, whether
-preferences changed the pick, elapsed decision time and checkpoint. Prediction errors include
-their reason; NaN, infinite and out-of-range probabilities fall back to rules. Choice plans identify
-the rules path. Outcome `planned_decisions` counts recorded plans, including plans canceled by a
-later guard; it is not a count of accepted actions. `model_fallbacks` still counts prediction errors
-only. Draws are reported separately from losses.
+Recorded option plans include the reason, selected move and elapsed decision time.
 
 ## Local configuration
 
-Copy `config/agent.example.json` and edit installation path, Battle.net path, deck ID and checkpoint.
+Copy `config/agent.example.json` and edit installation path, Battle.net path and deck ID.
 Relative paths resolve from the profile directory. Unknown keys and empty values are rejected.
 
 ```powershell
@@ -87,20 +82,6 @@ Relative paths resolve from the profile directory. Unknown keys and empty values
 These commands send no input. `--deck-id` on `loop` overrides the profile. A different deck ID does
 not recalibrate the menu tile: the existing Chinese 1920×1080 menu calibration still applies.
 
-## Evaluation and independent data
-
-`experiments/imitation/evaluate_lessons.py` reports deployed, raw-model and rules-only agreement
-for every suite, plus decision reasons, latency, fallbacks and stable case fingerprints. Existing
-promotion gates remain; optional final-test metrics are separate from model selection. Repeatedly
-used held-out games are validation data, not an untouched final test.
-
-Optional `--final-test path.jsonl` accepts one object per line with `group` (session/game identity),
-`reviewer`, `row` (the full state, candidates and cards mapping), and `label` (candidate index).
-It rejects empty files, missing provenance, invalid labels, duplicate cases and overlap with known
-development games/cases. It cannot certify that an external checkpoint never saw a case. Keep new
-final-test games out of training directories and have an independent reviewer label them before
-evaluating a selected model. No such labels were fabricated in this batch.
-
 ## Offline checks
 
 ```powershell
@@ -110,4 +91,4 @@ evaluating a selected model. No such labels were fabricated in this batch.
 
 Regressions cover wrong placement, wrong choice entities, partial and split receipts, opponent
 receipts, mulligan/choice timeouts, independent hand motion, log lifecycle, decision attribution,
-malformed model scores, soft preferences and evaluation overlap checks.
+decision reporting and configuration validation.

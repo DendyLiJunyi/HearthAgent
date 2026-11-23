@@ -12,6 +12,7 @@ ENTITY_ID = re.compile(r'id=(\d+)')
 TAG = re.compile(r'tag=(\S+) value=(\S*)')
 TAG_CHANGE = re.compile(r'TAG_CHANGE Entity=(.*?) tag=(\S+) value=(\S*)')
 CREATE = re.compile(r'FULL_ENTITY - Creating ID=(\d+) CardID=(\S*)')
+PLAY = re.compile(r'BLOCK_START BlockType=PLAY Entity=(.*?)(?: EffectCardId=|$)')
 UPDATE = re.compile(r'(?:FULL_ENTITY|SHOW_ENTITY|CHANGE_ENTITY) - (?:Updating|Changing) Entity=(.*?) CardID=(\S*)')
 PLAYER = re.compile(r'Player EntityID=(\d+) PlayerID=(\d+)')
 GAME_ENTITY = re.compile(r'GameEntity EntityID=(\d+)')
@@ -105,6 +106,8 @@ class Game:
         self.result = None
         self.revision = 0
         self.option_lines = 0
+        self.played_this_turn = collections.defaultdict(set)
+        self.damaged_this_turn = collections.defaultdict(set)
 
     @property
     def over(self):
@@ -147,6 +150,9 @@ class Game:
                 'damage': number('DAMAGE'), 'armor': number('ARMOR'), 'durability': number('DURABILITY'),
                 'pos': number('ZONE_POSITION'), 'exhausted': number('EXHAUSTED'),
                 'attacks': number('NUM_ATTACKS_THIS_TURN'),
+                'turns_in_play': number('NUM_TURNS_IN_PLAY'),
+                **({'script_value': number('TAG_SCRIPT_DATA_NUM_1')}
+                   if 'TAG_SCRIPT_DATA_NUM_1' in tags else {}),
                 'keywords': [k for k in KEYWORDS if tags.get(k) == '1']}
 
     def snapshot(self):
@@ -173,10 +179,20 @@ class Game:
                 'hand_count': len(zones[(player, 'HAND')]),
                 'deck_count': len(zones[(player, 'DECK')]),
                 'secrets': len(zones[(player, 'SECRET')]),
+                'class': self.tag(hero, 'CLASS') or self.tag(entity, 'CLASS'),
+                'going_first': self.tag(entity, 'FIRST_PLAYER') == '1' if any(
+                    self.tag(e, 'FIRST_PLAYER') == '1' for e in self.player_entity.values()) else None,
             }
             if player == self.local:
                 players[player]['hand'] = sorted((self.view(e) for e in zones[(player, 'HAND')]),
                                                  key=lambda c: c['pos'])
+                players[player]['played_this_turn'] = sorted(self.played_this_turn[player])
+                players[player]['damaged_this_turn'] = sorted(self.damaged_this_turn[player])
+                players[player]['known_deck'] = dict(collections.Counter(
+                    self.cards[e] for e in zones[(player, 'DECK')] if self.cards.get(e)))
+                players[player]['warptooth_seen_outside_deck'] = sum(
+                    self.cards.get(e) == 'JAIL_421'
+                    for zone in ('PLAY', 'GRAVEYARD', 'REMOVEDFROMGAME') for e in zones[(player, zone)])
         turn = self.tag(self.game_entity, 'TURN') if self.game_entity else None
         return {'turn': int(turn) if turn and turn.isdigit() else 0,
                 'step': self.tag(self.game_entity, 'STEP') if self.game_entity else None,
@@ -230,6 +246,7 @@ class PowerLog:
         self._choice = None
         self._chosen_pending = None
         self.backlog = AnimationBacklog()
+        self.reconnecting = False
 
     @property
     def game(self):
@@ -271,6 +288,8 @@ class PowerLog:
             self._power(stripped)
         elif self.game is None:
             return
+        elif 'GameState.ReconnectIfStuck()' in line and stripped.startswith('Blocked more than'):
+            self.reconnecting = not self.game.over
         elif 'DebugPrintGame()' in line:
             self._game_info(stripped)
         elif 'DebugPrintOptions()' in line:
@@ -285,6 +304,7 @@ class PowerLog:
     def _power(self, stripped):
         if stripped == 'CREATE_GAME':
             self.backlog = AnimationBacklog()
+            self.reconnecting = False
             self.games.append(Game(len(self.games) + 1))
             self._entity = None
             self._choice = None
@@ -294,6 +314,11 @@ class PowerLog:
         if game is None:
             return
         game.revision += 1
+        play = PLAY.match(stripped)
+        if play:
+            entity = parse_entity(play[1])
+            if entity and entity['card'] and entity['zone'] == 'HAND':
+                game.played_this_turn[entity['player']].add(entity['card'])
         for pattern, action in ((GAME_ENTITY, self._on_game_entity), (PLAYER, self._on_player),
                                 (CREATE, self._on_create), (UPDATE, self._on_update),
                                 (TAG_CHANGE, self._on_tag_change)):
@@ -331,7 +356,18 @@ class PowerLog:
         if entity is None:
             self.malformed += 1
             return
-        game.entities[entity][match.group(2)] = match.group(3)
+        key, value = match.group(2), match.group(3)
+        if entity == game.game_entity and key == 'TURN' and value != game.tag(entity, key):
+            game.played_this_turn.clear()
+            game.damaged_this_turn.clear()
+        if (key in ('DAMAGE', 'ARMOR') and game.tag(entity, 'ZONE') == 'PLAY'
+                and game.tag(entity, 'CARDTYPE') in ('HERO', 'MINION')):
+            old = game.number_tag(entity, key)
+            changed = int(value) - old if value.isdecimal() else 0
+            if (key == 'DAMAGE' and changed > 0) or (key == 'ARMOR' and changed < 0):
+                controller = game.number_tag(entity, 'CONTROLLER')
+                game.damaged_this_turn[controller].add(entity)
+        game.entities[entity][key] = value
         if match.group(2) == 'PLAYSTATE' and match.group(3) in ('WON', 'LOST', 'TIED'):
             player = next((p for p, e in game.player_entity.items() if e == entity), None)
             if game.result is None or player == game.local:

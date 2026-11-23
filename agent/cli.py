@@ -9,14 +9,16 @@ import shutil
 import subprocess
 import sys
 import time
+from contextlib import ExitStack
 from pathlib import Path
 
 from . import geometry
 from .screen import (GameScreen, BattlefieldSettler, battlefield_signature, hand_signature, choice_signature,
                      average_rgb, region_signature)
 from .loop import Agent, RecordingInput, Stop
-from .policy import LayaPolicy, RulesPolicy, load_cards
+from .policy import RulesPolicy, load_cards
 from .power import PowerLog, candidates_from
+from .restart import RestartPlan, bring_to_front, close_game, parse_restart_every
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts'))
@@ -24,7 +26,6 @@ INSTALL = Path(r'D:\Hearthstone')
 BATTLE_NET = Path(r'D:\Battle.net\Battle.net.exe')
 BATTLE_NET_LOGS = Path(os.environ.get('LOCALAPPDATA', '')) / 'Battle.net/Logs'
 DECK_ID = '9567872927'  # The player's 海盗战 deck, as Decks.log names it.
-CHECKPOINT = ROOT / '.data/imitation/laya-combo'
 # Fast trusts the log's animation queue, then checks only the pixels the next gesture touches.
 # Careful is exactly the earlier behavior, with whole-board stability and a 20-second opening wait.
 PACES = {
@@ -32,18 +33,19 @@ PACES = {
                            screen_timeout=8.0, backlog_limit=12, drain_timeout=6.0, recover=True, eager_decision=True,
                            button_timeout=60.0),  # Saved replays reach 24.6 s, and input must leave time to act.
              'strict_screen': False, 'choice_settle': 0.4, 'focus_settle': 0.12, 'focus_cap': 0.5},
-    'careful': {'agent': dict(settle=0.5, confirm_timeout=2.0, choice_timeout=5.0, lit_required=3, opening_delay=20.0),
+    'careful': {'agent': dict(settle=0.5, confirm_timeout=2.0, choice_timeout=5.0, lit_required=3,
+                             opening_delay=20.0, careful_input=True),
                 'strict_screen': True, 'choice_settle': 1.5, 'focus_settle': None, 'focus_cap': None},
 }
 
 
 def configure(path):
     """Load an explicit local profile; no implicit per-machine overrides."""
-    global INSTALL, BATTLE_NET, DECK_ID, CHECKPOINT
+    global INSTALL, BATTLE_NET, DECK_ID
     config = json.loads(Path(path).read_text(encoding='utf-8'))
-    allowed = {'install', 'battle_net', 'deck_id', 'checkpoint'}
+    allowed = {'install', 'battle_net', 'deck_id'}
     if not isinstance(config, dict) or set(config) - allowed:
-        raise ValueError('profile must contain only install, battle_net, deck_id, checkpoint')
+        raise ValueError('profile must contain only install, battle_net, deck_id')
     if any(not isinstance(v, str) or not v.strip() for v in config.values()):
         raise ValueError('profile values must be nonempty strings')
     base = Path(path).resolve().parent
@@ -54,7 +56,6 @@ def configure(path):
         return value.resolve() if value.is_absolute() else (base / value).resolve()
     INSTALL = local_path('install', INSTALL)
     BATTLE_NET = local_path('battle_net', BATTLE_NET)
-    CHECKPOINT = local_path('checkpoint', CHECKPOINT)
     DECK_ID = config.get('deck_id', DECK_ID)
 
 
@@ -259,8 +260,8 @@ class SessionRecord:
             out.write(json.dumps(dict(event, frame=name, button=self.button, at=time.time(),
                                       screen_checks=self.screen_checks, screen_blocked=dict(self.screen_blocked),
                                       screen_check_seconds=self.screen_check_seconds), ensure_ascii=False) + '\n')
-        # Saving a frame costs real time, so a normal move skips it. A failed click is worth the cost.
-        if self.every_frame or event['kind'] == 'no_send':
+        # Saving a frame costs real time, so a normal move skips it. A failed click or a wrong card is worth the cost.
+        if self.every_frame or event['kind'] in ('no_send', 'mulligan_wait') or event.get('recovery') == 'wrong_action':
             self.screen.save(self.folder / name)
 
     def finish(self, outcome):
@@ -295,11 +296,20 @@ def wait_for_focus(inputs, window, timeout=60, clock=time.monotonic, sleep=time.
     raise Stop('the game window never got focus')
 
 
-def build_policy(name, aggressive=False, tactics=True):
-    cards = load_cards()
-    if name == 'rules':
-        return RulesPolicy(cards, aggressive, tactics=tactics)
-    return LayaPolicy.load(cards, path=CHECKPOINT, aggressive=aggressive, tactics=tactics)
+def build_policy(aggressive=False, tactics=True):
+    return RulesPolicy(load_cards(), aggressive, tactics=tactics)
+
+
+def configure_deck(policy, args):
+    from .deck_profile import STANDARD_PIRATES, STANDARD_PIRATES_ID, STANDARD_WARRIOR, load_profile
+    path = getattr(args, 'deck_profile', None)
+    if path is None and args.mode == 'standard':
+        deck_id = getattr(args, 'deck_id', None)
+        path = STANDARD_PIRATES if deck_id in (None, STANDARD_PIRATES_ID) else STANDARD_WARRIOR
+    if path:
+        profile = load_profile(path, args.mode)
+        policy.deck_profile = profile
+    return policy
 
 
 def build_agent(tail, policy, inputs, record, *, pace, mode, friend_agreed=False, idle_limit=None, mulligan_ready=None):
@@ -315,19 +325,31 @@ def build_agent(tail, policy, inputs, record, *, pace, mode, friend_agreed=False
 
 
 def play(args):
-    policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
+    with ExitStack() as cleanup:
+        _play(args, cleanup)
+
+
+def _play(args, cleanup):
+    policy = build_policy(args.aggressive, not args.no_tactics)
+    configure_deck(policy, args)
     log_path = Path(args.log or current_log())
     record = None
     if args.execute:
         from .menu import Regions
         from .windows_input import WindowsInput
         window = game_window()
-        inputs = WindowsInput(window, current_window=game_window)
+        try:
+            inputs = WindowsInput(window, current_window=game_window,
+                                  port=args.makcu_port, baud=args.makcu_baud)
+        except RuntimeError as error:
+            print(json.dumps({'stopped': str(error)}), flush=True)
+            sys.exit(2)
+        cleanup.callback(inputs.close)
         record = SessionRecord(ROOT / '.data/live' / time.strftime('%Y%m%d-%H%M%S'), log_path,
                                GameScreen(window), args.frames, args.screen_settle, args.pace)
         regions = Regions(record.screen)
         style = 'aggressive ' if args.aggressive else ''
-        modes = ('Ranked Wild only' if args.mode == 'wild' else
+        modes = ('Ranked Standard only' if args.mode == 'standard' else 'Ranked Wild only' if args.mode == 'wild' else
                  'Practice and agreed friendly games only' if args.friend_agreed else 'Practice games only')
         print(f'LIVE INPUT ENABLED with the {style}{policy.name} policy. Hold Esc to stop. {modes}.', flush=True)
     else:
@@ -353,8 +375,8 @@ def play(args):
         outcome = {'stopped': str(stop)}
     except KeyboardInterrupt:
         outcome = {'stopped': 'stopped from terminal (Ctrl+C)'}
-    outcome.update(mode=args.mode, policy=policy.name, checkpoint=getattr(policy, 'checkpoint', None), pace=args.pace,
-                   aggressive=args.aggressive, actions=agent.actions, model_fallbacks=getattr(policy, 'fallbacks', 0),
+    outcome.update(mode=args.mode, policy=policy.name, pace=args.pace,
+                   aggressive=args.aggressive, actions=agent.actions,
                    recoveries=agent.recoveries)
     print(json.dumps(outcome), flush=True)
     if record:
@@ -442,8 +464,56 @@ def ensure_game(timeout=240):
     return game_window()
 
 
+def settled_window(get=None, *, reads=3, timeout=90.0, clock=time.monotonic, sleep=time.sleep):
+    """A window just opened can still change size, and later input would then be refused as a moved window."""
+    get = get or game_window
+    deadline = clock() + timeout
+    last, same = None, 0
+    while clock() < deadline:
+        try:
+            window = get()
+        except SystemExit:
+            window = None
+        if window and (window['width'], window['height']) == (1920, 1080):
+            same = same + 1 if window == last else 1
+            last = window
+            if same >= reads:
+                return window
+        else:
+            last, same = None, 0
+        sleep(1)
+    raise Stop('the reopened game window did not settle at 1920x1080')
+
+
+def reopen_game():
+    """Open the game again after a restart, as a Stop so that the run still saves what it has."""
+    try:
+        ensure_game()
+        return settled_window()
+    except SystemExit as error:
+        raise Stop(str(error)) from None
+
+
 def end_of(path):
     return Path(path).stat().st_size if Path(path).exists() else 0
+
+
+def reopened_log(previous, aborted, *, timeout=60.0, clock=time.monotonic, sleep=time.sleep):
+    """Wait for the reopened process's log session instead of reusing the old one."""
+    deadline = clock() + timeout
+    while clock() < deadline:
+        if aborted():
+            raise Stop('stopped by the player')
+        try:
+            path = current_log()
+            # Power.log may not exist until the first match; the session directory
+            # is created during startup and LoadingScreen.log drives the menus.
+            if path.parent != Path(previous).parent:
+                return path
+        except Stop:
+            pass
+        sleep(0.2)
+    raise Stop('the reopened game did not create a new log session')
 
 
 def outcome_counts(results):
@@ -456,22 +526,41 @@ def run_loop(args):
     """Games from the menus, one after another, until the count, a stop, or Esc."""
     from .menu import GAME_SCENE, MenuWalker, Regions, latest_deck_id
     from .windows_input import WindowsInput
-    policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
+    menu_profile = None
+    if getattr(args, 'menu_profile', None):
+        from .menu_profile import load
+        menu_profile = load(args.menu_profile, args.mode, args.deck_id)
+    elif args.mode == 'standard':
+        raise Stop('Standard loops require --menu-profile calibrated for --deck-id; see docs/ranked-modes.md')
+    policy = build_policy(args.aggressive, not args.no_tactics)
+    configure_deck(policy, args)
     window = ensure_game()
     screen = GameScreen(window)
-    regions = Regions(screen)
-    inputs = WindowsInput(window, current_window=game_window)
-    print(f'LIVE INPUT ENABLED: {args.games} {args.mode} games with the {policy.name} policy. Hold Esc to stop.', flush=True)
+    regions = Regions(screen, refs=menu_profile['regions']) if menu_profile else Regions(screen)
+    inputs = None
     folder = ROOT / '.data/live' / ('loop-' + time.strftime('%Y%m%d-%H%M%S'))
     results, stopped = [], None
-    summary = lambda: {**outcome_counts(results), 'results': results, 'stopped': stopped,
-                       'mode': args.mode, 'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
-                       'model_fallbacks': getattr(policy, 'fallbacks', 0)}
+    plan = RestartPlan(args.restart_every)
+    restarts = 0
+    summary = lambda: {**outcome_counts(results), 'results': results, 'stopped': stopped, 'restarts': restarts,
+                       'mode': args.mode, 'deck_id': args.deck_id,
+                       'deck_profile': getattr(policy, 'deck_profile', {}).get('name'),
+                       'policy': policy.name}
     try:
+        inputs = WindowsInput(window, current_window=game_window,
+                              port=args.makcu_port, baud=args.makcu_baud)
+        print(f'LIVE INPUT ENABLED: {args.games} {args.mode} games with the {policy.name} policy. Hold Esc to stop.', flush=True)
         wait_for_focus(inputs, window)
         log_path = current_log()
-        walker = MenuWalker(Tail(log_path.parent / 'LoadingScreen.log'), regions, inputs, mode=args.mode,
-                            timeout=180.0 if args.mode == 'wild' else 45.0)
+        def menu_diagnostic(label):
+            folder.mkdir(parents=True, exist_ok=True)
+            screen.save(folder / f'{label}-{time.time_ns()}.png')
+        def new_walker():
+            return MenuWalker(Tail(log_path.parent / 'LoadingScreen.log'), regions, inputs, mode=args.mode,
+                              **({'deck_click': menu_profile['deck_click']} if menu_profile else {}),
+                              timeout=180.0 if args.mode in ('wild', 'standard') else 45.0,
+                              diagnostic=menu_diagnostic)
+        walker = new_walker()
         while len(results) < args.games:
             tail = Tail(log_path, session_check=current_log)
             if walker.read_scene() != GAME_SCENE:
@@ -490,10 +579,29 @@ def run_loop(args):
                 continue
             results.append(recorded_game(agent, record, policy, args.mode, args.pace, len(results) + 1))
             walker.leave_game()
+            if plan.game_played() and len(results) < args.games:
+                if inputs.aborted():
+                    raise Stop('stopped by the player')
+                if walker.read_scene() == GAME_SCENE:
+                    raise Stop('still in the game scene, so the game was not closed')
+                print(f'Restarting Hearthstone after {plan.played} games ({len(results)} of {args.games} played).', flush=True)
+                close_game(window, inputs.aborted)
+                restarts += 1
+                plan.restarted()
+                window = reopen_game()
+                screen = GameScreen(window)
+                regions = Regions(screen, refs=menu_profile['regions']) if menu_profile else Regions(screen)
+                inputs.window = window
+                bring_to_front(window['hwnd'])  # Otherwise the menu walker waits for someone to click the game.
+                log_path = reopened_log(log_path, inputs.aborted)
+                walker = new_walker()
     except (Stop, RuntimeError, geometry.GeometryError, OSError) as stop:
         stopped = str(stop)
     except KeyboardInterrupt:
         stopped = 'stopped from terminal (Ctrl+C)'
+    finally:
+        if inputs is not None:
+            inputs.close()
     save_run(folder, screen, summary(), stopped)
     if stopped:
         sys.exit(2)
@@ -503,20 +611,21 @@ def run_friend(args):
     """Agreed friendly games. The player sends or accepts each challenge and the agent plays what follows."""
     from .menu import GAME_SCENE, MenuWalker, Regions
     from .windows_input import WindowsInput
-    policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
+    policy = build_policy(args.aggressive, not args.no_tactics)
     window = game_window()
     screen = GameScreen(window)
     regions = Regions(screen)
-    inputs = WindowsInput(window, current_window=game_window)
-    count = 'until you hold Esc' if args.games is None else f'for {args.games} game(s)'
-    print(f'LIVE INPUT ENABLED: agreed friendly challenges only, {count}, with the {policy.name} policy.', flush=True)
-    print('Send or accept the challenge and pick your deck in Hearthstone. The agent takes over in the game.', flush=True)
+    inputs = None
     folder = ROOT / '.data/live' / ('friend-' + time.strftime('%Y%m%d-%H%M%S'))
     results, stopped = [], None
     summary = lambda: {**outcome_counts(results), 'results': results, 'stopped': stopped, 'mode': 'friend',
-                       'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
-                       'model_fallbacks': getattr(policy, 'fallbacks', 0)}
+                       'policy': policy.name}
     try:
+        inputs = WindowsInput(window, current_window=game_window,
+                              port=args.makcu_port, baud=args.makcu_baud)
+        count = 'until you hold Esc' if args.games is None else f'for {args.games} game(s)'
+        print(f'LIVE INPUT ENABLED: agreed friendly challenges only, {count}, with the {policy.name} policy.', flush=True)
+        print('Send or accept the challenge and pick your deck in Hearthstone. The agent takes over in the game.', flush=True)
         log_path = current_log()
         walker = MenuWalker(Tail(log_path.parent / 'LoadingScreen.log'), regions, inputs)
         while args.games is None or len(results) < args.games:
@@ -538,6 +647,9 @@ def run_friend(args):
         stopped = str(stop)
     except KeyboardInterrupt:
         stopped = 'stopped from terminal (Ctrl+C)'
+    finally:
+        if inputs is not None:
+            inputs.close()
     save_run(folder, screen, summary(), stopped)
     if stopped and stopped not in ('stopped by the player', 'stopped from terminal (Ctrl+C)'):
         sys.exit(2)
@@ -545,11 +657,9 @@ def run_friend(args):
 
 def recorded_game(agent, record, policy, mode, pace, number):
     """Play one game and save its outcome, however it ends. Returns the entry for the run's summary."""
-    shared = {'policy': policy.name, 'actions': agent.actions, 'pace': pace, 'mode': mode,
-              'checkpoint': getattr(policy, 'checkpoint', None)}
+    shared = {'policy': policy.name, 'actions': agent.actions, 'pace': pace, 'mode': mode}
     def finish(**outcome):
-        record.finish({**outcome, **shared, 'actions': agent.actions, 'recoveries': agent.recoveries,
-                       'model_fallbacks': getattr(policy, 'fallbacks', 0)})
+        record.finish({**outcome, **shared, 'actions': agent.actions, 'recoveries': agent.recoveries})
     try:
         result = agent.run_game()
     except KeyboardInterrupt:
@@ -624,8 +734,25 @@ def watch(args):
 
 
 def utf8_command(argv):
-    """Windows defaults to the system code page, which cannot read the model's UTF-8 config."""
+    """Windows defaults to the system code page, which cannot read UTF-8 project files."""
     return [sys.executable, '-X', 'utf8', '-m', 'agent.cli', *argv]
+
+
+def run_with_parent_stop(args):
+    """A GUI-owned CLI run stops through normal Python cleanup when its pipe closes."""
+    from _thread import interrupt_main
+    from threading import Thread
+
+    def wait_for_parent():
+        os.read(sys.stdin.fileno(), 1)
+        interrupt_main()
+
+    try:
+        Thread(target=wait_for_parent, daemon=True).start()
+        args.handler(args)
+    except KeyboardInterrupt:
+        print('Stopped by the control panel.', flush=True)
+        sys.exit(2)
 
 
 def main():
@@ -633,6 +760,7 @@ def main():
         sys.exit(subprocess.run(utf8_command(sys.argv[1:])).returncode)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, help='Local JSON profile; paths are relative to this file.')
+    parser.add_argument('--stop-on-stdin', action='store_true', help=argparse.SUPPRESS)
     commands = parser.add_subparsers(dest='command', required=True)
     for name, handler in (('status', status), ('preview', preview), ('play', play), ('watch', watch), ('loop', run_loop),
                           ('friend', run_friend)):
@@ -640,15 +768,20 @@ def main():
         command.set_defaults(handler=handler)
         command.add_argument('--log')
         if name in ('play', 'loop', 'friend'):
+            from .makcu import Makcu
+            command.add_argument('--makcu-port', metavar='COMx', help='MAKCU USB2 serial port. Default: auto-discover.')
+            command.add_argument('--makcu-baud', type=int, choices=Makcu.BAUD_RATES, help='Default: probe both rates.')
             command.add_argument('--pace', choices=sorted(PACES), default='fast',
                                  help='fast (default) trusts the log animation queue and keeps playing after a failed '
                                       'move; careful is the earlier slower behavior that stops instead.')
             command.add_argument('--no-tactics', action='store_true', help='Turn off the Pirate Warrior tactics.')
+            command.add_argument('--policy', choices=['rules'], default='rules', help=argparse.SUPPRESS)
             command.add_argument('--screen-settle', type=float, default=1.5,
                                  help='With --pace careful: stable board/hand interval in seconds (0.5 to 5; default 1.5).')
         if name in ('play', 'loop'):
-            command.add_argument('--mode', choices=['practice', 'wild'], default='wild' if name == 'loop' else 'practice',
-                                 help='wild requires Ranked Wild; practice allows AI games.')
+            command.add_argument('--deck-profile', help='Deck metadata JSON; Standard defaults to the supplied cannon Warrior.')
+            command.add_argument('--mode', choices=['practice', 'wild', 'standard'], default='wild' if name == 'loop' else 'practice',
+                                 help='wild/standard require the corresponding ranked format; practice allows AI games.')
         if name == 'preview':
             command.add_argument('frame')
             command.add_argument('output')
@@ -656,22 +789,22 @@ def main():
             command.add_argument('--minutes', type=float, default=15)
         if name == 'loop':
             command.add_argument('--games', type=int, required=True)
-            command.add_argument('--policy', choices=['laya', 'rules'], default='laya')
             command.add_argument('--aggressive', action='store_true')
             command.add_argument('--frames', action='store_true')
             command.add_argument('--deck-id', default=None)
+            command.add_argument('--menu-profile', help='Calibrated ranked menu JSON bound to this deck ID.')
             command.add_argument('--idle-limit', type=float, default=180.0)
+            command.add_argument('--restart-every', default=None, metavar='N[,N...]',
+                                 help='Close and reopen the game between games. 5,6,7 picks one at random each time.')
         if name == 'friend':
             command.add_argument('--friend-agreed', action='store_true', required=True,
                                  help='Required. Confirms your opponent knows a bot is playing.')
             command.add_argument('--games', type=int, default=None, help='Stop after this many games. Default: until Esc.')
-            command.add_argument('--policy', choices=['laya', 'rules'], default='laya')
             command.add_argument('--aggressive', action='store_true', help='Hit face whenever an attacker can.')
             command.add_argument('--frames', action='store_true', help='Save a frame before every move. Slower.')
         if name == 'play':
             command.add_argument('--frames', action='store_true', help='Save a frame before every move. Slower.')
             command.add_argument('--execute', action='store_true', help='Send real mouse input.')
-            command.add_argument('--policy', choices=['laya', 'rules'], default='laya')
             command.add_argument('--aggressive', action='store_true', help='Hit face whenever an attacker can.')
             command.add_argument('--friend-agreed', action='store_true',
                                  help='Also act in a friendly challenge. Use only if your opponent knows a bot is playing.')
@@ -684,12 +817,30 @@ def main():
         except (ValueError, OSError) as error:
             parser.error(str(error))
     if args.command == 'loop':
+        if args.mode == 'standard' and not args.deck_id:
+            parser.error('Standard loops require an explicit --deck-id for the imported Warrior deck')
         args.deck_id = args.deck_id or DECK_ID
+        if args.mode == 'standard' and not args.menu_profile:
+            parser.error('Standard loops require --menu-profile; see docs/ranked-modes.md')
+        if args.menu_profile:
+            from .menu_profile import load
+            try:
+                load(args.menu_profile, args.mode, args.deck_id)
+            except (ValueError, KeyError, TypeError, OSError) as error:
+                parser.error(f'--menu-profile: {error}')
+        if args.restart_every is not None:
+            try:
+                args.restart_every = parse_restart_every(args.restart_every)
+            except ValueError as error:
+                parser.error(f'--restart-every: {error}')
     if args.command == 'friend' and args.games is not None and args.games <= 0:
         parser.error('--games must be positive')
     if args.command == 'loop' and args.games <= 0:
         parser.error('--games must be positive')
-    args.handler(args)
+    if args.stop_on_stdin:
+        run_with_parent_stop(args)
+    else:
+        args.handler(args)
 
 
 if __name__ == '__main__':

@@ -6,9 +6,6 @@ mutation checks are caught, and recorded games ran through the real loop at fast
 
 ## Where the time went
 
-Laya was not the bottleneck. It takes about 230 ms per decision, against 8.4 s between options and the
-send on the latest ranked run.
-
 The last recorded play shows the main cost. The game had finished its animation queue at
 `22:24:07.40`, and the agent sent at `22:24:14.59`: 7.2 seconds waiting for whole-board pixels to stop
 changing. In that run the board check blocked 76 of 82 screen checks at one point, with
@@ -26,7 +23,7 @@ percentile) after options arrived, so the client takes input long before the boa
 | Animation check | Whole board and hand still for 1.5 s | Log backlog at most 12 lines |
 | Pixel check | Same as above | Patches around the gesture still for 0.12 s, giving up after 0.5 s |
 | End Turn button | 3 lit reads | 2 lit reads |
-| Model | After the screen is ready | During the animation, once per packet |
+| Decision | After the screen is ready | During the animation, once per packet |
 | Drag | 0.31 s | About 0.18 s, with a careful retry |
 | Confirm timeout | 2 s | 1.2 s |
 
@@ -99,7 +96,6 @@ into `moves.jsonl` and `outcome.json`.
   Engineer or Hozen Roughhouser is playable, the buff goes first. This fixes the reported habit.
   Choosing another card first is left alone.
 - **The Coin:** spent only when it stops mana going unused this turn.
-- **No early pass:** Laya cannot end the turn while a useful move exists.
 - **Mulligan:** a table for this deck, replacing the plain cost rule.
 
 These are judgment calls. Two first versions were narrowed after checking them against recorded play:

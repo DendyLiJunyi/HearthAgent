@@ -1,4 +1,4 @@
-"""Walks the menus to a practice or Ranked Wild game using both scene and screen checks.
+"""Walks the menus to practice or ranked games using both scene and screen checks.
 
 Every click needs two independent proofs: the scene in LoadingScreen.log, and small screen regions
 compared against frames recorded while the player walked the same route. Anything else, such as a
@@ -12,6 +12,9 @@ from pathlib import Path
 from .loop import Stop
 
 REFS = Path(__file__).with_name('menu_refs.json')
+NOTICE_REFS = Path(__file__).with_name('notice_refs.json')
+QUEUE_ERROR_REGIONS = ('queue_error_title', 'queue_error_message', 'queue_error_confirm')
+QUEUE_ERROR_CONFIRM = (953, 650)
 STEP = 3
 
 # name: (frame in the recording, box). Boxes hold fixed text, away from glows and the mouse.
@@ -69,6 +72,14 @@ WILD_SCREENS = [
     ('TOURNAMENT', 'wild_deck_pick', ('wild_title', 'constructed_choose', 'wild_deck_tile', '!wild_deck_name'), (480, 280)),
     ('TOURNAMENT', 'wild_format_open', ('constructed_choose', '!wild_title', '!format_wild'), (1402, 55)),
 ]
+STANDARD_SCREENS = [
+    SCREENS[0],
+    ('HUB', 'standard_hub', ('hub_buttons', 'hub_bar'), (960, 330)),
+    ('TOURNAMENT', 'standard_format_pick', ('format_wild', 'format_standard'), (950, 420)),
+    ('TOURNAMENT', 'standard_ready', ('standard_title', 'constructed_choose', 'standard_deck_tile', 'standard_deck_name', 'standard_start'), (1400, 890)),
+    ('TOURNAMENT', 'standard_deck_pick', ('standard_title', 'constructed_choose', 'standard_deck_tile', '!standard_deck_name'), (480, 280)),
+    ('TOURNAMENT', 'standard_format_open', ('constructed_choose', '!standard_title', '!format_standard'), (1402, 55)),
+]
 # An empty part of the end-of-game screen, where any click continues.
 CONTINUE = (1221, 883)
 AWAY = (960, 1066)  # Parks the mouse, because hovering a button changes how it looks.
@@ -99,6 +110,8 @@ class Regions:
     def __init__(self, screen, refs=None):
         self.screen = screen
         self.refs = refs if refs is not None else json.loads(REFS.read_text(encoding='utf-8'))
+        # Shared notices must also work with deck-specific menu profiles.
+        self.refs = {**self.refs, **json.loads(NOTICE_REFS.read_text(encoding='utf-8'))}
         self.pixels = None
 
     def refresh(self):
@@ -107,14 +120,51 @@ class Regions:
         self.pixels = self.screen.frame()
 
     def matches(self, name):
+        if name not in self.refs:
+            raise Stop(f'missing calibrated menu reference: {name}')
         ref = self.refs[name]
         sampled = signature(self.pixels, self.screen.width, ref['box'])
         return any(difference(sampled, candidate) <= self.TOLERANCE
                    for candidate in [ref['signature'], *ref.get('variants', [])])
 
+    def mulligan_scores(self):
+        """Allow a bounded color shift from button glows; retain the text pattern."""
+        scores = {}
+        for name in ('mulligan_title', 'mulligan_confirm'):
+            if name not in self.refs:
+                raise Stop(f'missing calibrated menu reference: {name}')
+            ref = self.refs[name]
+            sampled = signature(self.pixels, self.screen.width, ref['box'])
+            scores[name] = min(self._glow_difference(sampled, candidate)
+                               for candidate in [ref['signature'], *ref.get('variants', [])])
+        return scores
+
+    @staticmethod
+    def _glow_difference(sampled, candidate):
+        offsets = [max(-35, min(35, sum(sampled[c::3]) / len(sampled[c::3])
+                               - sum(candidate[c::3]) / len(candidate[c::3]))) for c in range(3)]
+        return sum(abs(a - b - offsets[i % 3]) for i, (a, b) in enumerate(zip(sampled, candidate))) / len(sampled)
+
+    def hub_modal(self):
+        """A dimmed, still recognizable hub bar beneath a bright central modal."""
+        if 'hub_bar' not in self.refs:
+            return False
+        ref = self.refs['hub_bar']
+        sample = signature(self.pixels, self.screen.width, ref['box'])
+        base = ref['signature']
+        scale = sum(sample) / max(1, sum(base))
+        if not 0.2 <= scale <= 0.75:
+            return False
+        residual = difference(sample, [v * scale for v in base])
+        center = signature(self.pixels, self.screen.width, (700, 300, 1220, 700))
+        return residual <= 8 and sum(center) / len(center) >= 45
+
     def mulligan_ready(self):
         self.refresh()
-        return self.matches('mulligan_title') and self.matches('mulligan_confirm')
+        self.last_mulligan_scores = self.mulligan_scores()
+        ready = all(score <= self.TOLERANCE for score in self.last_mulligan_scores.values())
+        self._mulligan_hits = getattr(self, '_mulligan_hits', 0) + 1 if ready else 0
+        return self._mulligan_hits >= 2
 
 
 def latest_scene(lines, current=None):
@@ -134,15 +184,19 @@ def identify(scene, matches, screens=None):
 
 class MenuWalker:
     def __init__(self, scenes, regions, inputs, *, timeout=45.0, startup_timeout=240.0, max_clicks=12, settle=0.5, slide_time=3.0,
-                 clock=time.monotonic, sleep=time.sleep, log=print, mode='practice'):
-        if mode not in ('practice', 'wild'):
+                 clock=time.monotonic, sleep=time.sleep, log=print, mode='practice', deck_click=None, diagnostic=None):
+        if mode not in ('practice', 'wild', 'standard'):
             raise ValueError(f'unsupported mode: {mode}')
-        self.screens = SCREENS if mode == 'practice' else WILD_SCREENS
+        self.screens = {'practice': SCREENS, 'wild': WILD_SCREENS, 'standard': STANDARD_SCREENS}[mode]
+        if deck_click is not None:
+            self.screens = [(scene, name, refs, tuple(deck_click) if name.endswith('deck_pick') else point)
+                            for scene, name, refs, point in self.screens]
         self.scenes, self.regions, self.inputs = scenes, regions, inputs
         self.timeout, self.max_clicks, self.settle, self.slide_time = timeout, max_clicks, settle, slide_time
         self.clock, self.sleep, self.log = clock, sleep, log
         self.startup_timeout = startup_timeout
         self.scene = None
+        self.diagnostic = diagnostic or (lambda label: None)
 
     def read_scene(self):
         self.scene = latest_scene(self.scenes(), self.scene)
@@ -170,6 +224,9 @@ class MenuWalker:
         clicks = 0
         last = None
         repeats = 0
+        queue_errors = 0
+        modal_attempts = 0
+        modal_since = None
         self._check_abort()
         recognized_at = clicked_at = started = self.clock()
         self.inputs.careful = True
@@ -180,6 +237,38 @@ class MenuWalker:
             clicked_at += paused
             started += paused
             self.regions.refresh()
+            modal = self.scene == 'HUB' and getattr(self.regions, 'hub_modal', lambda: False)()
+            if modal:
+                if modal_since is None:
+                    modal_since = self.clock()
+                if self.clock() - modal_since < 1.0:
+                    self.sleep(0.2)
+                    continue
+                if modal_attempts >= 3:
+                    raise Stop('main-menu popup persisted after three dismissal attempts')
+                modal_attempts += 1
+                self.diagnostic(f'hub-popup-{modal_attempts}')
+                self.log(f'menu: dismissing main-menu popup {modal_attempts}/3')
+                self.inputs.send([('click', CONTINUE), ('move', AWAY)])
+                recognized_at = self.clock()
+                modal_since = self.clock()
+                self.sleep(1.0)
+                continue
+            modal_since = None
+            if self.scene == 'TOURNAMENT' and all(self.regions.matches(n) for n in QUEUE_ERROR_REGIONS):
+                if queue_errors >= 3:
+                    raise Stop('queue error persisted after three recovery attempts')
+                queue_errors += 1
+                self.log(f'menu: dismissing game-start error; retry {queue_errors}/3 after 120 seconds')
+                self.inputs.send([('click', QUEUE_ERROR_CONFIRM), ('move', AWAY)])
+                deadline = self.clock() + 120.0
+                while self.clock() < deadline:
+                    deadline += self._check_abort()
+                    self.sleep(min(0.2, max(0, deadline - self.clock())))
+                # Start a fresh menu decision after the cooldown, including fresh pixels and scene.
+                last, repeats = None, 0
+                recognized_at = clicked_at = started = self.clock()
+                continue
             row = identify(self.scene, self.regions.matches, self.screens)
             if self.scene in STARTING_SCENES and row is None:
                 if self.clock() - started > self.startup_timeout:
@@ -189,6 +278,7 @@ class MenuWalker:
                 continue
             if row is None:
                 if self.clock() - recognized_at > self.timeout:
+                    self.diagnostic('unrecognized-menu')
                     raise Stop(f'unrecognized screen in scene {self.scene}; leaving it alone')
                 self.sleep(0.2)
                 continue
@@ -219,6 +309,8 @@ class MenuWalker:
                 started += paused
                 clicked_at += paused
                 self.regions.refresh()
+                if self.scene == 'TOURNAMENT' and all(self.regions.matches(n) for n in QUEUE_ERROR_REGIONS):
+                    break
                 if identify(self.scene, self.regions.matches, self.screens) != row:
                     break
                 self.sleep(0.2)

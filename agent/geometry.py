@@ -21,6 +21,10 @@ HAND_SPACING = {1: 0, 2: 170, 3: 160, 4: 140, 5: 115, 6: 100, 7: 86, 8: 68, 9: 6
 # Large hands overlap, so aim lower, where each card shows a wider strip. Eight is an estimate.
 LARGE_HAND_CENTER = {8: 890, 9: 884, 10: 884}
 LARGE_HAND_Y = 1030
+# In 25 practice games, 10 of 105 drags from the leftmost card played its neighbor, against 1 of 198 from other
+# positions, all with five or more cards. The cause was not seen, so this nudge is a guess that a live run must test.
+LEFTMOST_NUDGE = 15
+LEFTMOST_NUDGE_FROM = 5
 PLAY_DROP = (965, 560)
 CANCEL_POINT = (1300, 490)  # Empty board between the minion rows, for a right-click that drops a stuck arrow.
 CHOICE_Y = 500
@@ -47,9 +51,10 @@ def row_x(index, count, spacing, center=CENTER_X):
 def hand_point(index, count):
     if not 0 <= index < count or count not in HAND_SPACING:
         raise GeometryError(f'no hand position for card {index} of {count}')
+    nudge = LEFTMOST_NUDGE if index == 0 and count >= LEFTMOST_NUDGE_FROM else 0
     if count in LARGE_HAND_CENTER:
-        return row_x(index, count, HAND_SPACING[count], LARGE_HAND_CENTER[count]), LARGE_HAND_Y
-    return row_x(index, count, HAND_SPACING[count], HAND_CENTER_X), HAND_Y
+        return row_x(index, count, HAND_SPACING[count], LARGE_HAND_CENTER[count]) - nudge, LARGE_HAND_Y
+    return row_x(index, count, HAND_SPACING[count], HAND_CENTER_X) - nudge, HAND_Y
 
 
 def minion_point(index, count, local):
@@ -70,6 +75,17 @@ def choice_point(index, count):
     if not 0 <= index < count or count > 5:
         raise GeometryError(f'no choice position for {index} of {count}')
     return row_x(index, count, CHOICE_SPACING[count], 960), CHOICE_Y
+
+
+def entity_choice_point(index, entities, cards):
+    from .rewind import KEEP, is_timeline, option_ids
+    if not 0 <= index < len(entities):
+        raise GeometryError('invalid selected choice index')
+    ids = option_ids(entities, cards)
+    if is_timeline(ids):
+        # Recorded 1920x1080 timeline control: Rewind left, Keep right.
+        return (580, 805) if ids[index] == KEEP else (350, 805)
+    return choice_point(index, len(entities))
 
 
 def mulligan_point(index, count):
