@@ -13,11 +13,12 @@ input handler, current log session and menu walker after reopening.
 
 ## Standard Warrior setup
 
-Import the code in [the Standard profile](../config/decks/standard-warrior-cannon.json)
+Import the code in [the Standard Pirate Warrior profile](../config/decks/standard-warrior-pirates.json)
 into Hearthstone yourself. Missing cards must be resolved in the game. Keep the
 saved deck name and position stable. This profile is separate from Wild decks;
-Standard automatically uses its mulligan and tactical rules unless `--no-tactics`
-is supplied. `--deck-profile PATH` explicitly selects another metadata profile.
+Standard uses Pirate Warrior's mulligan and tactical rules unless `--no-tactics`
+is supplied. The older [cannon Warrior profile](../config/decks/standard-warrior-cannon.json)
+is also available via `--deck-profile PATH`.
 Profiles do not change observed card costs or generate legal actions.
 
 For a game you start manually:

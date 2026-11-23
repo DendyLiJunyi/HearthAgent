@@ -24,7 +24,7 @@ MUTATIONS = [
     ('esc beats a restart', 'cli.py', "if inputs.aborted():\n                    raise Stop('stopped by the player')\n                if walker.read_scene()", "if False:\n                    raise Stop('stopped by the player')\n                if walker.read_scene()"),
     ('game scene is never closed', 'cli.py', "if walker.read_scene() == GAME_SCENE:\n                    raise Stop('still in", "if False:\n                    raise Stop('still in"),
     ('restart uses the new log', 'cli.py', "log_path = current_log()\n                walker = new_walker()", "walker = new_walker()"),
-    ('restart uses the new window', 'cli.py', "inputs = WindowsInput(window, current_window=game_window)\n                bring_to_front", "bring_to_front"),
+    ('restart uses the new window', 'cli.py', "inputs.window = window\n                bring_to_front", "bring_to_front"),
     ('reopened game is brought forward', 'cli.py', "bring_to_front(window['hwnd'])  # Otherwise", "pass  # Otherwise"),
     ('stretch picks again', 'restart.py', "self.played = 0\n        self.target = self.rng.choice(self.choices)", "self.played = 0"),
     ('force only after asking fails', 'restart.py', "if post(window['hwnd']) and wait_for_exit(CLOSE_TIMEOUT):", "if False:"),

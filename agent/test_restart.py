@@ -138,6 +138,9 @@ class FakeInputs:
     def aborted(self):
         return self.run.esc
 
+    def close(self):
+        self.run.events.append('input_closed')
+
 
 class FakeWalker:
     def __init__(self, run, scenes):
@@ -204,7 +207,7 @@ class LoopRun:
         self.new_session()
         self.args = SimpleNamespace(policy='laya', aggressive=False, no_tactics=False, games=games, frames=False,
                                     screen_settle=1.5, pace='fast', mode='practice', idle_limit=None,
-                                    deck_id='DECK', restart_every=every)
+                                    deck_id='DECK', restart_every=every, makcu_port=None, makcu_baud=None)
 
     def new_session(self):
         self.session += 1
@@ -246,9 +249,11 @@ class LoopRun:
                 mock.patch('agent.menu.Regions'), \
                 mock.patch('agent.menu.latest_deck_id', side_effect=lambda *_: self.deck), \
                 mock.patch('agent.menu.MenuWalker', side_effect=lambda scenes, *_, **__: FakeWalker(self, scenes)), \
-                mock.patch('agent.windows_input.WindowsInput', side_effect=lambda window, **_: FakeInputs(self, window)), \
+                mock.patch('agent.windows_input.WindowsInput', side_effect=lambda window, **_: FakeInputs(self, window)) as inputs, \
                 mock.patch('builtins.print'):
             cli.run_loop(self.args)
+            inputs.assert_called_once()
+            assert self.events.count('input_closed') == 1
         run = next(self.folder.glob('.data/live/loop-*'))
         return json.loads((run / 'summary.json').read_text(encoding='utf-8'))
 

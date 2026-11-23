@@ -1,7 +1,7 @@
 # Hearth Agent
 
 An agent that plays Hearthstone on Windows. It reads the game state from Hearthstone's own log files,
-chooses moves with a fine-tuned Laya model and rules, and plays them with mouse input. It does not read
+chooses moves with deterministic rules, and plays them with mouse input. It does not read
 game memory or change the game client.
 
 It can play:
@@ -13,13 +13,28 @@ It can play:
 | Ranked Wild | `loop` | Start the command | Opens the game, goes through the menus, plays, repeats |
 | One game already open | `play --execute` | Start the game, click its window | Plays that game |
 
-The model and tactics were tuned for Pirate Warrior, so expect weaker play with other decks.
+The tactics were tuned for Pirate Warrior, so expect weaker play with other decks.
 
 > **Account risk:** Blizzard's terms restrict bots and automation, so using this on a Ranked account puts
 > that account at risk, and Ranked opponents are real people who have not agreed to play a bot. Use
 > `friend` only when your opponent knows a bot is playing.
 
 ## Use it
+
+### Windows control panel
+
+Double-click `控制台.cmd` in the project folder, or run:
+
+```powershell
+.venv/Scripts/python.exe -X utf8 -m agent.control_panel
+```
+
+Use **接管当前对局** to control a game you already started, or **循环对局** to start and play a set
+of games. Both use the rules policy. **检测 MAKCU** checks the serial handshake and **查询对局**
+reads the latest match state. Use **停止任务** to stop a running task and wait for it to release
+mouse input before starting another one.
+
+### PowerShell commands
 
 Run these from the project folder in PowerShell. If you made `config/agent.json` during setup, add
 `--config config/agent.json` straight after `agent.cli`.
@@ -73,6 +88,27 @@ Other dialogs remain unrecognized. Escape still stops the loop during the wait.
 .venv/Scripts/python.exe -m agent.cli play                               # dry run: prints the plan, sends nothing
 ```
 
+### Connect MAKCU for live play
+
+`play --execute`, `loop`, and `friend` require a MAKCU. Connect the box's USB1 and USB2 ports to the
+Windows PC running the agent, and connect your mouse to USB3. Install the CH343 driver if Windows
+does not show a serial port. Run `scripts/setup-laya.ps1` again if you installed the runtime before
+MAKCU support was added. See the [MAKCU setup guide](https://makcu.com/en/setup).
+
+The agent looks for one compatible CH343 serial port and checks its MAKCU identity. If automatic
+detection finds no port or more than one, use the COM name shown in Device Manager. For example,
+open a practice match and run:
+
+```powershell
+.venv/Scripts/python.exe -m agent.cli play --execute --mode practice --makcu-port COM3
+```
+
+The agent tries 115200 and 4000000 baud by default. Use `--makcu-baud 115200` or
+`--makcu-baud 4000000` to use a known rate. If the port is busy, close the MAKCU configurator or
+other software using the port. If the cursor repeatedly misses its target, try disabling **Enhance
+pointer precision** in Windows mouse settings. Preview, status, watch, and dry runs do not open the
+serial port.
+
 ### While it plays
 
 - **To stop:** hold **Esc**, or press Ctrl+C in the terminal.
@@ -83,7 +119,6 @@ Other dialogs remain unrecognized. Escape still stops the loop during the wait.
 
 | Option | Commands | Effect |
 | --- | --- | --- |
-| `--policy rules` | all | Use the rules without the model, so no GPU is needed |
 | `--aggressive` | all | Attack the enemy hero whenever possible |
 | `--no-tactics` | all | Turn off the Pirate Warrior tactics |
 | `--pace careful` | all | Play slower, and stop on a failure instead of recovering |
@@ -115,10 +150,9 @@ To teach the agent from its mistakes, see [Learning from failed matches](docs/le
 ### What you need
 
 - Windows 10 or 11, 64-bit
-- An NVIDIA GPU for the model (it has run on an RTX 4060 with 8 GB). `--policy rules` works without one.
 - About 8 GB of disk space, mostly for the Python environment
 - Git, Battle.net and Hearthstone
-- The old computer, or a copy of its files, because the two items in step 3 are not in Git
+- A copy of the card data from step 3
 
 These steps have not yet been run from scratch on a second computer.
 
@@ -140,14 +174,10 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-laya.ps1
 This downloads `uv`, Python 3.12.16 and the pinned packages, including PyTorch with CUDA, into the project
 folder (`.tools/` and `.venv/`). Nothing is installed system-wide.
 
-### 3. Copy the model and card data
+### 3. Copy the card data
 
-Copy these from the old computer to the same paths in the new project folder:
-
-| Path | Size | Contents |
-| --- | --- | --- |
-| `.data/imitation/laya-wild-reviewed-20261105/` | ~650 MB | Current trained model; keep `laya-combo` for rollback |
-| `.data/cards-enUS.json` | 10 MB | Card data, needed even with `--policy rules` |
+Copy `.data/cards-enUS.json` from the old computer to the same path in the new project folder.
+The Laya checkpoints are used by the offline model experiments.
 
 ### 4. Turn on Hearthstone's logs
 
@@ -187,8 +217,7 @@ different deck, copy `config/agent.example.json` to `config/agent.json` and edit
 {
   "install": "C:/Program Files (x86)/Hearthstone",
   "battle_net": "C:/Program Files (x86)/Battle.net/Battle.net.exe",
-  "deck_id": "9567872927",
-  "checkpoint": "../.data/imitation/laya-wild-reviewed-20261105"
+  "deck_id": "9567872927"
 }
 ```
 
@@ -215,9 +244,6 @@ Nothing here sends input to the game.
 # Tests
 .venv/Scripts/python.exe -m unittest discover -s agent -p "test_*.py" -t .
 
-# Model and GPU
-.venv/Scripts/python.exe -c "from agent.policy import LayaPolicy, load_cards; print('model ready:', LayaPolicy.load(load_cards()).checkpoint)"
-
 # Log files, after opening Hearthstone once
 .venv/Scripts/python.exe -m agent.cli status
 ```
@@ -235,7 +261,6 @@ Then try a practice game with `play --execute` before anything else.
 | `refusing to act in ...` | This command doesn't allow that game type | Use the matching command |
 | `cannot tell which player is local` | Couldn't work out which player is you | Keep that run's `Power.log` for debugging, and restart at the next game |
 | A menu is `unrecognized`, or the loop stops at a menu | Layout differs from the recordings | Start the game yourself and use `play` or `friend` |
-| CUDA or model error at launch | No NVIDIA GPU or driver, or step 3 is incomplete | Update the driver, check the copied files, or use `--policy rules` |
 | Moves pause with nothing happening | Another app is in front | Click Hearthstone |
 | After a restart, the game opens but nothing clicks | Windows kept another app in front | Click Hearthstone once |
 

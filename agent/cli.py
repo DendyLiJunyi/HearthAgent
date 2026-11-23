@@ -9,13 +9,14 @@ import shutil
 import subprocess
 import sys
 import time
+from contextlib import ExitStack
 from pathlib import Path
 
 from . import geometry
 from .screen import (GameScreen, BattlefieldSettler, battlefield_signature, hand_signature, choice_signature,
                      average_rgb, region_signature)
 from .loop import Agent, RecordingInput, Stop
-from .policy import DEFAULT_CHECKPOINT, LayaPolicy, RulesPolicy, load_cards
+from .policy import DEFAULT_CHECKPOINT, RulesPolicy, load_cards
 from .power import PowerLog, candidates_from
 from .restart import RestartPlan, bring_to_front, close_game, parse_restart_every
 
@@ -296,18 +297,16 @@ def wait_for_focus(inputs, window, timeout=60, clock=time.monotonic, sleep=time.
     raise Stop('the game window never got focus')
 
 
-def build_policy(name, aggressive=False, tactics=True):
-    cards = load_cards()
-    if name == 'rules':
-        return RulesPolicy(cards, aggressive, tactics=tactics)
-    return LayaPolicy.load(cards, path=CHECKPOINT, aggressive=aggressive, tactics=tactics)
+def build_policy(aggressive=False, tactics=True):
+    return RulesPolicy(load_cards(), aggressive, tactics=tactics)
 
 
 def configure_deck(policy, args):
-    from .deck_profile import STANDARD_WARRIOR, load_profile
+    from .deck_profile import STANDARD_PIRATES, STANDARD_PIRATES_ID, STANDARD_WARRIOR, load_profile
     path = getattr(args, 'deck_profile', None)
     if path is None and args.mode == 'standard':
-        path = STANDARD_WARRIOR
+        deck_id = getattr(args, 'deck_id', None)
+        path = STANDARD_PIRATES if deck_id in (None, STANDARD_PIRATES_ID) else STANDARD_WARRIOR
     if path:
         profile = load_profile(path, args.mode)
         policy.deck_profile = profile
@@ -329,7 +328,12 @@ def build_agent(tail, policy, inputs, record, *, pace, mode, friend_agreed=False
 
 
 def play(args):
-    policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
+    with ExitStack() as cleanup:
+        _play(args, cleanup)
+
+
+def _play(args, cleanup):
+    policy = build_policy(args.aggressive, not args.no_tactics)
     configure_deck(policy, args)
     log_path = Path(args.log or current_log())
     record = None
@@ -337,7 +341,13 @@ def play(args):
         from .menu import Regions
         from .windows_input import WindowsInput
         window = game_window()
-        inputs = WindowsInput(window, current_window=game_window)
+        try:
+            inputs = WindowsInput(window, current_window=game_window,
+                                  port=args.makcu_port, baud=args.makcu_baud)
+        except RuntimeError as error:
+            print(json.dumps({'stopped': str(error)}), flush=True)
+            sys.exit(2)
+        cleanup.callback(inputs.close)
         record = SessionRecord(ROOT / '.data/live' / time.strftime('%Y%m%d-%H%M%S'), log_path,
                                GameScreen(window), args.frames, args.screen_settle, args.pace)
         regions = Regions(record.screen)
@@ -525,13 +535,12 @@ def run_loop(args):
         menu_profile = load(args.menu_profile, args.mode, args.deck_id)
     elif args.mode == 'standard':
         raise Stop('Standard loops require --menu-profile calibrated for --deck-id; see docs/ranked-modes.md')
-    policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
+    policy = build_policy(args.aggressive, not args.no_tactics)
     configure_deck(policy, args)
     window = ensure_game()
     screen = GameScreen(window)
     regions = Regions(screen, refs=menu_profile['regions']) if menu_profile else Regions(screen)
-    inputs = WindowsInput(window, current_window=game_window)
-    print(f'LIVE INPUT ENABLED: {args.games} {args.mode} games with the {policy.name} policy. Hold Esc to stop.', flush=True)
+    inputs = None
     folder = ROOT / '.data/live' / ('loop-' + time.strftime('%Y%m%d-%H%M%S'))
     results, stopped = [], None
     plan = RestartPlan(args.restart_every)
@@ -542,6 +551,9 @@ def run_loop(args):
                        'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
                        'model_fallbacks': getattr(policy, 'fallbacks', 0)}
     try:
+        inputs = WindowsInput(window, current_window=game_window,
+                              port=args.makcu_port, baud=args.makcu_baud)
+        print(f'LIVE INPUT ENABLED: {args.games} {args.mode} games with the {policy.name} policy. Hold Esc to stop.', flush=True)
         wait_for_focus(inputs, window)
         log_path = current_log()
         def menu_diagnostic(label):
@@ -583,7 +595,7 @@ def run_loop(args):
                 window = reopen_game()
                 screen = GameScreen(window)
                 regions = Regions(screen, refs=menu_profile['regions']) if menu_profile else Regions(screen)
-                inputs = WindowsInput(window, current_window=game_window)
+                inputs.window = window
                 bring_to_front(window['hwnd'])  # Otherwise the menu walker waits for someone to click the game.
                 log_path = reopened_log(log_path, inputs.aborted)
                 walker = new_walker()
@@ -591,6 +603,9 @@ def run_loop(args):
         stopped = str(stop)
     except KeyboardInterrupt:
         stopped = 'stopped from terminal (Ctrl+C)'
+    finally:
+        if inputs is not None:
+            inputs.close()
     save_run(folder, screen, summary(), stopped)
     if stopped:
         sys.exit(2)
@@ -600,20 +615,22 @@ def run_friend(args):
     """Agreed friendly games. The player sends or accepts each challenge and the agent plays what follows."""
     from .menu import GAME_SCENE, MenuWalker, Regions
     from .windows_input import WindowsInput
-    policy = build_policy(args.policy, args.aggressive, not args.no_tactics)
+    policy = build_policy(args.aggressive, not args.no_tactics)
     window = game_window()
     screen = GameScreen(window)
     regions = Regions(screen)
-    inputs = WindowsInput(window, current_window=game_window)
-    count = 'until you hold Esc' if args.games is None else f'for {args.games} game(s)'
-    print(f'LIVE INPUT ENABLED: agreed friendly challenges only, {count}, with the {policy.name} policy.', flush=True)
-    print('Send or accept the challenge and pick your deck in Hearthstone. The agent takes over in the game.', flush=True)
+    inputs = None
     folder = ROOT / '.data/live' / ('friend-' + time.strftime('%Y%m%d-%H%M%S'))
     results, stopped = [], None
     summary = lambda: {**outcome_counts(results), 'results': results, 'stopped': stopped, 'mode': 'friend',
                        'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
                        'model_fallbacks': getattr(policy, 'fallbacks', 0)}
     try:
+        inputs = WindowsInput(window, current_window=game_window,
+                              port=args.makcu_port, baud=args.makcu_baud)
+        count = 'until you hold Esc' if args.games is None else f'for {args.games} game(s)'
+        print(f'LIVE INPUT ENABLED: agreed friendly challenges only, {count}, with the {policy.name} policy.', flush=True)
+        print('Send or accept the challenge and pick your deck in Hearthstone. The agent takes over in the game.', flush=True)
         log_path = current_log()
         walker = MenuWalker(Tail(log_path.parent / 'LoadingScreen.log'), regions, inputs)
         while args.games is None or len(results) < args.games:
@@ -635,6 +652,9 @@ def run_friend(args):
         stopped = str(stop)
     except KeyboardInterrupt:
         stopped = 'stopped from terminal (Ctrl+C)'
+    finally:
+        if inputs is not None:
+            inputs.close()
     save_run(folder, screen, summary(), stopped)
     if stopped and stopped not in ('stopped by the player', 'stopped from terminal (Ctrl+C)'):
         sys.exit(2)
@@ -725,11 +745,29 @@ def utf8_command(argv):
     return [sys.executable, '-X', 'utf8', '-m', 'agent.cli', *argv]
 
 
+def run_with_parent_stop(args):
+    """A GUI-owned CLI run stops through normal Python cleanup when its pipe closes."""
+    from _thread import interrupt_main
+    from threading import Thread
+
+    def wait_for_parent():
+        os.read(sys.stdin.fileno(), 1)
+        interrupt_main()
+
+    try:
+        Thread(target=wait_for_parent, daemon=True).start()
+        args.handler(args)
+    except KeyboardInterrupt:
+        print('Stopped by the control panel.', flush=True)
+        sys.exit(2)
+
+
 def main():
     if not sys.flags.utf8_mode:
         sys.exit(subprocess.run(utf8_command(sys.argv[1:])).returncode)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', type=Path, help='Local JSON profile; paths are relative to this file.')
+    parser.add_argument('--stop-on-stdin', action='store_true', help=argparse.SUPPRESS)
     commands = parser.add_subparsers(dest='command', required=True)
     for name, handler in (('status', status), ('preview', preview), ('play', play), ('watch', watch), ('loop', run_loop),
                           ('friend', run_friend)):
@@ -737,10 +775,14 @@ def main():
         command.set_defaults(handler=handler)
         command.add_argument('--log')
         if name in ('play', 'loop', 'friend'):
+            from .makcu import Makcu
+            command.add_argument('--makcu-port', metavar='COMx', help='MAKCU USB2 serial port. Default: auto-discover.')
+            command.add_argument('--makcu-baud', type=int, choices=Makcu.BAUD_RATES, help='Default: probe both rates.')
             command.add_argument('--pace', choices=sorted(PACES), default='fast',
                                  help='fast (default) trusts the log animation queue and keeps playing after a failed '
                                       'move; careful is the earlier slower behavior that stops instead.')
             command.add_argument('--no-tactics', action='store_true', help='Turn off the Pirate Warrior tactics.')
+            command.add_argument('--policy', choices=['rules'], default='rules', help=argparse.SUPPRESS)
             command.add_argument('--screen-settle', type=float, default=1.5,
                                  help='With --pace careful: stable board/hand interval in seconds (0.5 to 5; default 1.5).')
         if name in ('play', 'loop'):
@@ -754,7 +796,6 @@ def main():
             command.add_argument('--minutes', type=float, default=15)
         if name == 'loop':
             command.add_argument('--games', type=int, required=True)
-            command.add_argument('--policy', choices=['laya', 'rules'], default='laya')
             command.add_argument('--aggressive', action='store_true')
             command.add_argument('--frames', action='store_true')
             command.add_argument('--deck-id', default=None)
@@ -766,13 +807,11 @@ def main():
             command.add_argument('--friend-agreed', action='store_true', required=True,
                                  help='Required. Confirms your opponent knows a bot is playing.')
             command.add_argument('--games', type=int, default=None, help='Stop after this many games. Default: until Esc.')
-            command.add_argument('--policy', choices=['laya', 'rules'], default='laya')
             command.add_argument('--aggressive', action='store_true', help='Hit face whenever an attacker can.')
             command.add_argument('--frames', action='store_true', help='Save a frame before every move. Slower.')
         if name == 'play':
             command.add_argument('--frames', action='store_true', help='Save a frame before every move. Slower.')
             command.add_argument('--execute', action='store_true', help='Send real mouse input.')
-            command.add_argument('--policy', choices=['laya', 'rules'], default='laya')
             command.add_argument('--aggressive', action='store_true', help='Hit face whenever an attacker can.')
             command.add_argument('--friend-agreed', action='store_true',
                                  help='Also act in a friendly challenge. Use only if your opponent knows a bot is playing.')
@@ -805,7 +844,10 @@ def main():
         parser.error('--games must be positive')
     if args.command == 'loop' and args.games <= 0:
         parser.error('--games must be positive')
-    args.handler(args)
+    if args.stop_on_stdin:
+        run_with_parent_stop(args)
+    else:
+        args.handler(args)
 
 
 if __name__ == '__main__':

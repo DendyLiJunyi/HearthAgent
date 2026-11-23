@@ -8,7 +8,7 @@ from agent import geometry
 from agent.cli import ClientLog, Tail, request_launch
 from agent.loop import Agent, RecordingInput, Stop
 from agent.power import PowerLog, candidates_from
-from agent.windows_input import path, to_absolute
+from agent.windows_input import check_desktop_point, path
 
 ME = 'Me#1234'
 
@@ -1248,10 +1248,10 @@ class GeometryTests(unittest.TestCase):
         self.assertEqual(geometry.scale((1920, 1080), {'width': 1280, 'height': 720, 'left': 5, 'top': 7}), (1285, 727))
 
     def test_input_coordinates_stay_on_the_desktop(self):
-        self.assertEqual(to_absolute((0, 0), (0, 0, 1920, 1080)), (0, 0))
-        self.assertEqual(to_absolute((1919, 1079), (0, 0, 1920, 1080)), (65535, 65535))
+        check_desktop_point((-1920, 0), (-1920, 0, 3840, 1080))
+        check_desktop_point((1919, 1079), (-1920, 0, 3840, 1080))
         with self.assertRaises(geometry.GeometryError):
-            to_absolute((1920, 0), (0, 0, 1920, 1080))
+            check_desktop_point((1920, 0), (-1920, 0, 3840, 1080))
         self.assertEqual(path((0, 0), (12, 24))[-1], (12, 24))
 
 

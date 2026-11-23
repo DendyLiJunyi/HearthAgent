@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from agent import cannon, cli, menu_profile
-from agent.deck_profile import STANDARD_WARRIOR, decode, load_profile
+from agent.deck_profile import STANDARD_PIRATES, STANDARD_PIRATES_ID, STANDARD_WARRIOR, decode, load_profile
 from agent.loop import Stop
 from agent.menu import STANDARD_SCREENS, Regions, MenuWalker, identify
 from agent.policy import RulesPolicy, LayaPolicy, load_cards
@@ -27,6 +27,16 @@ class StandardTests(unittest.TestCase):
             self.assertEqual(metadata[card['id']]['dbfId'], card['dbfId'])
         with self.assertRaises(ValueError):
             load_profile(STANDARD_WARRIOR, 'wild')
+
+    def test_current_standard_deck_uses_rules_and_the_new_profile(self):
+        rules = cli.build_policy()
+        args = SimpleNamespace(mode='standard', deck_id=STANDARD_PIRATES_ID)
+        cli.configure_deck(rules, args)
+        profile = rules.deck_profile
+        self.assertIsInstance(rules, RulesPolicy)
+        self.assertEqual(profile, load_profile(STANDARD_PIRATES, 'standard'))
+        counts = {card['id']: card['count'] for card in profile['cards']}
+        self.assertEqual((counts['END_020'], counts['CORE_SW_066']), (2, 1))
 
     def test_standard_action_and_guards(self):
         for game_type, fmt, allowed in [('GT_RANKED', 'FT_STANDARD', True),
@@ -203,6 +213,47 @@ class CannonTests(unittest.TestCase):
         state['you']['minions'] = [entity('OTHER', id=i) for i in range(60, 67)]
         state['you']['hand'] = [entity('CAP_106', id=30, cost=5)]
         self.assertEqual(cannon.allowed(state, [self.move(30), self.move(10, 20)], {}), [1])
+
+    def test_engineer_then_fire_before_fissure_destroys_a_cannoneer(self):
+        state = self.state()
+        state['you']['minions'] = [entity('CAP_107t', id=40, health=1)]
+        state['you']['hand'] = [entity('CATA_582', 'SPELL', id=30, cost=2), entity('CAP_104', id=31, cost=2)]
+        moves = [self.move(30), self.move(10, 20), self.move(31)]
+        self.assertEqual(cannon.forced_move(state, moves, {}), (2, 'cannon:engineer_before_firing'))
+        self.assertEqual(cannon.forced_move(state, moves[:2], {}), (1, 'cannon:fire_before_fissure'))
+        state['you']['minions'][0]['keywords'] = ['SILENCED']
+        self.assertIsNone(cannon.forced_move(state, moves[:2], {}))
+
+    def test_fissure_waits_when_it_would_only_destroy_our_cannoneer(self):
+        state = self.state()
+        state['you']['minions'] = [entity('CAP_107t', id=40, health=1)]
+        state['you']['hand'] = [entity('CATA_582', 'SPELL', id=30, cost=2)]
+        rules = RulesPolicy({}, tactics=True)
+        rules.deck_profile = {'tactics': 'standard-cannon'}
+        moves = [self.move(30), dict(self.move(None), kind='end_turn')]
+        self.assertEqual(rules.choose(state, moves), 1)
+        state['opponent']['minions'] = [entity('OTHER', id=i, health=1, atk=3) for i in (50, 51)]
+        self.assertEqual(rules.choose(state, moves), 0)
+
+    def test_toil_prefers_a_kill_then_draw_from_own_surviving_minion(self):
+        state = self.state()
+        state['you']['minions'] = [entity('CAP_107t', id=40, health=1), entity('OTHER', id=41, health=3)]
+        state['you']['hand'] = [entity('END_020', 'SPELL', id=30)]
+        state['opponent']['minions'] = [entity('OTHER', id=50, atk=8), entity('OTHER', id=51, health=1)]
+        rules = RulesPolicy({}, tactics=True)
+        rules.deck_profile = {'tactics': 'standard-cannon'}
+        moves = [self.move(30, target) for target in (40, 41, 50, 51)]
+        self.assertEqual(rules.choose(state, moves), 3)
+        self.assertEqual(rules.choose(state, moves[:3]), 1)
+
+    def test_librarian_silences_the_relevant_enemy_minion(self):
+        state = self.state()
+        state['you']['minions'] = [entity('CAP_107t', id=40, health=1)]
+        state['you']['hand'] = [entity('CORE_SW_066', id=30, cost=4)]
+        state['opponent']['minions'] = [entity('OTHER', id=50), entity('OTHER', id=51, keywords=['TAUNT'])]
+        rules = RulesPolicy({}, tactics=True)
+        rules.deck_profile = {'tactics': 'standard-cannon'}
+        self.assertEqual(rules.choose(state, [self.move(30, t) for t in (40, 50, 51)]), 2)
 
 
 if __name__ == '__main__':

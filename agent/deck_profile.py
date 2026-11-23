@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 
 STANDARD_WARRIOR = Path(__file__).resolve().parents[1] / 'config/decks/standard-warrior-cannon.json'
+STANDARD_PIRATES = STANDARD_WARRIOR.with_name('standard-warrior-pirates.json')
+STANDARD_PIRATES_ID = '9590435405'
 
 
 def decode(code):

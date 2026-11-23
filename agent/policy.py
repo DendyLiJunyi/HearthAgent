@@ -92,7 +92,13 @@ class RulesPolicy:
         # An attacker offered the enemy hero as a target can reach it, so Taunt is already respected.
         attackers = {c['source'] for c in face}
         lethal = bool(attackers) and sum(found[s][1]['atk'] for s in attackers) >= enemy_hp
-        return [self._score(c, found, lethal) for c in candidates]
+        scores = [self._score(c, found, lethal) for c in candidates]
+        if self.tactics and cannon.enabled(self):
+            for index, candidate in enumerate(candidates):
+                score = cannon.rule_score(state, candidate, found)
+                if score is not None:
+                    scores[index] = score
+        return scores
 
     def _score(self, candidate, found, lethal):
         if candidate['kind'] == 'end_turn':
