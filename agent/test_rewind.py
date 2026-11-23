@@ -2,7 +2,7 @@
 import unittest
 
 from agent import geometry, rewind, cannon
-from agent.policy import RulesPolicy, LayaPolicy, load_cards
+from agent.policy import RulesPolicy, load_cards
 from agent.deck_profile import STANDARD_WARRIOR, load_profile
 from agent.test_standard import entity
 from agent.test_agent import Harness, ME, bracket, game_lines, line, entity as log_entity
@@ -26,14 +26,14 @@ def timeline(state=None, reverse=False, source='TIME_034'):
 
 
 class RewindTests(unittest.TestCase):
-    def test_bad_weapon_result_rewinds_and_good_result_keeps_for_both_policies(self):
-        for policy in (RulesPolicy(load_cards()), LayaPolicy(load_cards(), None)):
-            for reverse in (False, True):
-                for state, expected in ((board(5, 17), rewind.REWIND), (board(5, 2), rewind.KEEP),
-                                        (board(1, 2), rewind.REWIND), (None, rewind.KEEP)):
-                    choice = timeline(state, reverse)
-                    pick = policy.pick_choice(choice, {})
-                    self.assertEqual(choice['entities'][pick]['card'], expected)
+    def test_bad_weapon_result_rewinds_and_good_result_keeps(self):
+        policy = RulesPolicy(load_cards())
+        for reverse in (False, True):
+            for state, expected in ((board(5, 17), rewind.REWIND), (board(5, 2), rewind.KEEP),
+                                    (board(1, 2), rewind.REWIND), (None, rewind.KEEP)):
+                choice = timeline(state, reverse)
+                pick = policy.pick_choice(choice, {})
+                self.assertEqual(choice['entities'][pick]['card'], expected)
 
     def test_unknown_source_keeps_and_unrelated_discover_is_unchanged(self):
         choice = timeline(board(), source='UNREVIEWED')
@@ -79,15 +79,13 @@ class CrowleyTests(unittest.TestCase):
                  dict(kind='power', source=10, target=20, sub=-1)]
         return state, moves
 
-    def test_crowley_before_draw_and_weapon_attack_in_both_policies(self):
+    def test_crowley_before_draw_and_weapon_attack(self):
         state, moves = self.setup()
         profile = load_profile(STANDARD_WARRIOR, 'standard')
-        for policy in (RulesPolicy(load_cards(), tactics=True), LayaPolicy(load_cards(), None, tactics=True)):
-            policy.deck_profile = profile
-            if hasattr(policy, 'rules'):
-                policy.rules.deck_profile = profile
-            self.assertEqual(policy.choose(state, moves), 1)
-            self.assertEqual(policy.last_decision['reason'], 'cannon:crowley_setup')
+        policy = RulesPolicy(load_cards(), tactics=True)
+        policy.deck_profile = profile
+        self.assertEqual(policy.choose(state, moves), 1)
+        self.assertEqual(policy.last_decision['reason'], 'cannon:crowley_setup')
 
     def test_full_board_insufficient_mana_and_skipper_defer(self):
         for condition in ('full', 'mana', 'skipper'):

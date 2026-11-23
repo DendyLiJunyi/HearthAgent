@@ -91,7 +91,7 @@ class Session:
         self.sent, self.outcomes = [], []
         self.left = 0
         self.esc = False
-        self.args = SimpleNamespace(policy='laya', aggressive=False, no_tactics=False, games=games, frames=False,
+        self.args = SimpleNamespace(aggressive=False, no_tactics=False, games=games, frames=False,
                                     screen_settle=1.5, pace='fast', makcu_port=None, makcu_baud=None)
 
     def write(self, *rows):

@@ -13,10 +13,7 @@ experiments; dated results there are not new validation of subsequent changes.
   are small samples, not a reliable estimate of playing strength.
 - The latest changes verify placement and selected choice entities, independently monitor hand
   stability, stop on mulligan recognition timeout, detect log replacement and attribute decisions
-  to the model or rules. These changes have offline regression coverage only.
-- Broad strategy heuristics are now soft preferences. Model weights remain unchanged; stronger
-  play has not been established. Evaluation separates raw-model, rules-only and deployed-policy
-  agreement. Existing held-out games are validation; independent reviewed Warrior data is needed.
+  to the rule that selected the action. These changes have offline regression coverage.
 - No game input was sent while implementing this improvement batch.
 
 See [implementation and validation details](reliability-improvements.md), including remaining

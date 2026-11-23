@@ -19,7 +19,7 @@ class Makcu:
             import serial
             from serial.tools import list_ports
         except ImportError as error:
-            raise MakcuError('pyserial is missing. Run scripts/setup-laya.ps1 to update the runtime.') from error
+            raise MakcuError('pyserial is missing. Run scripts/setup-runtime.ps1 to update the runtime.') from error
 
         if port is None:
             try:

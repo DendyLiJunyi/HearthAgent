@@ -1,6 +1,6 @@
-"""Pirate Warrior knowledge that an imitation model cannot be relied on to learn from a few games.
+"""Pirate Warrior tactical rules.
 
-Each forced move is a narrow pattern with a clear reason. Anything else stays with the model. These
+Each forced move is a narrow pattern with a clear reason. Other decisions use the general rules. These
 are judgment calls about this deck, tested on constructed boards only, and have not been measured in
 live games. A card this module does not know about is left to the general rules.
 """

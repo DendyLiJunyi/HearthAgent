@@ -22,7 +22,7 @@ Rules that keep a wrong click from becoming a runaway:
 """
 import time
 
-from . import geometry
+from . import cannon, geometry
 from .power import PowerLog, candidates_from
 
 ALLOWED_GAME_TYPES = {'GT_VS_AI'}
@@ -33,6 +33,8 @@ CAUTIOUS_MOVES = 3  # After a failed move, the next few go at the slow, proven s
 CAUTIOUS_SETTLE = 0.5
 MAX_WRONG_ACTIONS = 3
 MAX_RELIT_RETRIES = 2  # Fresh tries per packet after a dropped End Turn, if the button is lit.
+RECONNECT_ID_TIMEOUT = 5.0
+RECONNECT_SNAPSHOT_TIMEOUT = 45.0
 
 
 class Stop(Exception):
@@ -74,7 +76,7 @@ class Agent:
                  lit_required=2, choice_timeout=None, mulligan_ready=None, mulligan_timeout=40.0, idle_limit=None,
                  clock=time.monotonic, sleep=time.sleep, log=print, before_input=None, mode='practice', opening_delay=0.0,
                  choice_ready=None, backlog_limit=None, drain_timeout=6.0, recover=False, eager_decision=False,
-                 button_timeout=None):
+                 button_timeout=None, careful_input=False):
         if mode not in ('practice', 'wild', 'standard', 'friend'):
             raise ValueError(f'unsupported mode: {mode}')
         self.mode = mode
@@ -82,6 +84,8 @@ class Agent:
         self.opening_ready_at = None
         self.reader, self.policy, self.inputs = reader, policy, inputs
         self.power = PowerLog()
+        self.active_game = None
+        self.reconnect_deadline = None
         self.settle, self.confirm_timeout, self.max_actions = settle, confirm_timeout, max_actions
         self.clock, self.sleep, self.log = clock, sleep, log
         self.actions = 0
@@ -107,6 +111,7 @@ class Agent:
         self.choice_screen_wait = None
         self.backlog_limit, self.drain_timeout = backlog_limit, drain_timeout
         self.recover, self.eager_decision = recover, eager_decision
+        self.careful_input = careful_input
         self.drain_wait = None
         self.plan_cache = None
         self.on_plan = None
@@ -136,6 +141,52 @@ class Agent:
 
     def quiet(self):
         return self.clock() - self.last_line_time >= self.settle + (CAUTIOUS_SETTLE if self.cautious_moves else 0)
+
+    def _follow_game(self):
+        """Use a fresh reconnect snapshot only after it identifies the same match."""
+        current, previous = self.power.game, self.active_game
+        if previous is None:
+            self.active_game = previous = current
+        if previous is None or previous.over:
+            return previous
+        if current is previous:
+            if not self.power.reconnecting:
+                return previous
+            if self.reconnect_deadline is None:
+                self.reconnect_deadline = self.clock() + RECONNECT_SNAPSHOT_TIMEOUT
+            if self.clock() >= self.reconnect_deadline:
+                raise Stop('client reconnect did not provide a new game snapshot')
+            return None
+
+        old_seed = previous.number_tag(previous.game_entity, 'GAME_SEED')
+        new_seed = current.number_tag(current.game_entity, 'GAME_SEED')
+        identity = [(previous.game_type, current.game_type), (previous.local, current.local)]
+        if previous.format_type is not None:
+            identity.append((previous.format_type, current.format_type))
+        if (not old_seed or new_seed and new_seed != old_seed
+                or any(old is None or new is not None and old != new for old, new in identity)):
+            raise Stop('a new game started; refusing to continue the previous task')
+        old_turn = previous.number_tag(previous.game_entity, 'TURN')
+        new_turn = current.number_tag(current.game_entity, 'TURN')
+        if new_turn and new_turn < old_turn:
+            raise Stop('a new game started with an earlier turn; refusing to continue')
+        if not new_seed or not new_turn or any(new is None for _, new in identity):
+            if self.reconnect_deadline is None:
+                self.reconnect_deadline = self.clock() + RECONNECT_ID_TIMEOUT
+            if self.clock() >= self.reconnect_deadline:
+                raise Stop('new game snapshot could not be verified as a reconnect')
+            return None
+
+        self.active_game = current
+        self.reconnect_deadline = None
+        self.plan_cache = self.abandoned = self.end_turn_dropped = None
+        self.drain_wait = self.screen_wait = self.choice_screen_wait = self.mulligan_wait = None
+        self.handled_choice = None
+        self.failed_moves.clear()
+        self.relit_retries.clear()
+        self.needs_cancel = False
+        self._recovered('reconnect', 'confirmed the same match; waiting for fresh options and screen readiness')
+        return current
 
     def _recovered(self, kind, detail):
         """Keep playing, and leave a record of what went wrong."""
@@ -187,9 +238,9 @@ class Agent:
         if self.inputs.aborted():
             raise Stop('stopped by the player')
         self.pump()
-        game = self.power.game
+        game = self._follow_game()
         if game is None:
-            return 'no_game'
+            return 'reconnecting' if self.active_game else 'no_game'
         if game.packet and self.opening_ready_at is None:
             # Start-of-game effects can leave End Turn lit while the hand and mana are still
             # animating. Start this once, when options first arrive, not after each log update.
@@ -229,7 +280,7 @@ class Agent:
                 self.needs_cancel = True
                 return 'paused'
             except StateChanged:
-                if not self.recover:
+                if not self.recover and not self.power.reconnecting and self.power.game is game:
                     raise
                 self.handled_choice = None  # The log moved on, so look again rather than guess.
                 return 'state_changed'
@@ -257,6 +308,10 @@ class Agent:
                 return 'animating'
             try:
                 return self._act_on_packet(game)
+            except StateChanged:
+                if not self.recover and not self.power.reconnecting and self.power.game is game:
+                    raise
+                return 'state_changed'
             except FocusLost:
                 if not self.recover:
                     raise
@@ -266,7 +321,7 @@ class Agent:
         return 'waiting'
 
     def _decide_early(self, game):
-        """Run the model while animations play, so its time is not added to the wait.
+        """Plan the next move while animations play, so its time is not added to the wait.
 
         Options arrive long before the client can take input, so the packet must be complete but
         the screen need not be ready.
@@ -442,7 +497,7 @@ class Agent:
     def _refresh_guard(self, game, revision, packet_id=None):
         """Re-read the log right before input. Anything new means the decision is stale."""
         self.pump()
-        if self.power.game is not game or game.revision != revision:
+        if self.power.reconnecting or self.power.game is not game or game.revision != revision:
             raise StateChanged('state changed before input')
         if packet_id is not None and (not game.packet or game.packet['id'] != packet_id):
             raise StateChanged('option packet changed before input')
@@ -485,13 +540,14 @@ class Agent:
                     self.sleep(0.05)
                 self._refresh_guard(game, packet['revision'], packet['id'])
             # A fast drag that failed is retried at the slow, proven speed.
-            self.inputs.careful = attempt > 1 or self.cautious_moves > 0
+            self.inputs.careful = self.careful_input or attempt > 1 or self.cautious_moves > 0
             # A release during an animation can leave the targeting arrow up, and then a repeat drag cannot land.
             self.inputs.send(gestures if attempt == 1 else [CANCEL, *gestures])
             if hasattr(self.inputs, 'park'):
                 self.inputs.park()
             try:
-                self._confirm_send(game, before, candidate)
+                if not self._confirm_send(game, before, candidate):
+                    return 'state_changed'
                 self.cautious_moves = max(0, self.cautious_moves - 1)
                 return 'acted'
             except WrongAction as wrong:
@@ -529,9 +585,10 @@ class Agent:
                 sent = game.sends[before]['sent']
                 if any(sent[k] != candidate[k] for k in ('option', 'sub', 'target', 'position')):
                     raise WrongAction(f'the game received a different action: sent {sent}, planned {candidate}')
-                return
-            if self.power.game is not game:
-                raise Stop('a new game started while confirming')
+                return True
+            if self.power.reconnecting or self.power.game is not game:
+                self._follow_game()
+                return False  # Replan from the rebuilt packet without resending the old gesture.
             self.sleep(0.05)
         raise NoSend('no SendOption after input')
 
@@ -544,7 +601,8 @@ class Agent:
             raise Stop('choice has no entities')
         cards = game.card_map()
         if choice['type'] == 'MULLIGAN':
-            replace = {e for e in self.policy.mulligan(entities, cards)}
+            context = {'state': game.snapshot()} if cannon.enabled(self.policy) else {}
+            replace = set(self.policy.mulligan(entities, cards, **context))
             # Mulligan receipts list the original cards KEPT, not those replaced.
             # The Coin is offered in the log but is not a selectable screen card.
             shown = geometry.MULLIGAN_ROW.get(len(entities), (0,))[0]
@@ -573,8 +631,7 @@ class Agent:
                     'state': game.snapshot(), 'choice_source': choice.get('source'),
                     'decision': {'source': 'rules', 'reason': choice['type'].lower(),
                                  **(getattr(self.policy, 'last_choice_decision', {}) if choice['type'] != 'MULLIGAN' else {}),
-                                 'elapsed_ms': (self.clock() - started) * 1000,
-                                 'checkpoint': getattr(self.policy, 'checkpoint', None)}})
+                                 'elapsed_ms': (self.clock() - started) * 1000}})
         if not self._focus_ready():
             return 'paused'
         try:
@@ -605,8 +662,9 @@ class Agent:
                         if set(receipt['selected']) != expected or len(receipt['selected']) != len(expected):
                             raise Stop('the game received different choice entities than planned')
                         return 'acted'
-                if self.power.game is not game:
-                    raise Stop('a new game started while confirming a choice')
+                if self.power.reconnecting or self.power.game is not game:
+                    self._follow_game()
+                    return 'state_changed'
                 if game.choice is None or game.choice['id'] != choice['id']:
                     raise Stop('choice changed without matching selected-entity evidence')
                 self.sleep(0.05)
@@ -628,6 +686,7 @@ class Agent:
             'settling': 'waiting for the game log to settle',
             'stale_packet': 'waiting for a fresh action packet',
             'no_game': 'waiting for a game in the log',
+            'reconnecting': 'waiting to verify the game after reconnect',
         }
         while True:
             status = self.step()
@@ -637,8 +696,8 @@ class Agent:
                 self.log(messages[status])
                 reported, reported_at = status, now
             if status == 'game_over':
-                return self.power.game.result
-            if status != 'paused' and self.idle_limit and self.clock() - self.last_line_time > self.idle_limit:
+                return self.active_game.result
+            if status not in ('paused', 'reconnecting') and self.idle_limit and self.clock() - self.last_line_time > self.idle_limit:
                 raise Stop(f'the game log was silent for {self.idle_limit} seconds')
             if status != 'acted':
                 self.sleep(poll)

@@ -205,7 +205,7 @@ class LoopRun:
         self.close_error = None
         self.deck = 'DECK'
         self.new_session()
-        self.args = SimpleNamespace(policy='laya', aggressive=False, no_tactics=False, games=games, frames=False,
+        self.args = SimpleNamespace(aggressive=False, no_tactics=False, games=games, frames=False,
                                     screen_settle=1.5, pace='fast', mode='practice', idle_limit=None,
                                     deck_id='DECK', restart_every=every, makcu_port=None, makcu_baud=None)
 

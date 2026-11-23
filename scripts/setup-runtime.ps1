@@ -15,6 +15,10 @@ $env:UV_PYTHON_INSTALL_DIR = Join-Path $projectRoot '.tools/python'
 $env:UV_PROJECT_ENVIRONMENT = Join-Path $projectRoot '.venv'
 & $uvPath python install 3.12.16 --no-bin --no-registry
 if ($LASTEXITCODE -ne 0) { throw 'Python installation failed' }
-& $uvPath sync --project services/laya --locked
-if ($LASTEXITCODE -ne 0) { throw 'Laya dependency installation failed' }
+if (-not (Test-Path -LiteralPath '.venv/Scripts/python.exe')) {
+    & $uvPath venv --python 3.12.16 --no-project
+    if ($LASTEXITCODE -ne 0) { throw 'Virtual environment creation failed' }
+}
+& $uvPath pip sync --python '.venv/Scripts/python.exe' 'scripts/requirements.txt'
+if ($LASTEXITCODE -ne 0) { throw 'Runtime dependency installation failed' }
 Write-Output 'Runtime ready.'

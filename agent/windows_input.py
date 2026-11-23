@@ -33,8 +33,10 @@ class WindowsInput:
     FAST_GESTURE_PAUSE = 0.4
     MOVE_TOLERANCE = 2
     MOVE_SETTLE = 0.055
+    MOVE_POLL = 0.008
     MOVE_TIMEOUT = 2.0
     MAX_DELTA = 512
+    FAST_DIRECT_LIMIT = 64
     careful = False
 
     def __init__(self, window, *, gesture_pause=0.6, current_window=None, port=None, baud=None):
@@ -52,6 +54,7 @@ class WindowsInput:
         self.user.SetProcessDpiAwarenessContext(ctypes.c_void_p(-4))
         self.desktop = [self.user.GetSystemMetrics(i) for i in (76, 77, 78, 79)]
         self._aborted = False
+        self._direct_motion = True
         self.device = Makcu.connect(port, baud)
 
     def close(self):
@@ -87,14 +90,32 @@ class WindowsInput:
         step = min(self.MAX_DELTA, max(1, round(abs(error) / damping)))
         return step if error > 0 else -step
 
+    def _after_move(self, before, delta):
+        """Wait for the HID report to move the pointer, then check that the movement settled."""
+        if self.careful or max(map(abs, delta)) > self.FAST_DIRECT_LIMIT:
+            time.sleep(self.MOVE_SETTLE)
+            self._guard()
+            return self._cursor()
+        deadline = time.monotonic() + self.MOVE_SETTLE
+        last = before
+        while True:
+            time.sleep(self.MOVE_POLL)
+            self._guard()
+            current = self._cursor()
+            if (current == last and current != before) or time.monotonic() >= deadline:
+                return current
+            last = current
+
     def _move(self, point):
         check_desktop_point(point, self.desktop)
         deadline = time.monotonic() + self.MOVE_TIMEOUT
         previous_error = (0, 0)
         damping = [2, 2]
+        fast = not self.careful and self._direct_motion
+        direct = False
+        self._guard()
+        x, y = self._cursor()
         while True:
-            self._guard()
-            x, y = self._cursor()
             error = point[0] - x, point[1] - y
             if max(map(abs, error)) <= self.MOVE_TOLERANCE:
                 return
@@ -104,13 +125,23 @@ class WindowsInput:
             for axis, remaining in enumerate(error):
                 previous = previous_error[axis]
                 if abs(remaining) > self.MOVE_TOLERANCE and remaining * previous < 0:
+                    if direct:
+                        # This device/Windows setting amplifies short moves. Keep subsequent
+                        # waypoints on the proven correction path for the rest of this session.
+                        self._direct_motion = False
+                    fast = False
                     damping[axis] = min(8, damping[axis] * 2)
                 elif remaining * previous > 0 and abs(remaining) < abs(previous):
                     damping[axis] = max(2, damping[axis] - 1)
-            dx, dy = (self._move_step(remaining, factor) for remaining, factor in zip(error, damping))
+            # Most drag waypoints are close enough for a single small HID move.
+            # Keep polling the actual cursor and fall back to damped corrections on overshoot.
+            direct = fast and max(map(abs, error)) <= self.FAST_DIRECT_LIMIT
+            dx, dy = (self._move_step(remaining, 1 if direct else factor)
+                      for remaining, factor in zip(error, damping))
+            self._guard()
             self.device.command(f'km.move({dx},{dy})')
             previous_error = error
-            time.sleep(self.MOVE_SETTLE)
+            x, y = self._after_move((x, y), (dx, dy))
 
     def _guard(self):
         if self.aborted():

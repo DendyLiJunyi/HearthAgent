@@ -4,7 +4,7 @@ import unittest
 from agent.cli import PACES, SessionRecord, build_agent
 from agent.loop import CAUTIOUS_MOVES, MAX_RELIT_RETRIES, FocusLost, Stop
 from agent.pace_report import report_log, run_lines
-from agent.policy import LayaPolicy, RulesPolicy
+from agent.policy import RulesPolicy
 from agent.power import AnimationBacklog, PowerLog
 from agent.screen import region_signature
 from agent.tactics import buff_first, coin_before_passing, coin_tempo, forced_move, mulligan, wasted_attack
@@ -439,6 +439,7 @@ class ScreenTests(unittest.TestCase):
         careful = build_agent(lambda: [], object(), object(), None, pace='careful', mode='practice')
         self.assertEqual((careful.opening_delay, careful.backlog_limit, careful.recover), (20.0, None, False))
         self.assertEqual(careful.settle, 0.5)
+        self.assertTrue(careful.careful_input)
         self.assertEqual(set(PACES), {'fast', 'careful'})
 
 
@@ -519,14 +520,14 @@ class WastedAttackTests(unittest.TestCase):
         shielded = dict(self.TASKMASTER, keywords=['DIVINE_SHIELD'])
         self.assertTrue(self.wasted([card(10, 'OTHER_2', atk=3)], [shielded]))
 
-    def test_a_surviving_attacker_is_left_to_the_model(self):
+    def test_a_surviving_attacker_is_allowed(self):
         self.assertFalse(self.wasted([card(10, 'OTHER_2', health=3)], [self.TASKMASTER]))
 
     def test_taunt_excuses_a_minion(self):
         taunt = dict(self.TASKMASTER, keywords=['TAUNT'])
         self.assertFalse(self.wasted([card(10, 'OTHER_2')], [taunt]))
 
-    def test_a_deathrattle_or_shielded_attacker_is_left_to_the_model(self):
+    def test_a_deathrattle_or_shielded_attacker_is_allowed(self):
         self.assertFalse(self.wasted([card(10, 'OTHER_2', keywords=['DEATHRATTLE'])], [self.TASKMASTER]))
         self.assertFalse(self.wasted([card(10, 'OTHER_2', keywords=['DIVINE_SHIELD'])], [self.TASKMASTER]))
 
@@ -564,7 +565,7 @@ class WastedAttackTests(unittest.TestCase):
         weapon = card(50, 'CAP_103', 'WEAPON', atk=4)
         self.assertTrue(self.wasted(board, [giant], source=91, others=[attack(11, 40, option=3)], weapon=weapon, hero=hero))
 
-    def test_small_hero_hit_is_left_to_the_model(self):
+    def test_small_hero_hit_is_allowed(self):
         weapon = card(50, 'CAP_103', 'WEAPON', atk=1)
         self.assertFalse(self.wasted([], [card(40, 'BIG', atk=3, health=9)], source=91, weapon=weapon))
 
@@ -576,13 +577,6 @@ class WastedAttackTests(unittest.TestCase):
         weapon = card(50, 'CAP_103', 'WEAPON', atk=5)
         self.assertTrue(self.wasted([], [card(40, 'BIG', atk=5, health=5)], source=91, weapon=weapon, hero=dict(MY_HERO, damage=25)))
 
-    def test_model_pick_falls_to_its_next_best_and_says_why(self):
-        current = state((), [card(10, 'OTHER_2')], [self.TASKMASTER])
-        moves = [END, attack(10, 40), attack(10, 90, option=3)]
-        policy = LayaPolicy(CARDS, None, tactics=True)
-        policy.rank = lambda *_: [0.0, 10.0, 1.0]
-        self.assertEqual(policy.choose(current, moves, CARDS), 2)
-        self.assertEqual(policy.last_decision['reason'], 'tactics:no_wasted_attack')
 
     def test_rules_policy_also_drops_it(self):
         current = state((), [card(10, 'OTHER_2')], [self.TASKMASTER])
@@ -630,13 +624,6 @@ class CoinBeforePassingTests(unittest.TestCase):
     def test_no_coin_no_move(self):
         self.assertIsNone(coin_before_passing(state([self.ONE_DROP], mana=0), [END], CARDS))
 
-    def test_model_passing_uses_the_coin_instead(self):
-        current = state([self.COIN, self.ONE_DROP], mana=0)
-        moves = [END, play(40)]
-        policy = LayaPolicy(CARDS, None, tactics=True)
-        policy.rank = lambda *_: [10.0, 1.0]
-        self.assertEqual(policy.choose(current, moves, CARDS), 1)
-        self.assertEqual(policy.last_decision['reason'], 'tactics:coin_before_passing')
 
     def test_rules_passing_uses_the_coin_instead(self):
         current = state([self.COIN, self.ONE_DROP], mana=0)
@@ -695,33 +682,8 @@ class TacticsTests(unittest.TestCase):
         self.assertIsNone(coin_tempo(state([coin, one, two], mana=1), [END, play(40), play(42, 2)], CARDS))
         self.assertIsNone(coin_tempo(state([coin, one], mana=0), [END, play(40)], CARDS))
 
-    def test_the_model_cannot_pass_with_damage_available(self):
-        policy = LayaPolicy(CARDS, lambda *_: None, tactics=True)
-        policy.rank = lambda *_: [3.0, 0.5]
-        current = state([], [card(10, 'JAIL_421', atk=3, health=3)])
-        self.assertEqual(policy.choose(current, [END, attack(10)], {}), 1)
-        self.assertEqual(policy.last_decision['reason'], 'tactics:no_early_end_turn')
-        policy.tactics = False
-        self.assertEqual(policy.choose(current, [END, attack(10)], {}), 0)
 
-    def test_laya_uses_a_forced_move_without_asking_the_model(self):
-        policy = LayaPolicy(CARDS, None, tactics=True)
-        policy.rank = lambda *_: self.fail('the model should not be asked')
-        warptooth = card(30, 'JAIL_421', cost=4, atk=3, health=3)
-        current = state([warptooth], [card(10, 'JAIL_421', atk=3, health=3)], mana=4, enemy_hp=6)
-        self.assertEqual(policy.choose(current, [END, attack(10), play(30)], {}), 2)
-        self.assertEqual(policy.last_decision['source'], 'rules')
 
-    def test_laya_attack_before_the_captain_is_corrected_but_its_other_picks_stand(self):
-        policy = LayaPolicy(CARDS, None, tactics=True)
-        other = card(21, 'DRG_056', cost=2)
-        moves = [END, attack(10), play(20), play(21, 3)]
-        policy.rank = lambda *_: [0.0, 3.0, 0.1, 0.2]
-        self.assertEqual(policy.choose(state([CAPTAIN, other], [PIRATE], mana=5), moves, {}), 2)
-        self.assertEqual(policy.last_decision['reason'], 'tactics:buff_first')
-        policy.rank = lambda *_: [0.0, 0.1, 0.2, 3.0]
-        self.assertEqual(policy.choose(state([CAPTAIN, other], [PIRATE], mana=5), moves, {}), 3)
-        self.assertEqual(policy.last_decision['reason'], 'model')
 
     def test_existing_lethal_comes_before_any_buff(self):
         policy = RulesPolicy(CARDS, tactics=True)

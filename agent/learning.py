@@ -22,7 +22,7 @@ def review_session(folder, cards):
     folder = Path(folder)
     outcome = read_json(folder / 'outcome.json')
     report = {'schema': 1, 'session': str(folder), 'policy': outcome.get('policy'),
-              'checkpoint': outcome.get('checkpoint'), 'cases': [], 'execution_failures': [], 'mulligans': []}
+              'cases': [], 'execution_failures': [], 'mulligans': []}
     moves = folder / 'moves.jsonl'
     events = [json.loads(line) for line in moves.read_text(encoding='utf-8').splitlines()] if moves.exists() else []
     report['execution_failures'] = [e for e in events if e['kind'] == 'no_send']
@@ -79,10 +79,8 @@ def review_session(folder, cards):
 
 def write_review(report, folder, cards):
     """A local report has no automatic gold labels: suggested alternatives still need review."""
-    import sys
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'experiments/imitation'))
-    from combos import combo_setups
-    from features import render_candidate, render_state
+    from .review_combos import combo_setups
+    from .review_text import render_candidate, render_state
     from .policy import RulesPolicy
     rules = RulesPolicy(cards)
     lines = ['# Match lessons', '', 'Losses are evidence to review, not proof every move was wrong.', '',
@@ -134,11 +132,8 @@ def collect(root, output, cards):
     return summary
 
 
-def corrected_rows(cases_path, labels_path, cards):
-    """Validate content-addressed labels before exporting any gold training targets."""
-    import sys
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'experiments/imitation'))
-    from features import question, render_candidate, render_state
+def validate_labels(cases_path, labels_path):
+    """Validate that each reviewed correction still points to an unchanged legal action."""
     cases = {c['id']: c for c in [json.loads(line) for line in Path(cases_path).read_text(encoding='utf-8').splitlines()]}
     labels = read_json(labels_path)
     if labels.get('schema') != 1:
@@ -156,7 +151,5 @@ def corrected_rows(cases_path, labels_path, cards):
             raise ValueError('corrected action is not a candidate')
         if pick == case['chosen'] or not label.get('reason', '').strip() or not label.get('reviewer', '').strip():
             raise ValueError('a correction requires a different action, a reason and a reviewer')
-        result.append({'state': render_state(row, cards),
-                       'questions': question([render_candidate(row, c, cards) for c in row['candidates']]),
-                       'gold': {'action': {'probabilities': {f'c{pick}': 1.0}}}})
+        result.append(label)
     return result

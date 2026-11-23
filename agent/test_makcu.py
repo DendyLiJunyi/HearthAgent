@@ -90,16 +90,60 @@ class MakcuGestureTests(unittest.TestCase):
         self.inputs.window = {'left': -1920, 'top': 0, 'width': 1920, 'height': 1080, 'hwnd': 3}
         self.inputs.desktop = (-1920, 0, 3840, 1080)
         self.inputs.current_window = None
+        self.inputs._direct_motion = True
         self.inputs._guard = Mock()
         self.inputs.device = Mock()
         self.inputs._cursor = Mock()
-        self.enterContext(patch('agent.windows_input.time.sleep'))
+        self.sleep = self.enterContext(patch('agent.windows_input.time.sleep'))
+        self.after_move = self.inputs._after_move
+        self.inputs._after_move = lambda *_: self.inputs._cursor()
+
+    def test_fast_feedback_checks_for_motion_and_waits_for_it_to_settle(self):
+        before = (0, 300)
+        self.inputs._cursor.side_effect = [before, (0, 312), (0, 326), (0, 326)]
+        self.assertEqual(self.after_move(before, (0, 26)), (0, 326))
+        self.assertEqual(self.sleep.call_args_list, [call(self.inputs.MOVE_POLL)] * 4)
+
+    def test_fast_feedback_preserves_wait_budget_for_delayed_motion(self):
+        before = (0, 300)
+        self.inputs._cursor.return_value = before
+        with patch('agent.windows_input.time.monotonic', side_effect=[0.0, 0.01, 0.06]):
+            self.assertEqual(self.after_move(before, (0, 26)), before)
+        self.assertEqual(self.sleep.call_count, 2)
+
+    def test_large_moves_and_careful_mode_use_fixed_settle(self):
+        before = (0, 300)
+        self.inputs._cursor.return_value = (0, 390)
+        self.assertEqual(self.after_move(before, (0, 90)), (0, 390))
+        self.inputs.careful = True
+        self.assertEqual(self.after_move(before, (0, 20)), (0, 390))
+        self.assertEqual(self.sleep.call_args_list, [call(self.inputs.MOVE_SETTLE)] * 2)
 
     def test_rechecks_actual_cursor_after_each_relative_move(self):
+        self.inputs.careful = True
         self.inputs._cursor.side_effect = [(0, 300), (-60, 328), (-99, 348)]
         self.inputs._move((-100, 350))
         self.assertEqual(self.inputs.device.command.call_args_list, [
             call('km.move(-50,25)'), call('km.move(-20,11)'),
+        ])
+
+    def test_fast_short_waypoint_uses_one_move_and_verifies_landing(self):
+        self.inputs._cursor.side_effect = [(0, 300), (-40, 350)]
+        self.inputs._move((-40, 350))
+        self.inputs.device.command.assert_called_once_with('km.move(-40,50)')
+        self.assertEqual(self.inputs._cursor.call_count, 2)
+
+    def test_fast_short_waypoint_damps_after_overshoot(self):
+        self.inputs._cursor.side_effect = [(0, 300), (-64, 380), (-54, 367), (-40, 350)]
+        self.inputs._move((-40, 350))
+        self.assertEqual(self.inputs.device.command.call_args_list, [
+            call('km.move(-40,50)'), call('km.move(6,-8)'), call('km.move(5,-6)'),
+        ])
+        self.inputs.device.command.reset_mock()
+        self.inputs._cursor.side_effect = [(0, 300), (-20, 325), (-40, 350)]
+        self.inputs._move((-40, 350))
+        self.assertEqual(self.inputs.device.command.call_args_list, [
+            call('km.move(-20,25)'), call('km.move(-10,12)'),
         ])
 
     def test_accelerated_cursor_converges_from_a_screen_edge(self):

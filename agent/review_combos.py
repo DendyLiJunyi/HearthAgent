@@ -1,16 +1,7 @@
-"""Find positions where a two-step Warrior combo was available, and who would start it.
-
-A combo here is an order that matters: the setup must come first and both steps must be affordable
-or already available this turn. Positions come from the player's games, so nothing is invented.
-"""
+"""Find affordable two-step Pirate Warrior combinations for match reviews."""
 import collections
-import json
-import os
-import sys
 
-sys.path.insert(0, os.getcwd())
-sys.path.insert(0, os.path.dirname(__file__))
-from agent.policy import index_state, load_cards
+from .policy import index_state
 
 DECKHAND = 'CS3_008'
 DISTRIBUTOR = 'TOY_518'
@@ -63,37 +54,3 @@ def combo_setups(row, cards):
             for card in in_hand(setup):
                 result[name] = plays[card['id']]
     return result
-
-
-def main():
-    from agent.policy import LayaPolicy
-    from retrain import decisions
-    cards = load_cards()
-    laya = LayaPolicy.load(cards)
-    table = collections.defaultdict(collections.Counter)
-    examples = []
-    for group, hero, row, label in decisions():
-        if hero != 'WARRIOR':
-            continue
-        setups = combo_setups(row, cards)
-        if not setups:
-            continue
-        picks = {'you': label, 'rules': laya.rules.choose(row['state'], row['candidates'], row['cards']),
-                 'laya': laya.choose(row['state'], row['candidates'], row['cards'])}
-        for name, indices in setups.items():
-            table[name]['positions'] += 1
-            for who, pick in picks.items():
-                table[name][who] += pick in indices
-            if len(examples) < 5 and picks['laya'] not in indices and picks['you'] in indices:
-                examples.append((group[-6:], row['state']['turn'], name))
-    report = {name: dict(values) for name, values in table.items()}
-    total = collections.Counter()
-    for values in table.values():
-        total.update(values)
-    report['ALL'] = dict(total)
-    print(json.dumps(report, indent=1, ensure_ascii=False))
-    print('Laya missed, you started:', examples)
-
-
-if __name__ == '__main__':
-    main()

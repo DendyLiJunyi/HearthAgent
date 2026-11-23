@@ -10,8 +10,9 @@ from agent import cannon, cli, menu_profile
 from agent.deck_profile import STANDARD_PIRATES, STANDARD_PIRATES_ID, STANDARD_WARRIOR, decode, load_profile
 from agent.loop import Stop
 from agent.menu import STANDARD_SCREENS, Regions, MenuWalker, identify
-from agent.policy import RulesPolicy, LayaPolicy, load_cards
-from agent.test_agent import MenuTests, game_lines, line, option_lines, send_line, Harness
+from agent.policy import RulesPolicy, load_cards
+from agent.power import PowerLog
+from agent.test_agent import MenuTests, bracket, game_lines, line, option_lines, send_line, Harness
 from agent.test_restart import LoopRun
 from agent.test_agent import Clock
 from agent.screen import encode_png
@@ -112,16 +113,14 @@ class StandardTests(unittest.TestCase):
             with self.assertRaisesRegex(Stop, 'player'):
                 cli.reopened_log(previous, lambda: True)
 
-    def test_mulligan_for_both_policies_and_disabled_tactics(self):
+    def test_mulligan_with_tactics(self):
         cards = load_cards()
         entities = [{'id': i, 'card': card} for i, card in enumerate(
             ['CAP_107', 'CORE_REV_990', 'CATA_585', 'JAIL_384', 'GAME_005'])]
         profile = load_profile(STANDARD_WARRIOR, 'standard')
-        for policy in [RulesPolicy(cards, tactics=True), LayaPolicy(cards, None, tactics=True)]:
-            policy.deck_profile = profile
-            if hasattr(policy, 'rules'):
-                policy.rules.deck_profile = profile
-            self.assertEqual(policy.mulligan(entities, {}), [2, 3])
+        policy = RulesPolicy(cards, tactics=True)
+        policy.deck_profile = profile
+        self.assertEqual(policy.mulligan(entities, {}), [1, 2, 3])
         self.assertEqual(cannon.mulligan([{'id': 1, 'card': 'CORE_REV_990'}], {}, cards), [1])
 
     def test_ranked_restarts_keep_mode_fresh_window_and_log(self):
@@ -177,6 +176,155 @@ class CannonTests(unittest.TestCase):
     def move(self, source, target=None):
         return dict(source=source, target=target, kind='power', sub=-1)
 
+    def rules(self):
+        rules = RulesPolicy(load_cards(), tactics=True)
+        rules.deck_profile = load_profile(STANDARD_PIRATES, 'standard')
+        return rules
+
+    def test_end_turn_lethal_needs_enough_shots_and_includes_armor(self):
+        state = self.state()
+        state['you']['minions'] = [entity('CAP_107t', id=i, health=1) for i in (41, 42)]
+        end = dict(self.move(None), kind='end_turn')
+        rules = self.rules()
+        self.assertIsNone(cannon.lethal_move(state, [end], rules.cards))
+        state['you']['minions'].append(entity('CAP_104', id=43))
+        self.assertEqual(rules.choose(state, [self.move(10, 20), end]), 1)
+        self.assertEqual(rules.last_decision['reason'], 'cannon:lethal')
+        state['opponent']['hero']['armor'] = 2
+        self.assertIsNone(cannon.lethal_move(state, [end], rules.cards))
+
+    def test_toil_clears_last_target_before_cannon_lethal(self):
+        state = self.state()
+        state['you']['hero']['atk'] = 3
+        state['opponent']['hero']['health'] = 6
+        state['opponent']['minions'] = [entity('OTHER', id=50, health=1)]
+        state['you']['minions'] = [entity('CAP_107t', id=i, health=1) for i in (41, 42, 43)]
+        state['you']['hand'] = [entity('END_020', 'SPELL', id=31)]
+        end = dict(self.move(None), kind='end_turn')
+        rules = self.rules()
+        self.assertEqual(rules.choose(state, [self.move(10, 20), self.move(31, 50), end]), 1)
+        state['opponent']['minions'].clear()
+        self.assertEqual(rules.choose(state, [end, self.move(10, 20)]), 1)
+
+    def test_fissure_clears_before_hook_when_both_are_playable(self):
+        state = self.state()
+        state['opponent']['hero']['health'] = 30
+        state['opponent']['minions'] = [entity('OTHER', id=i, health=1, atk=4) for i in (50, 51, 52)]
+        state['you']['hero']['health'] = 30
+        state['you']['minions'] = [entity('CAP_107t', id=i, health=1) for i in (41, 42)]
+        state['you']['hand'] = [entity('CAP_105', 'SPELL', id=31, cost=2), entity('CATA_582', 'SPELL', id=32, cost=2)]
+        self.assertEqual(self.rules().choose(state, [self.move(31), self.move(32)]), 1)
+
+    def test_torch_charges_volcano_and_reads_remaining_damage(self):
+        state = self.state()
+        state['opponent']['hero']['health'] = 6
+        state['opponent']['minions'] = [entity('OTHER', id=50, health=5, damage=2)]
+        state['you']['hand'] = [entity('CATA_585', 'SPELL', id=31, script_value=3),
+                                entity('CATA_584', 'LOCATION', id=32, cost=3)]
+        rules = self.rules()
+        self.assertEqual(rules.choose(state, [self.move(32), self.move(31, 50)]), 1)
+        self.assertEqual(rules.last_decision['reason'], 'cannon:lethal')
+        state['you']['played_this_turn'] = ['CATA_585']
+        state['you']['minions'] = [state['you']['hand'].pop()]
+        state['opponent']['minions'].clear()
+        self.assertEqual(rules.choose(state, [dict(self.move(None), kind='end_turn'), self.move(32)]), 1)
+        self.assertEqual(cannon.spell_damage(state['you']['hand'][0], rules.cards), 3)
+
+    def test_warptooth_uses_fissure_and_a_fourth_distinct_character(self):
+        state = self.state()
+        state['you']['hero']['health'] = state['opponent']['hero']['health'] = 30
+        state['you']['minions'] = [entity('OTHER', id=i, health=4) for i in (41, 42, 43)]
+        state['opponent']['minions'] = [entity('OTHER', id=50, health=4, atk=1)]
+        state['you']['hand'] = [entity('CATA_582', 'SPELL', id=31, cost=2)]
+        state['you']['known_deck'] = {'JAIL_421': 1}
+        rules = self.rules()
+        self.assertEqual(rules.choose(state, [self.move(10, 20), self.move(31), self.move(10, 50)]), 1)
+        state['you']['hand'].clear()
+        state['you']['damaged_this_turn'] = [41, 42, 43]
+        self.assertEqual(rules.choose(state, [self.move(10, 20), self.move(10, 50)]), 1)
+
+    def test_announcer_preserves_a_live_hand_cannon(self):
+        state = self.state()
+        state['you']['hand'] = [entity('TIME_034', id=31, cost=4)]
+        state['you']['weapon']['durability'] = 2
+        end = dict(self.move(None), kind='end_turn')
+        self.assertEqual(self.rules().choose(state, [self.move(31), end]), 1)
+        state['you']['hero']['attacks'] = 1
+        state['you']['weapon']['damage'] = 1
+        self.assertEqual(self.rules().choose(state, [self.move(31), end]), 0)
+
+    def test_ducklings_trade_before_face_when_mage_threatens_a_sweep(self):
+        state = self.state()
+        state['opponent']['class'] = 'MAGE'
+        state['opponent']['hero']['health'] = 30
+        state['opponent']['minions'] = [entity('OTHER', id=50, health=1)]
+        state['you']['minions'] = [entity('OTHER', id=i) for i in (41, 42, 43)]
+        state['you']['minions'].append(entity('EDR_492t', id=44, health=1))
+        self.assertEqual(self.rules().choose(state, [self.move(42, 20), self.move(44, 50)]), 1)
+
+    def test_librarian_unlocks_lethal_through_taunt(self):
+        state = self.state()
+        state['opponent']['hero']['health'] = 6
+        state['opponent']['minions'] = [entity('OTHER', id=50, health=8, keywords=['TAUNT'])]
+        state['you']['minions'] = [entity('OTHER', id=i, atk=3) for i in (41, 42)]
+        state['you']['hand'] = [entity('CORE_SW_066', id=31, cost=4)]
+        rules = self.rules()
+        self.assertEqual(rules.choose(state, [self.move(41, 50), self.move(42, 50), self.move(31, 50)]), 2)
+        self.assertEqual(rules.last_decision['reason'], 'cannon:lethal')
+
+    def test_opening_uses_matchup_and_coin(self):
+        state = self.state()
+        cards = self.rules().cards
+        rows = [entity(c, id=i) for i, c in enumerate(
+            ('CAP_107', 'JAIL_384', 'JAIL_421', 'CAP_106', 'GAME_005'), 1)]
+        state['opponent']['class'] = 'MAGE'
+        self.assertEqual(cannon.mulligan(rows, {}, cards, state), [2, 3])
+        state['opponent']['class'] = 'HUNTER'
+        self.assertEqual(cannon.mulligan(rows, {}, cards, state), [2, 3, 4])
+
+    def test_risky_lethal_is_preferred_only_under_immediate_pressure(self):
+        state = self.state()
+        state['you']['minions'] = [entity('CAP_107t', id=i, health=1) for i in (41, 42)]
+        state['opponent']['minions'] = [entity('OTHER', id=50, health=9, atk=3)]
+        state['opponent']['hero']['health'] = 1
+        end = dict(self.move(None), kind='end_turn')
+        rules = self.rules()
+        self.assertEqual(cannon.lethal_move(state, [end], rules.cards), (0, 'cannon:probable_lethal'))
+        state['you']['hand'] = [entity('CATA_585', 'SPELL', id=31, script_value=9)]
+        state['opponent']['minions'][0]['damage'] = 1
+        self.assertEqual(cannon.lethal_move(state, [end, self.move(31, 50)], rules.cards), (1, 'cannon:lethal'))
+        state['you']['hero']['health'] = 30
+        self.assertIsNone(cannon.lethal_move(state, [end], rules.cards))
+
+    def test_discover_considers_immediate_impact_and_curve(self):
+        state = self.state()
+        state['you']['mana'] = 1
+        rules = self.rules()
+        options = [entity('JAIL_384', id=31), entity('CAP_105t', id=32)]
+        choice = {'source': {'card': 'CAP_105'}, 'entities': options, 'state': state}
+        self.assertEqual(rules.pick_choice(choice, {}), 1)
+        self.assertEqual(rules.last_choice_decision['reason'], 'cannon:discover')
+
+    def test_power_log_tracks_distinct_damage_and_fire_then_resets(self):
+        reader = PowerLog()
+        for row in game_lines():
+            reader.feed(row)
+        game = reader.game
+        game.local = 1
+        game.entities[41].update(ZONE='PLAY', CARDTYPE='MINION', CONTROLLER='1', HEALTH='2')
+        for body in (
+            'BLOCK_START BlockType=PLAY Entity=' + bracket(31, zone='HAND', card='CATA_585') + ' EffectCardId=0',
+            'TAG_CHANGE Entity=41 tag=DAMAGE value=1',
+            'TAG_CHANGE Entity=41 tag=DAMAGE value=2',
+            'TAG_CHANGE Entity=41 tag=ZONE value=GRAVEYARD',
+        ):
+            reader.feed(line('DebugPrintPower', body))
+        self.assertEqual(game.snapshot()['you']['damaged_this_turn'], [41])
+        self.assertEqual(game.snapshot()['you']['played_this_turn'], ['CATA_585'])
+        reader.feed(line('DebugPrintPower', 'TAG_CHANGE Entity=GameEntity tag=TURN value=4'))
+        self.assertEqual(game.snapshot()['you']['damaged_this_turn'], [])
+        self.assertEqual(game.snapshot()['you']['played_this_turn'], [])
+
     def test_weapon_attack_precedes_replacement_only_when_offered(self):
         state = self.state()
         state['you']['hand'] = [entity('BE_558', 'WEAPON', id=30)]
@@ -202,9 +350,6 @@ class CannonTests(unittest.TestCase):
         rules = RulesPolicy(load_cards(), tactics=True)
         rules.deck_profile = profile
         self.assertEqual(rules.choose(state, moves), 1)
-        model = LayaPolicy(load_cards(), None, tactics=True)
-        model.rules.deck_profile = profile
-        self.assertEqual(model.choose(state, moves), 1)
         rules.tactics = False
         self.assertEqual(rules.choose(state, moves), 0)
 

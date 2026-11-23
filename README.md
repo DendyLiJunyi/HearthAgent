@@ -34,6 +34,14 @@ of games. Both use the rules policy. **检测 MAKCU** checks the serial handshak
 reads the latest match state. Use **停止任务** to stop a running task and wait for it to release
 mouse input before starting another one.
 
+Click **保存设置** to restore the current form automatically the next time the control panel opens.
+The saved form is stored in `.data/control-panel.json`.
+
+**胜率记录** shows today's and all-time results for the selected mode and updates after each saved game.
+Enter an inclusive date range in `YYYY-MM-DD` format and click **刷新** to view results for that period.
+Either date may be left blank for an open-ended range. Clearing both returns to the default view.
+Win rate is wins divided by completed games, including draws.
+
 ### PowerShell commands
 
 Run these from the project folder in PowerShell. If you made `config/agent.json` during setup, add
@@ -92,7 +100,7 @@ Other dialogs remain unrecognized. Escape still stops the loop during the wait.
 
 `play --execute`, `loop`, and `friend` require a MAKCU. Connect the box's USB1 and USB2 ports to the
 Windows PC running the agent, and connect your mouse to USB3. Install the CH343 driver if Windows
-does not show a serial port. Run `scripts/setup-laya.ps1` again if you installed the runtime before
+does not show a serial port. Run `scripts/setup-runtime.ps1` again if you installed the runtime before
 MAKCU support was added. See the [MAKCU setup guide](https://makcu.com/en/setup).
 
 The agent looks for one compatible CH343 serial port and checks its MAKCU identity. If automatic
@@ -150,7 +158,7 @@ To teach the agent from its mistakes, see [Learning from failed matches](docs/le
 ### What you need
 
 - Windows 10 or 11, 64-bit
-- About 8 GB of disk space, mostly for the Python environment
+- Disk space for Python, card data and saved recordings
 - Git, Battle.net and Hearthstone
 - A copy of the card data from step 3
 
@@ -168,16 +176,14 @@ cd HearthAgent
 ### 2. Install Python and the dependencies
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/setup-laya.ps1
+powershell -ExecutionPolicy Bypass -File scripts/setup-runtime.ps1
 ```
 
-This downloads `uv`, Python 3.12.16 and the pinned packages, including PyTorch with CUDA, into the project
-folder (`.tools/` and `.venv/`). Nothing is installed system-wide.
+This downloads `uv`, Python 3.12.16 and pyserial into the project folder (`.tools/` and `.venv/`). Nothing is installed system-wide.
 
 ### 3. Copy the card data
 
 Copy `.data/cards-enUS.json` from the old computer to the same path in the new project folder.
-The Laya checkpoints are used by the offline model experiments.
 
 ### 4. Turn on Hearthstone's logs
 
@@ -271,4 +277,3 @@ Then try a practice game with `play --execute` before anything else.
 - [Fast play](docs/fast-play.md): pacing, recovery and tactics
 - [Reliability improvements](docs/reliability-improvements.md)
 - [Learning from failed matches](docs/learning.md)
-- [Laya](docs/laya.md): model setup and results

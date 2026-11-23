@@ -9,7 +9,6 @@ from unittest.mock import patch
 from agent import cli
 from agent.cli import Tail, outcome_counts
 from agent.loop import Stop
-from agent.policy import LayaPolicy
 from agent.screen import BattlefieldSettler, hand_signature, battlefield_signature
 from agent import test_agent as helpers
 from agent.test_agent import Harness, Clock, ME, bracket, game_lines, line, entity
@@ -254,53 +253,18 @@ class ReadinessTests(unittest.TestCase):
         self.assertFalse(detector.ready(b''))
 
 
-class AttributionTests(unittest.TestCase):
-    def setUp(self):
-        fixture = helpers.LayaPolicyTests()
-        fixture.setUp()
-        self.state, self.moves = fixture.packet['state'], fixture.candidates
-        self.predict = fixture.prefers('enemy minion')
-
-    def test_model_rules_and_forced_decisions_have_distinct_reasons(self):
-        policy = LayaPolicy({}, self.predict)
-        policy.choose(self.state, self.moves)
-        self.assertEqual(policy.last_decision['source'], 'model')
-        self.assertIsNotNone(policy.last_decision['raw_selected'])
-        policy.choose(self.state, self.moves[:1])
-        self.assertEqual(policy.last_decision['reason'], 'single_option')
-        self.state['opponent']['hero']['damage'] = 29
-        policy.choose(self.state, self.moves)
-        self.assertEqual(policy.last_decision['reason'], 'lethal')
-        self.assertEqual(policy.fallbacks, 0)
-        self.assertEqual(sum(policy.decision_counts.values()), 3)
-
-    def test_nan_probability_is_a_recorded_fallback(self):
-        def bad(*args):
-            return {'answers': {'action': {'probabilities': {'c0': float('nan')}}}}
-        policy = LayaPolicy({}, bad)
-        policy.choose(self.state, self.moves)
-        self.assertEqual(policy.last_decision['reason'], 'model_error')
-        self.assertEqual(policy.fallbacks, 1)
-        self.assertIn('invalid model probability', policy.last_decision['error'])
-
-    def test_soft_preferences_break_near_ties_but_leave_all_moves_available(self):
-        policy = LayaPolicy({}, self.predict)
-        policy.rank = lambda *_: [1.36, 1.32, 1.32]
-        self.assertEqual(policy.allowed(self.state, self.moves), [0, 1, 2])
-        self.assertNotEqual(policy.choose(self.state, self.moves), 0)
-        self.assertTrue(policy.last_decision['preference_changed_pick'])
 
 
 class ConfigurationTests(unittest.TestCase):
     def test_profile_paths_are_relative_to_profile_and_deck_is_configurable(self):
         with tempfile.TemporaryDirectory() as folder:
             profile = Path(folder) / 'profile.json'
-            profile.write_text(json.dumps({'install': 'game', 'checkpoint': 'model', 'deck_id': '123'}), encoding='utf-8')
+            profile.write_text(json.dumps({'install': 'game', 'battle_net': 'launcher.exe', 'deck_id': '123'}), encoding='utf-8')
             with patch.multiple(cli, INSTALL=cli.INSTALL, BATTLE_NET=cli.BATTLE_NET,
-                                DECK_ID=cli.DECK_ID, CHECKPOINT=cli.CHECKPOINT):
+                                DECK_ID=cli.DECK_ID):
                 cli.configure(profile)
                 self.assertEqual(cli.INSTALL, (Path(folder) / 'game').resolve())
-                self.assertEqual(cli.CHECKPOINT, (Path(folder) / 'model').resolve())
+                self.assertEqual(cli.BATTLE_NET, (Path(folder) / 'launcher.exe').resolve())
                 self.assertEqual(cli.DECK_ID, '123')
 
     def test_unknown_profile_options_are_rejected(self):

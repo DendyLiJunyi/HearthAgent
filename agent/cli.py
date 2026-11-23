@@ -16,7 +16,7 @@ from . import geometry
 from .screen import (GameScreen, BattlefieldSettler, battlefield_signature, hand_signature, choice_signature,
                      average_rgb, region_signature)
 from .loop import Agent, RecordingInput, Stop
-from .policy import DEFAULT_CHECKPOINT, RulesPolicy, load_cards
+from .policy import RulesPolicy, load_cards
 from .power import PowerLog, candidates_from
 from .restart import RestartPlan, bring_to_front, close_game, parse_restart_every
 
@@ -26,7 +26,6 @@ INSTALL = Path(r'D:\Hearthstone')
 BATTLE_NET = Path(r'D:\Battle.net\Battle.net.exe')
 BATTLE_NET_LOGS = Path(os.environ.get('LOCALAPPDATA', '')) / 'Battle.net/Logs'
 DECK_ID = '9567872927'  # The player's 海盗战 deck, as Decks.log names it.
-CHECKPOINT = DEFAULT_CHECKPOINT
 # Fast trusts the log's animation queue, then checks only the pixels the next gesture touches.
 # Careful is exactly the earlier behavior, with whole-board stability and a 20-second opening wait.
 PACES = {
@@ -34,18 +33,19 @@ PACES = {
                            screen_timeout=8.0, backlog_limit=12, drain_timeout=6.0, recover=True, eager_decision=True,
                            button_timeout=60.0),  # Saved replays reach 24.6 s, and input must leave time to act.
              'strict_screen': False, 'choice_settle': 0.4, 'focus_settle': 0.12, 'focus_cap': 0.5},
-    'careful': {'agent': dict(settle=0.5, confirm_timeout=2.0, choice_timeout=5.0, lit_required=3, opening_delay=20.0),
+    'careful': {'agent': dict(settle=0.5, confirm_timeout=2.0, choice_timeout=5.0, lit_required=3,
+                             opening_delay=20.0, careful_input=True),
                 'strict_screen': True, 'choice_settle': 1.5, 'focus_settle': None, 'focus_cap': None},
 }
 
 
 def configure(path):
     """Load an explicit local profile; no implicit per-machine overrides."""
-    global INSTALL, BATTLE_NET, DECK_ID, CHECKPOINT
+    global INSTALL, BATTLE_NET, DECK_ID
     config = json.loads(Path(path).read_text(encoding='utf-8'))
-    allowed = {'install', 'battle_net', 'deck_id', 'checkpoint'}
+    allowed = {'install', 'battle_net', 'deck_id'}
     if not isinstance(config, dict) or set(config) - allowed:
-        raise ValueError('profile must contain only install, battle_net, deck_id, checkpoint')
+        raise ValueError('profile must contain only install, battle_net, deck_id')
     if any(not isinstance(v, str) or not v.strip() for v in config.values()):
         raise ValueError('profile values must be nonempty strings')
     base = Path(path).resolve().parent
@@ -56,7 +56,6 @@ def configure(path):
         return value.resolve() if value.is_absolute() else (base / value).resolve()
     INSTALL = local_path('install', INSTALL)
     BATTLE_NET = local_path('battle_net', BATTLE_NET)
-    CHECKPOINT = local_path('checkpoint', CHECKPOINT)
     DECK_ID = config.get('deck_id', DECK_ID)
 
 
@@ -310,8 +309,6 @@ def configure_deck(policy, args):
     if path:
         profile = load_profile(path, args.mode)
         policy.deck_profile = profile
-        if hasattr(policy, 'rules'):
-            policy.rules.deck_profile = profile
     return policy
 
 
@@ -378,8 +375,8 @@ def _play(args, cleanup):
         outcome = {'stopped': str(stop)}
     except KeyboardInterrupt:
         outcome = {'stopped': 'stopped from terminal (Ctrl+C)'}
-    outcome.update(mode=args.mode, policy=policy.name, checkpoint=getattr(policy, 'checkpoint', None), pace=args.pace,
-                   aggressive=args.aggressive, actions=agent.actions, model_fallbacks=getattr(policy, 'fallbacks', 0),
+    outcome.update(mode=args.mode, policy=policy.name, pace=args.pace,
+                   aggressive=args.aggressive, actions=agent.actions,
                    recoveries=agent.recoveries)
     print(json.dumps(outcome), flush=True)
     if record:
@@ -548,8 +545,7 @@ def run_loop(args):
     summary = lambda: {**outcome_counts(results), 'results': results, 'stopped': stopped, 'restarts': restarts,
                        'mode': args.mode, 'deck_id': args.deck_id,
                        'deck_profile': getattr(policy, 'deck_profile', {}).get('name'),
-                       'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
-                       'model_fallbacks': getattr(policy, 'fallbacks', 0)}
+                       'policy': policy.name}
     try:
         inputs = WindowsInput(window, current_window=game_window,
                               port=args.makcu_port, baud=args.makcu_baud)
@@ -623,8 +619,7 @@ def run_friend(args):
     folder = ROOT / '.data/live' / ('friend-' + time.strftime('%Y%m%d-%H%M%S'))
     results, stopped = [], None
     summary = lambda: {**outcome_counts(results), 'results': results, 'stopped': stopped, 'mode': 'friend',
-                       'policy': policy.name, 'checkpoint': getattr(policy, 'checkpoint', None),
-                       'model_fallbacks': getattr(policy, 'fallbacks', 0)}
+                       'policy': policy.name}
     try:
         inputs = WindowsInput(window, current_window=game_window,
                               port=args.makcu_port, baud=args.makcu_baud)
@@ -662,11 +657,9 @@ def run_friend(args):
 
 def recorded_game(agent, record, policy, mode, pace, number):
     """Play one game and save its outcome, however it ends. Returns the entry for the run's summary."""
-    shared = {'policy': policy.name, 'actions': agent.actions, 'pace': pace, 'mode': mode,
-              'checkpoint': getattr(policy, 'checkpoint', None)}
+    shared = {'policy': policy.name, 'actions': agent.actions, 'pace': pace, 'mode': mode}
     def finish(**outcome):
-        record.finish({**outcome, **shared, 'actions': agent.actions, 'recoveries': agent.recoveries,
-                       'model_fallbacks': getattr(policy, 'fallbacks', 0)})
+        record.finish({**outcome, **shared, 'actions': agent.actions, 'recoveries': agent.recoveries})
     try:
         result = agent.run_game()
     except KeyboardInterrupt:
@@ -741,7 +734,7 @@ def watch(args):
 
 
 def utf8_command(argv):
-    """Windows defaults to the system code page, which cannot read the model's UTF-8 config."""
+    """Windows defaults to the system code page, which cannot read UTF-8 project files."""
     return [sys.executable, '-X', 'utf8', '-m', 'agent.cli', *argv]
 
 

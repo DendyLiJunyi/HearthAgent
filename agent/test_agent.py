@@ -592,20 +592,8 @@ class AggressiveTests(unittest.TestCase):
         self.state = log.game.packet['state']
         self.moves = candidates_from(log.game.packet)
 
-    def laya(self, aggressive):
-        from agent.policy import LayaPolicy
 
-        def loves_trades(state, questions):
-            criteria = questions['action']['criteria']
-            return {'answers': {'action': {'probabilities': {
-                k: (0.97 if 'enemy minion' in v else 0.03 / max(len(criteria) - 1, 1)) for k, v in criteria.items()}}}}
-        return LayaPolicy({}, loves_trades, aggressive=aggressive)
 
-    def test_aggressive_laya_hits_face_even_if_it_prefers_a_trade(self):
-        self.assertEqual(self.moves[self.laya(True).choose(self.state, self.moves, {})]['target'], 20)
-
-    def test_normal_laya_may_still_trade(self):
-        self.assertEqual(self.moves[self.laya(False).choose(self.state, self.moves, {})]['target'], 40)
 
     def test_aggressive_rules_hit_face_over_a_clean_kill(self):
         from agent.policy import RulesPolicy
@@ -614,7 +602,8 @@ class AggressiveTests(unittest.TestCase):
 
     def test_taunt_still_allows_the_forced_trade(self):
         forced = [m for m in self.moves if m['target'] != 20]
-        picked = forced[self.laya(True).choose(self.state, forced, {})]
+        from agent.policy import RulesPolicy
+        picked = forced[RulesPolicy({}, aggressive=True).choose(self.state, forced, {})]
         self.assertEqual(picked['target'], 40)
 
 
@@ -668,16 +657,54 @@ class SessionTests(unittest.TestCase):
 
 
 class MultiGameTests(unittest.TestCase):
+    @staticmethod
+    def seeded_game(seed=1850):
+        rows = game_lines()
+        return rows[:3] + [power(f'tag=GAME_SEED value={seed}')] + rows[3:]
+
     def test_send_and_next_game_in_one_read_is_still_confirmed(self):
         harness = Harness(game_lines() + option_lines(), after_input=[send_line()] + game_lines())
         self.assertEqual(harness.settled_step(), 'acted')
 
     def test_new_game_without_a_send_stops_the_agent(self):
-        harness = Harness(game_lines() + option_lines(), after_input=game_lines())
+        harness = Harness(self.seeded_game() + option_lines(), after_input=self.seeded_game(1851))
         with self.assertRaisesRegex(Stop, 'new game'):
             harness.settled_step()
 
-    def test_choice_id_reused_in_the_next_game_is_still_answered(self):
+    def test_reconnect_replans_from_the_rebuilt_packet_without_retrying(self):
+        initial = self.seeded_game()
+        harness = Harness(initial + option_lines(), after_input=initial[:2])
+        self.assertEqual(harness.settled_step(), 'state_changed')
+        self.assertEqual(harness.agent.step(), 'reconnecting')
+        self.assertEqual(len(harness.inputs.gestures), 1)
+        harness.pending += initial[2:] + option_lines()
+        harness.after_input = [send_line()]
+        self.assertEqual(harness.settled_step(), 'acted')
+        self.assertEqual(len(harness.inputs.gestures), 2)
+        self.assertEqual(harness.agent.recoveries[0]['kind'], 'reconnect')
+
+    def test_unverified_reconnect_stops_after_time_limit(self):
+        initial = self.seeded_game()
+        harness = Harness(initial + option_lines(), after_input=initial[:2])
+        self.assertEqual(harness.settled_step(), 'state_changed')
+        harness.clock.now += 10
+        with self.assertRaisesRegex(Stop, 'could not be verified'):
+            harness.agent.step()
+        self.assertEqual(len(harness.inputs.gestures), 1)
+
+    def test_client_reconnect_warning_stops_old_input_before_snapshot_arrives(self):
+        initial = self.seeded_game()
+        warning = line('ReconnectIfStuck', 'Blocked more than 20s 8ms. Cause:')
+        harness = Harness(initial + option_lines(), after_input=[warning])
+        self.assertEqual(harness.settled_step(), 'state_changed')
+        harness.clock.now += 16
+        self.assertEqual(harness.agent.step(), 'reconnecting')
+        self.assertEqual(len(harness.inputs.gestures), 1)
+        harness.pending += initial + option_lines()
+        harness.after_input = [send_line()]
+        self.assertEqual(harness.settled_step(), 'acted')
+
+    def test_choice_id_reused_after_reconnect_is_still_answered(self):
         choice = [line('DebugPrintEntityChoices', f'id=1 Player={ME} TaskList=1 ChoiceType=MULLIGAN CountMin=0 CountMax=3')]
         for index, entity_id in enumerate((60, 61, 62)):
             choice.append(line('DebugPrintEntityChoices', f'  Entities[{index}]={bracket(entity_id, "HAND")}'))
@@ -688,66 +715,15 @@ class MultiGameTests(unittest.TestCase):
         class KeepAll(FirstAttack):
             def mulligan(self, entities, cards):
                 return []
-        harness = Harness(game_lines() + choice, after_input=chosen)
+        initial = self.seeded_game()
+        harness = Harness(initial + choice, after_input=initial + choice)
         harness.agent.policy = KeepAll()
-        self.assertEqual(harness.settled_step(), 'acted')
-        harness.pending += game_lines() + choice
+        self.assertEqual(harness.settled_step(), 'state_changed')
         harness.after_input = chosen
         self.assertEqual(harness.settled_step(), 'acted')
         self.assertEqual(len(harness.inputs.gestures), 2)
 
 
-class LayaPolicyTests(unittest.TestCase):
-    def setUp(self):
-        log = PowerLog()
-        for row in game_lines() + option_lines():
-            log.feed(row)
-        self.packet = log.game.packet
-        self.candidates = candidates_from(self.packet)
-        self.cards = {}
-
-    def policy(self, predict):
-        from agent.policy import LayaPolicy
-        return LayaPolicy(self.cards, predict)
-
-    def prefers(self, wanted):
-        """A fake model that favors one move wherever the order puts it."""
-        def predict(state, questions):
-            criteria = questions['action']['criteria']
-            count = len(criteria)
-            found = {k: (0.9 if wanted in v else 0.1 / max(count - 1, 1)) for k, v in criteria.items()}
-            return {'answers': {'action': {'probabilities': found}}}
-        return predict
-
-    def test_order_averaging_finds_the_same_move_in_any_order(self):
-        picked = self.policy(self.prefers('enemy minion')).choose(self.packet['state'], self.candidates, {})
-        self.assertEqual(self.candidates[picked]['target'], 40)
-
-    def test_position_biased_model_cannot_win_by_list_slot(self):
-        def first_slot(state, questions):
-            count = len(questions['action']['criteria'])
-            return {'answers': {'action': {'probabilities': {f'c{i}': (0.9 if i == 0 else 0.1 / (count - 1))
-                                                             for i in range(count)}}}}
-        totals = self.policy(first_slot).rank(self.packet['state'], self.candidates, {})
-        # The reversed order alone gives the last candidate one first-slot vote.
-        self.assertGreater(totals[-1], 0.9)
-
-    def test_model_failure_falls_back_to_rules(self):
-        def broken(state, questions):
-            raise RuntimeError('out of memory')
-        policy = self.policy(broken)
-        self.assertIn(policy.choose(self.packet['state'], self.candidates, {}), range(len(self.candidates)))
-        self.assertEqual(policy.fallbacks, 1)
-
-    def test_rules_take_over_on_lethal(self):
-        state = self.packet['state']
-        state['opponent']['hero']['damage'] = 28  # The 4-attack minion can now finish the game.
-        picked = self.policy(self.prefers('End your turn')).choose(state, self.candidates, {})
-        self.assertEqual(self.candidates[picked]['target'], 20)
-
-    def test_mulligan_and_choices_stay_with_rules(self):
-        policy = self.policy(lambda *_: self.fail('model must not be called'))
-        self.assertEqual(policy.mulligan([], {}), [])
 
 
 def ability_lines():
@@ -804,13 +780,11 @@ class AbilityTests(unittest.TestCase):
         self.assertEqual(len(harness.inputs.gestures), 2)  # The move once, then only the final cancel.
         self.assertEqual(harness.inputs.gestures[1], [('right_click', geometry.CANCEL_POINT)])
 
-    def test_rules_use_abilities_and_the_model_is_skipped(self):
-        from agent.policy import LayaPolicy, RulesPolicy
+    def test_rules_use_abilities(self):
+        from agent.policy import RulesPolicy
         candidates = candidates_from(self.packet)
         picked = RulesPolicy({}).choose(self.packet['state'], candidates, {})
         self.assertGreaterEqual(candidates[picked]['sub'], 0)
-        policy = LayaPolicy({}, lambda *_: self.fail('model must not rank abilities'))
-        self.assertGreaterEqual(candidates[policy.choose(self.packet['state'], candidates, {})]['sub'], 0)
 
 
 class FakeMenuInput(RecordingInput):
@@ -1128,28 +1102,7 @@ class BlunderTests(unittest.TestCase):
         moves = [self.END, self.spell(70, 30)]
         self.assertFalse(self.rules().is_blunder(state, self.END, moves))
 
-    def test_strong_model_preference_can_override_an_end_turn_heuristic(self):
-        from agent.policy import LayaPolicy
 
-        def loves_ending(state, questions):
-            criteria = questions['action']['criteria']
-            return {'answers': {'action': {'probabilities': {
-                k: (0.97 if 'End your turn' in v else 0.03 / max(len(criteria) - 1, 1)) for k, v in criteria.items()}}}}
-        state = self.state()
-        moves = [self.END, self.attack(20), self.attack(40)]
-        picked = moves[LayaPolicy(self.CARDS, loves_ending).choose(state, moves, {})]
-        self.assertEqual(picked['kind'], 'end_turn')
-
-    def test_model_still_chooses_among_safe_moves(self):
-        from agent.policy import LayaPolicy
-
-        def loves_minion_attack(state, questions):
-            criteria = questions['action']['criteria']
-            return {'answers': {'action': {'probabilities': {
-                k: (0.97 if 'enemy minion' in v else 0.03 / max(len(criteria) - 1, 1)) for k, v in criteria.items()}}}}
-        moves = [self.END, self.attack(20), self.attack(40)]
-        picked = moves[LayaPolicy(self.CARDS, loves_minion_attack).choose(self.state(), moves, {})]
-        self.assertEqual(picked['target'], 40)
 
 
 class ParserTests(unittest.TestCase):

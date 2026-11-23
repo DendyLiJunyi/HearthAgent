@@ -5,20 +5,112 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from tkinter import filedialog, ttk
 
 from .makcu import Makcu
 
 
 ROOT = Path(__file__).resolve().parents[1]
+SETTINGS_PATH = ROOT / '.data/control-panel.json'
 TASKS = {'接管当前对局': 'play', '循环对局': 'loop'}
 MODES = {'练习': 'practice', '狂野': 'wild', '标准': 'standard'}
 PACES = {'快速': 'fast', '谨慎': 'careful'}
+BAUD_RATES = ('自动', *map(str, Makcu.BAUD_RATES))
 BG, PANEL, FG, MUTED = '#101722', '#192534', '#eef4fb', '#a9bacd'
 ACCENT, LOG_BG = '#70dfc2', '#121c29'
 FONT = 'Microsoft YaHei UI'
+
+
+def read_record(path):
+    try:
+        value = json.loads(path.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def load_settings(path, defaults):
+    saved = read_record(path)
+    choices = {'task': TASKS, 'mode': MODES, 'pace': PACES, 'baud': BAUD_RATES}
+    return {key: saved[key] if isinstance(saved.get(key), str)
+            and (key not in choices or saved[key] in choices[key]) else default
+            for key, default in defaults.items()}
+
+
+def save_settings(path, options):
+    contents = json.dumps(options, ensure_ascii=False, indent=2) + '\n'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = NamedTemporaryFile(mode='w', encoding='utf-8', dir=path.parent, delete=False)
+    pending = Path(handle.name)
+    try:
+        with handle:
+            handle.write(contents)
+        pending.replace(path)
+    finally:
+        pending.unlink(missing_ok=True)
+
+
+def parse_record_period(start, end):
+    def parse(value):
+        value = value.strip()
+        if not value:
+            return None
+        try:
+            parsed = date.fromisoformat(value)
+            if parsed.isoformat() == value:
+                return parsed
+        except ValueError:
+            pass
+        raise ValueError('请输入 YYYY-MM-DD 格式的有效日期。')
+
+    start, end = parse(start), parse(end)
+    if start and end and start > end:
+        raise ValueError('开始日期不能晚于结束日期。')
+    return start, end
+
+
+def win_records(folder, mode, today, start=None, end=None):
+    """Count each completed game once, using the run summary only to recover older mode labels."""
+    total = [0, 0, 0]  # wins, losses, draws
+    daily = total.copy()
+    period = total.copy()
+    known_modes = {}
+    for path in folder.rglob('outcome.json'):
+        outcome = read_record(path)
+        result = outcome.get('result')
+        if outcome.get('stopped') or not isinstance(result, dict) or 'won' not in result:
+            continue
+        recorded_mode = outcome.get('mode')
+        if not recorded_mode and path.parent.parent != folder:
+            run = path.parent.parent
+            if run not in known_modes:
+                known_modes[run] = read_record(run / 'summary.json').get('mode')
+            recorded_mode = known_modes[run]
+        if recorded_mode != mode:
+            continue
+        won = result['won']
+        if won is not True and won is not False and won is not None:
+            continue
+        try:
+            played_on = datetime.fromtimestamp(path.stat().st_mtime).date()
+        except OSError:
+            continue
+        index = 0 if won is True else 1 if won is False else 2
+        total[index] += 1
+        if played_on == today:
+            daily[index] += 1
+        if (start or end) and (start is None or start <= played_on) and (end is None or played_on <= end):
+            period[index] += 1
+    return daily, total, period
+
+
+def format_record(counts):
+    wins, losses, draws = counts
+    games = sum(counts)
+    return f'{wins / games:.1%}  ·  {wins}胜 {losses}负 {draws}平' if games else '暂无战绩'
 
 
 def cli_command(options, *, status=False):
@@ -81,10 +173,18 @@ class ControlPanel:
         defaults = dict(task='接管当前对局', mode='练习', pace='快速', games='1',
                         config='config/agent.json' if (ROOT / 'config/agent.json').is_file() else '',
                         port='', baud='自动', deck='', menu='')
-        self.options = {key: tk.StringVar(root, value) for key, value in defaults.items()}
+        self.options = {key: tk.StringVar(root, value)
+                        for key, value in load_settings(SETTINGS_PATH, defaults).items()}
         self.run_status = tk.StringVar(root, '待机')
         self.device_status = tk.StringVar(root, '待检测')
         self.game_status = tk.StringVar(root, '待查询')
+        self.daily_record = tk.StringVar(root)
+        self.total_record = tk.StringVar(root)
+        self.period_start = tk.StringVar(root)
+        self.period_end = tk.StringVar(root)
+        self.period_record = tk.StringVar(root)
+        self.period_error = tk.StringVar(root)
+        self.record_period = None, None
 
         header = tk.Frame(root, bg=BG)
         header.pack(fill='x', padx=24, pady=(18, 12))
@@ -109,7 +209,7 @@ class ControlPanel:
 
         self.label(settings, 'MAKCU', 13, bold=True).grid(row=8, columnspan=3, sticky='w', pady=(12, 4))
         self.field(settings, 9, '串口（可空）', 'port')
-        self.field(settings, 10, '波特率', 'baud', ('自动', *map(str, Makcu.BAUD_RATES)))
+        self.field(settings, 10, '波特率', 'baud', BAUD_RATES)
         self.probe = ttk.Button(settings, text='检测 MAKCU', command=self.check_device)
         self.probe.grid(row=11, columnspan=3, sticky='ew', pady=(8, 7))
         actions = tk.Frame(settings, bg=PANEL)
@@ -119,6 +219,8 @@ class ControlPanel:
         self.start.grid(row=0, column=0, sticky='ew', padx=(0, 7))
         self.stop = ttk.Button(actions, text='停止任务', command=self.stop_task)
         self.stop.grid(row=0, column=1, sticky='ew')
+        self.save = ttk.Button(settings, text='保存设置', command=self.save_current_settings)
+        self.save.grid(row=13, columnspan=3, sticky='ew', pady=(7, 0))
 
         workspace = tk.Frame(body, bg=BG)
         workspace.pack(side='left', fill='both', expand=True)
@@ -133,6 +235,30 @@ class ControlPanel:
             self.label(card, title, color=MUTED).pack(anchor='w')
             tk.Label(card, textvariable=value, bg=PANEL, fg=ACCENT, font=(FONT, 11, 'bold'),
                      wraplength=158, justify='left').pack(anchor='w', pady=(4, 1))
+
+        results = tk.Frame(workspace, bg=PANEL, padx=13, pady=9)
+        results.pack(fill='x', pady=(0, 12))
+        results.columnconfigure((0, 1), weight=1, uniform='record')
+        self.record_title = self.label(results, '胜率记录', 12, bold=True)
+        self.record_title.grid(row=0, columnspan=2, sticky='w', pady=(0, 4))
+        for column, (title, value) in enumerate((('今日', self.daily_record), ('累计', self.total_record))):
+            self.label(results, title, color=MUTED).grid(row=1, column=column, sticky='w')
+            tk.Label(results, textvariable=value, bg=PANEL, fg=ACCENT, font=(FONT, 11, 'bold')).grid(
+                row=2, column=column, sticky='w', pady=(2, 0))
+        dates = tk.Frame(results, bg=PANEL)
+        dates.grid(row=3, columnspan=2, sticky='w', pady=(8, 0))
+        self.label(dates, '日期（YYYY-MM-DD）', color=MUTED).pack(side='left', padx=(0, 6))
+        for variable in (self.period_start, self.period_end):
+            if variable is self.period_end:
+                self.label(dates, '至', color=MUTED).pack(side='left', padx=4)
+            entry = ttk.Entry(dates, textvariable=variable, width=12)
+            entry.pack(side='left')
+            entry.bind('<Return>', self.apply_record_period)
+        ttk.Button(dates, text='刷新', command=self.apply_record_period).pack(side='left', padx=(8, 0))
+        tk.Label(results, textvariable=self.period_record, bg=PANEL, fg=ACCENT, font=(FONT, 10)).grid(
+            row=4, columnspan=2, sticky='w', pady=(4, 0))
+        tk.Label(results, textvariable=self.period_error, bg=PANEL, fg='#ffadac', font=(FONT, 10)).grid(
+            row=5, columnspan=2, sticky='w')
 
         output = tk.Frame(workspace, bg=PANEL, padx=13, pady=11)
         output.pack(fill='both', expand=True)
@@ -149,9 +275,11 @@ class ControlPanel:
         self.log.tag_configure('note', foreground=ACCENT)
         self.log.tag_configure('error', foreground='#ffadac')
         self.options['task'].trace_add('write', self.update_controls)
+        self.options['mode'].trace_add('write', self.refresh_win_records)
         for key in ('port', 'baud'):
             self.options[key].trace_add('write', lambda *_: self.device_status.set('待检测'))
         self.update_controls()
+        self.refresh_win_records()
         root.after(60, self.poll)
 
     @staticmethod
@@ -184,9 +312,37 @@ class ControlPanel:
             field_enabled = enabled and (task == 'loop' or key not in ('games', 'deck', 'menu'))
             for widget in widgets:
                 widget.state(['!disabled' if field_enabled else 'disabled'])
-        for widget in (self.start, self.refresh, self.probe):
+        for widget in (self.start, self.refresh, self.probe, self.save):
             widget.state(['!disabled' if enabled else 'disabled'])
         self.stop.state(['!disabled' if self.process and not self.stopping else 'disabled'])
+
+    def save_current_settings(self):
+        try:
+            save_settings(SETTINGS_PATH, {key: value.get() for key, value in self.options.items()})
+        except OSError as error:
+            self.append(f'保存设置失败：{error}', 'error')
+            return
+        self.append('设置已保存，下次打开中控时会自动恢复。', 'note')
+
+    def apply_record_period(self, *_):
+        try:
+            self.record_period = parse_record_period(self.period_start.get(), self.period_end.get())
+        except ValueError as error:
+            self.period_error.set(str(error))
+            return
+        self.period_error.set('')
+        self.refresh_win_records()
+
+    def refresh_win_records(self, *_):
+        label = self.options['mode'].get()
+        self.record_date = date.today()
+        start, end = self.record_period
+        daily, total, period = win_records(ROOT / '.data/live', MODES[label], self.record_date, start, end)
+        self.record_title.configure(text=f'胜率记录 · {label}')
+        self.daily_record.set(format_record(daily))
+        self.total_record.set(format_record(total))
+        self.period_record.set(f'{start or "最早"} 至 {end or "最新"}  ·  {format_record(period)}'
+                               if start or end else '填写起止日期可筛选战绩，单边可留空。')
 
     def edit_log(self, operation):
         self.log.configure(state='normal')
@@ -264,6 +420,7 @@ class ControlPanel:
             self.update_controls()
 
     def poll(self):
+        refresh_records = self.record_date != date.today()
         for _ in range(200):
             try:
                 kind, value = self.events.get_nowait()
@@ -271,10 +428,12 @@ class ControlPanel:
                 break
             if kind == 'line':
                 self.append(value)
+                refresh_records |= value.startswith('Session saved to ')
                 if self.operation == 'status':
                     self.display_game(value)
                 continue
             elif kind == 'exit':
+                refresh_records = True
                 self.process.stdin.close()
                 self.process = None
                 self.run_status.set('已停止' if self.stopping else '已完成' if value == 0 else '运行失败')
@@ -291,6 +450,8 @@ class ControlPanel:
         if self.closing and self.operation is None:
             self.root.destroy()
             return
+        if refresh_records:
+            self.refresh_win_records()
         self.root.after(60, self.poll)
 
     def display_game(self, line):
